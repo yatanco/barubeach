@@ -1,0 +1,324 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import WhatsAppButton from '../components/WhatsAppButton.astro';
+import DayTripForm from '../components/DayTripForm.tsx';
+
+const WA_TRIP = 'https://wa.me/573163946401?text=' + encodeURIComponent('Hi, I am interested in planning a private day trip at Baru Beach House.');
+---
+
+<Layout
+  title="Private Day Trip to Barú — Baru Beach House"
+  description="A private day at Baru Beach House on Isla Barú. Transport from Cartagena, fresh Caribbean lunch, private beach, no shared tours. Ideal for groups, families, and celebrations."
+  lang="en"
+>
+  <Header lang="en" page="daytrip" />
+
+  <!-- ─────────────────────── HERO ─────────────────────── -->
+  <section class="relative min-h-[80vh] flex items-end pb-20 md:items-center md:pb-0">
+    <!-- Real Baru Beach House photo -->
+    <img
+      src="/images/IMG_1213-768x511.webp"
+      alt="Private beach at Baru Beach House for a day trip"
+      class="absolute inset-0 w-full h-full object-cover"
+    />
+    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10"></div>
+    <div class="relative z-10 w-full max-w-4xl mx-auto px-6 text-white">
+      <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-4">Private Day Trip · Barú</p>
+      <h1 class="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight mb-5">
+        Private Day Trip to Barú —<br class="hidden sm:block" />
+        Just Your Group
+      </h1>
+      <p class="text-base sm:text-lg text-white/85 max-w-2xl mb-10 leading-relaxed">
+        Spend the day at Baru Beach House — a private beach house in Barú with transport, food, and space to actually relax or celebrate. No shared tours. No loud beach clubs. Just your people and the sea.
+      </p>
+      <a
+        href={WA_TRIP}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-7 py-4 rounded-full text-sm sm:text-base font-medium hover:opacity-90 transition shadow-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Plan your day on WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── THE PRIVATE VERSION ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Why this is different</p>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">The private version of Barú</h2>
+        <p class="text-ink/70 text-base leading-relaxed mb-5">
+          Barú is beautiful. But most day trips from Cartagena are not very relaxing. Crowded beaches. Loud music. Vendors every few minutes. Fixed schedules. Shared spaces. A feeling that you are always being moved from one place to another.
+        </p>
+        <p class="text-ink/70 text-base leading-relaxed">
+          Baru Beach House is different. Here, your group gets a private beach house as your home base for the day. You can swim, eat, rest, celebrate, listen to music, take photos, or simply do nothing for a while. No rush. No crowds. No pressure. Just your people, the sea, good food, and a house where you can actually settle in.
+        </p>
+      </div>
+      <!-- Real Baru Beach House photo -->
+      <img
+        src="/images/IMG_0924-1536x1152.webp"
+        alt="Private beach access at Baru Beach House"
+        class="rounded-3xl w-full aspect-[4/3] object-cover"
+      />
+    </div>
+  </section>
+
+  <!-- ─────────────────────── WHAT YOU ARE BOOKING ─────────────────────── -->
+  <section class="py-20 bg-ocean/5">
+    <div class="max-w-3xl mx-auto px-6 text-center">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">What you are really booking</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">A private space, not a tour</h2>
+      <p class="text-ink/70 text-base sm:text-lg leading-relaxed">
+        You are not booking a tour. You are booking a private space for the day. A place where your group can arrive, leave your things safely, eat comfortably, use the bathroom, rest in the shade, play music, celebrate, and enjoy Barú without having to fight for space.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── WHAT PEOPLE LOVE ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">What people love</p>
+    <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">Heard from guests</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {[
+        '"It felt completely private."',
+        '"It was peaceful and beautiful."',
+        '"The food was one of the best parts."',
+        '"We could actually relax."',
+        '"The team made everything easy."',
+      ].map(quote => (
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-sand/20 flex items-center justify-center text-center text-sm text-ink/80 leading-relaxed">
+          {quote}
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ─────────────────────── WHAT IS INCLUDED ─────────────────────── -->
+  <section class="py-20 bg-ink text-white">
+    <div class="max-w-7xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">What is included</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">Everything you need for the day</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[
+          { icon: '🏠', text: 'Private access to the house for your group' },
+          { icon: '🚤', text: 'Transport from Cartagena' },
+          { icon: '🍹', text: 'Welcome drink on arrival' },
+          { icon: '🐟', text: 'Fresh Caribbean lunch prepared at the house' },
+          { icon: '🏖️', text: 'Beach access, hammocks, and shaded areas' },
+          { icon: '🚿', text: 'Bathrooms and social spaces' },
+          { icon: '👋', text: 'On-site support from Manuel and the team' },
+          { icon: '🎂', text: 'Help organizing birthdays or small celebrations' },
+          { icon: '✨', text: 'Optional upgrades: seafood, music, decoration' },
+        ].map(({ icon, text }) => (
+          <div class="flex items-start gap-4 bg-white/5 rounded-2xl p-5 border border-white/10">
+            <span class="text-2xl shrink-0">{icon}</span>
+            <p class="text-sm text-white/80">{text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── SIMPLE DAY ─────────────────────── -->
+  <section class="py-20">
+    <div class="max-w-3xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">The flow</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">A simple day, without stress</h2>
+      <div class="space-y-0">
+        {[
+          { time: 'Morning', desc: 'Pickup in Cartagena' },
+          { time: 'Arrival', desc: 'Welcome drink and time to settle in' },
+          { time: 'Daytime', desc: 'Swimming, music, hammocks, photos, or relaxing' },
+          { time: 'Midday', desc: 'Fresh lunch served at the house' },
+          { time: 'Afternoon', desc: 'Free time with your group' },
+          { time: 'Evening', desc: 'Return to Cartagena' },
+        ].map(({ time, desc }, i, arr) => (
+          <div class="flex gap-6 items-start">
+            <div class="flex flex-col items-center shrink-0">
+              <div class="w-10 h-10 rounded-full bg-ocean text-white flex items-center justify-center text-xs font-bold shrink-0">
+                {i + 1}
+              </div>
+              {i < arr.length - 1 && <div class="w-0.5 h-8 bg-ocean/20 mt-1"></div>}
+            </div>
+            <div class="pb-6">
+              <p class="text-xs text-sand uppercase tracking-wider font-medium">{time}</p>
+              <p class="text-ink/80 text-sm sm:text-base">{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── FOOD ─────────────────────── -->
+  <section class="py-20 bg-sand/10">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <!-- Replace with real Baru Beach House photo of food -->
+        <img
+          src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1200&q=80"
+          alt="Fresh Caribbean food served at Baru Beach House"
+          class="rounded-3xl w-full aspect-[4/3] object-cover"
+        />
+        <div>
+          <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Food</p>
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Something guests always mention</h2>
+          <p class="text-ink/70 text-base leading-relaxed mb-5">
+            Food is one of the things guests remember most. Lunch is prepared fresh at the house and served in a relaxed, family-style way.
+          </p>
+          <p class="text-ink/70 text-base leading-relaxed mb-6">
+            Options may include fresh fish, chicken, coconut rice, patacones, salad, fruit, fresh juice, and other Caribbean-style dishes.
+          </p>
+          <p class="text-ink/70 text-sm">
+            Seafood upgrades, lobster, birthday cakes, drinks, snacks, and special menus can be arranged in advance.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── CHOOSE YOUR DAY ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Choose your experience</p>
+    <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">Choose the kind of day you want</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {[
+        {
+          title: 'Relaxed Private Day',
+          tag: 'Most popular',
+          desc: 'For families, couples, and friends who want peaceful time by the sea.',
+          items: ['House + private beach', 'Fresh Caribbean lunch', 'Hammocks and shade', 'Team support all day'],
+          cta: WA_TRIP + encodeURIComponent(' I am interested in a relaxed private day.'),
+        },
+        {
+          title: 'Birthday or Celebration',
+          tag: 'Special occasions',
+          desc: 'Add music, drinks, cake, decoration, and an upgraded food experience.',
+          items: ['Everything in Relaxed Day', 'Birthday setup or decoration', 'Drinks package', 'Optional live music'],
+          cta: WA_TRIP + encodeURIComponent(' I am interested in a birthday or celebration day.'),
+        },
+        {
+          title: 'Premium Private Day',
+          tag: 'Elevated',
+          desc: 'Private boat transport, upgraded seafood, lobster, cocktails, and a longer day.',
+          items: ['Private boat from Cartagena', 'Lobster or seafood upgrade', 'Cocktails and drinks', 'DJ or live music'],
+          cta: WA_TRIP + encodeURIComponent(' I am interested in a premium private day.'),
+        },
+      ].map(({ title, tag, desc, items, cta }) => (
+        <div class="bg-white rounded-3xl border border-sand/20 shadow-sm p-7 flex flex-col">
+          <span class="inline-block text-xs font-medium text-ocean bg-ocean/10 px-3 py-1 rounded-full mb-4 self-start">{tag}</span>
+          <h3 class="font-serif text-xl font-semibold mb-3">{title}</h3>
+          <p class="text-sm text-ink/60 mb-5 flex-1">{desc}</p>
+          <ul class="space-y-2 mb-6">
+            {items.map(item => (
+              <li class="flex items-center gap-2 text-sm text-ink/70">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-ocean shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                {item}
+              </li>
+            ))}
+          </ul>
+          <a href={cta} target="_blank" rel="noopener noreferrer" class="text-center text-sm font-medium text-white bg-ocean rounded-xl py-3 hover:bg-ocean-dark transition-colors">
+            Ask about this day
+          </a>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ─────────────────────── VS BEACH CLUB ─────────────────────── -->
+  <section class="py-20 bg-ink/[0.03]">
+    <div class="max-w-3xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Why private?</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-8">Beach club or private beach house?</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl p-6 border border-sand/20">
+          <p class="font-semibold mb-4 text-sm uppercase tracking-wide text-ink/50">Beach Club</p>
+          <ul class="space-y-2 text-sm text-ink/60">
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Shared with strangers</li>
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Loud music and vendors</li>
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Fixed schedule</li>
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Fight for shade and space</li>
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Feels like a crowd</li>
+          </ul>
+        </div>
+        <div class="bg-ocean/5 rounded-2xl p-6 border border-ocean/20">
+          <p class="font-semibold mb-4 text-sm uppercase tracking-wide text-ocean">Baru Beach House</p>
+          <ul class="space-y-2 text-sm text-ink/70">
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Only your group</li>
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Peaceful, curated space</li>
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Your own rhythm</li>
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Private beach and house</li>
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Actually relaxing</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-center text-sm text-ink/50 mt-6">If you want a loud party beach club, there are cheaper options. If you want a private, relaxed, cared-for day in Barú, Baru Beach House is for you.</p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── WHO IS THIS FOR ─────────────────────── -->
+  <section class="py-20 max-w-3xl mx-auto px-6 text-center">
+    <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Who this is for</p>
+    <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-10">Ideal for</h2>
+    <div class="flex flex-wrap justify-center gap-3">
+      {[
+        'Groups of friends',
+        'Families',
+        'Birthdays',
+        'Couples traveling together',
+        'Small celebrations',
+        'Company or team days',
+        'Visitors who want Barú without crowds',
+        'People who value privacy and good food',
+      ].map(tag => (
+        <span class="bg-ocean/10 text-ocean text-sm font-medium px-4 py-2 rounded-full">{tag}</span>
+      ))}
+    </div>
+  </section>
+
+  <!-- ─────────────────────── PRICING ─────────────────────── -->
+  <section class="py-20 bg-sand/10">
+    <div class="max-w-3xl mx-auto px-6 text-center">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Pricing</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Get a custom quote</h2>
+      <p class="text-ink/70 text-base sm:text-lg leading-relaxed mb-8">
+        Baru Beach House is a private experience, not a per-person group tour. Price depends on group size, date, transport type, food and drinks, celebration setup, and optional extras.
+      </p>
+      <p class="text-ink/60 text-sm mb-8">
+        Send us your date, group size, and what kind of day you want. We'll get back to you fast.
+      </p>
+      <a
+        href={WA_TRIP}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-8 py-4 rounded-full text-base font-medium hover:opacity-90 transition shadow-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Get a quote on WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── DAY TRIP FORM ─────────────────────── -->
+  <section id="book" class="py-20 bg-ocean/5">
+    <div class="max-w-2xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Book a Day Trip</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-3">Send a day trip inquiry</h2>
+      <p class="text-center text-ink/60 text-sm mb-10">We'll reply on WhatsApp or email within a few hours.</p>
+      <div class="bg-white rounded-3xl shadow-sm border border-sand/20 p-6 sm:p-8">
+        <DayTripForm
+          accessKey={import.meta.env.PUBLIC_WEB3FORMS_ACCESS_KEY}
+          lang="en"
+          client:load
+        />
+      </div>
+    </div>
+  </section>
+
+  <Footer lang="en" />
+  <WhatsAppButton lang="en" page="daytrip" />
+</Layout>

@@ -1,0 +1,326 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import WhatsAppButton from '../../components/WhatsAppButton.astro';
+import DayTripForm from '../../components/DayTripForm.tsx';
+
+const WA_TRIP = 'https://wa.me/573163946401?text=' + encodeURIComponent('Hola, estoy interesado en planear un pasadía privado en Baru Beach House.');
+---
+
+<Layout
+  title="Pasadía Privado en Barú desde Cartagena — Baru Beach House"
+  description="Pasadía privado en Baru Beach House, Isla Barú. Transporte desde Cartagena, almuerzo caribeño fresco, playa privada. Sin tours compartidos. Ideal para grupos, familias y celebraciones."
+  lang="es"
+>
+  <Header lang="es" page="daytrip" />
+
+  <!-- ─────────────────────── HERO ─────────────────────── -->
+  <section class="relative min-h-[80vh] flex items-end pb-20 md:items-center md:pb-0">
+    <!-- Real Baru Beach House photo -->
+    <img
+      src="/images/IMG_1213-768x511.webp"
+      alt="Playa privada de Baru Beach House para un pasadía"
+      class="absolute inset-0 w-full h-full object-cover"
+    />
+    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10"></div>
+    <div class="relative z-10 w-full max-w-4xl mx-auto px-6 text-white">
+      <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-4">Pasadía Privado · Barú</p>
+      <h1 class="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight mb-3">
+        Pasadía privado en Barú
+      </h1>
+      <h2 class="text-xl sm:text-2xl font-light mb-5 text-white/90">
+        Una casa de playa solo para tu grupo
+      </h2>
+      <p class="text-base sm:text-lg text-white/85 max-w-2xl mb-10 leading-relaxed">
+        Disfruta un día completo en Baru Beach House — una casa de playa privada en Barú con espacio para relajarse, comer rico y celebrar sin el caos de los tours masivos. No es un beach club lleno de gente. Es un pasadía privado frente al mar.
+      </p>
+      <a
+        href={WA_TRIP}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-7 py-4 rounded-full text-sm sm:text-base font-medium hover:opacity-90 transition shadow-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Planea tu pasadía por WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── LA VERSIÓN PRIVADA ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Por qué es diferente</p>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">La versión privada de Barú</h2>
+        <p class="text-ink/70 text-base leading-relaxed mb-5">
+          Barú es hermoso. Pero la mayoría de los pasadías desde Cartagena no son muy relajantes. Playas llenas. Música a todo volumen. Vendedores a cada rato. Horarios fijos. Espacios compartidos. Una sensación de que siempre te están llevando de un lado a otro.
+        </p>
+        <p class="text-ink/70 text-base leading-relaxed">
+          Baru Beach House es diferente. Aquí, tu grupo tiene una casa de playa privada como base para el día. Puedes nadar, comer, descansar, celebrar, escuchar música, tomarte fotos o simplemente no hacer nada por un rato. Sin prisa. Sin multitudes. Sin presión. Solo tu gente, el mar, buena comida y una casa donde realmente puedes instalarte.
+        </p>
+      </div>
+      <!-- Real Baru Beach House photo -->
+      <img
+        src="/images/IMG_0924-1536x1152.webp"
+        alt="Acceso a la playa privada en Baru Beach House"
+        class="rounded-3xl w-full aspect-[4/3] object-cover"
+      />
+    </div>
+  </section>
+
+  <!-- ─────────────────────── QUÉ ESTÁS RESERVANDO ─────────────────────── -->
+  <section class="py-20 bg-ocean/5">
+    <div class="max-w-3xl mx-auto px-6 text-center">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Qué estás reservando realmente</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Un espacio privado, no un tour</h2>
+      <p class="text-ink/70 text-base sm:text-lg leading-relaxed">
+        No estás reservando un tour. Estás reservando un espacio privado para el día. Un lugar donde tu grupo puede llegar, dejar sus cosas con seguridad, comer cómodamente, usar el baño, descansar a la sombra, poner música, celebrar y disfrutar Barú sin tener que pelear por espacio.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── LO QUE MÁS LES GUSTA ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Lo que más les gusta</p>
+    <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">Lo que dicen los huéspedes</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {[
+        '"Se sintió completamente privado."',
+        '"Era tranquilo y hermoso."',
+        '"La comida fue una de las mejores partes."',
+        '"Pudimos realmente relajarnos."',
+        '"El equipo hizo todo fácil."',
+      ].map(quote => (
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-sand/20 flex items-center justify-center text-center text-sm text-ink/80 leading-relaxed">
+          {quote}
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ─────────────────────── QUÉ INCLUYE ─────────────────────── -->
+  <section class="py-20 bg-ink text-white">
+    <div class="max-w-7xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Qué incluye</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">Todo lo que necesitas para el día</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[
+          { icon: '🏠', text: 'Acceso privado a la casa para tu grupo' },
+          { icon: '🚤', text: 'Transporte desde Cartagena' },
+          { icon: '🍹', text: 'Bebida de bienvenida al llegar' },
+          { icon: '🐟', text: 'Almuerzo caribeño fresco preparado en la casa' },
+          { icon: '🏖️', text: 'Acceso a la playa, hamacas y zonas con sombra' },
+          { icon: '🚿', text: 'Baños y áreas sociales' },
+          { icon: '👋', text: 'Apoyo de Manuel y el equipo durante todo el día' },
+          { icon: '🎂', text: 'Ayuda para organizar cumpleaños o celebraciones' },
+          { icon: '✨', text: 'Extras opcionales: mariscos, música, decoración' },
+        ].map(({ icon, text }) => (
+          <div class="flex items-start gap-4 bg-white/5 rounded-2xl p-5 border border-white/10">
+            <span class="text-2xl shrink-0">{icon}</span>
+            <p class="text-sm text-white/80">{text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── UN DÍA SIN ESTRÉS ─────────────────────── -->
+  <section class="py-20">
+    <div class="max-w-3xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">El recorrido del día</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">Un día sencillo sin estrés</h2>
+      <div class="space-y-0">
+        {[
+          { time: 'Mañana', desc: 'Recogida en Cartagena' },
+          { time: 'Llegada', desc: 'Bebida de bienvenida y tiempo para instalarse' },
+          { time: 'Durante el día', desc: 'Baño de mar, música, hamacas, fotos o descanso' },
+          { time: 'Mediodía', desc: 'Almuerzo fresco servido en la casa' },
+          { time: 'Tarde', desc: 'Tiempo libre con tu grupo' },
+          { time: 'Noche', desc: 'Regreso a Cartagena' },
+        ].map(({ time, desc }, i, arr) => (
+          <div class="flex gap-6 items-start">
+            <div class="flex flex-col items-center shrink-0">
+              <div class="w-10 h-10 rounded-full bg-ocean text-white flex items-center justify-center text-xs font-bold shrink-0">
+                {i + 1}
+              </div>
+              {i < arr.length - 1 && <div class="w-0.5 h-8 bg-ocean/20 mt-1"></div>}
+            </div>
+            <div class="pb-6">
+              <p class="text-xs text-sand uppercase tracking-wider font-medium">{time}</p>
+              <p class="text-ink/80 text-sm sm:text-base">{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── COMIDA ─────────────────────── -->
+  <section class="py-20 bg-sand/10">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <!-- Replace with real Baru Beach House photo of food -->
+        <img
+          src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1200&q=80"
+          alt="Comida caribeña fresca servida en Baru Beach House"
+          class="rounded-3xl w-full aspect-[4/3] object-cover"
+        />
+        <div>
+          <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">La comida</p>
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Algo que los huéspedes siempre recuerdan</h2>
+          <p class="text-ink/70 text-base leading-relaxed mb-5">
+            La comida es de las cosas que más recuerdan los huéspedes. El almuerzo se prepara fresco en la casa y se sirve de manera relajada, al estilo familiar.
+          </p>
+          <p class="text-ink/70 text-base leading-relaxed mb-6">
+            Puede incluir pescado fresco, pollo, arroz con coco, patacones, ensalada, fruta, jugo natural y otros platos de cocina caribeña.
+          </p>
+          <p class="text-ink/70 text-sm">
+            Se puede pedir con anticipación: mariscos, langosta, tortas de cumpleaños, bebidas, snacks y menús especiales.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── ESCOGE TU DÍA ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Elige tu experiencia</p>
+    <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">Escoge el tipo de día que quieres</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {[
+        {
+          title: 'Pasadía Relajado',
+          tag: 'Más popular',
+          desc: 'Para familias, parejas y grupos de amigos que quieren un día tranquilo frente al mar.',
+          items: ['Casa + playa privada', 'Almuerzo caribeño fresco', 'Hamacas y zona de sombra', 'Equipo de apoyo todo el día'],
+          cta: WA_TRIP + encodeURIComponent(' Me interesa un pasadía relajado.'),
+        },
+        {
+          title: 'Cumpleaños o Celebración',
+          tag: 'Ocasiones especiales',
+          desc: 'Agrega música, bebidas, torta, decoración y una experiencia gastronómica especial.',
+          items: ['Todo en Pasadía Relajado', 'Decoración o montaje de cumpleaños', 'Paquete de bebidas', 'Música en vivo opcional'],
+          cta: WA_TRIP + encodeURIComponent(' Me interesa un pasadía de cumpleaños o celebración.'),
+        },
+        {
+          title: 'Pasadía Premium',
+          tag: 'Elevado',
+          desc: 'Lancha privada, mariscos premium, langosta, cócteles y un día más largo.',
+          items: ['Lancha privada desde Cartagena', 'Langosta o mariscos premium', 'Cócteles y bebidas', 'DJ o música en vivo'],
+          cta: WA_TRIP + encodeURIComponent(' Me interesa un pasadía premium.'),
+        },
+      ].map(({ title, tag, desc, items, cta }) => (
+        <div class="bg-white rounded-3xl border border-sand/20 shadow-sm p-7 flex flex-col">
+          <span class="inline-block text-xs font-medium text-ocean bg-ocean/10 px-3 py-1 rounded-full mb-4 self-start">{tag}</span>
+          <h3 class="font-serif text-xl font-semibold mb-3">{title}</h3>
+          <p class="text-sm text-ink/60 mb-5 flex-1">{desc}</p>
+          <ul class="space-y-2 mb-6">
+            {items.map(item => (
+              <li class="flex items-center gap-2 text-sm text-ink/70">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-ocean shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                {item}
+              </li>
+            ))}
+          </ul>
+          <a href={cta} target="_blank" rel="noopener noreferrer" class="text-center text-sm font-medium text-white bg-ocean rounded-xl py-3 hover:bg-ocean-dark transition-colors">
+            Preguntar por este día
+          </a>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ─────────────────────── VS BEACH CLUB ─────────────────────── -->
+  <section class="py-20 bg-ink/[0.03]">
+    <div class="max-w-3xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">¿Por qué privado?</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-8">¿Beach club o casa de playa privada?</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl p-6 border border-sand/20">
+          <p class="font-semibold mb-4 text-sm uppercase tracking-wide text-ink/50">Beach Club</p>
+          <ul class="space-y-2 text-sm text-ink/60">
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Compartido con desconocidos</li>
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Música fuerte y vendedores</li>
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Horario fijo</li>
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Pelear por sombra y espacio</li>
+            <li class="flex items-center gap-2"><span class="text-red-400">✕</span> Sensación de multitud</li>
+          </ul>
+        </div>
+        <div class="bg-ocean/5 rounded-2xl p-6 border border-ocean/20">
+          <p class="font-semibold mb-4 text-sm uppercase tracking-wide text-ocean">Baru Beach House</p>
+          <ul class="space-y-2 text-sm text-ink/70">
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Solo tu grupo</li>
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Espacio tranquilo y curado</li>
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Tu propio ritmo</li>
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> Playa y casa privada</li>
+            <li class="flex items-center gap-2"><span class="text-ocean">✓</span> De verdad relajante</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-center text-sm text-ink/50 mt-6">Si quieres un beach club animado, hay opciones más baratas. Si quieres un día privado, relajado y bien atendido en Barú, Baru Beach House es para ti.</p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── PARA QUIÉN ─────────────────────── -->
+  <section class="py-20 max-w-3xl mx-auto px-6 text-center">
+    <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Para quién es</p>
+    <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-10">Ideal para</h2>
+    <div class="flex flex-wrap justify-center gap-3">
+      {[
+        'Grupos de amigos',
+        'Familias',
+        'Cumpleaños',
+        'Parejas viajando juntas',
+        'Celebraciones pequeñas',
+        'Salidas de empresa o equipo',
+        'Visitantes que quieren Barú sin multitudes',
+        'Quienes valoran la privacidad y la buena comida',
+      ].map(tag => (
+        <span class="bg-ocean/10 text-ocean text-sm font-medium px-4 py-2 rounded-full">{tag}</span>
+      ))}
+    </div>
+  </section>
+
+  <!-- ─────────────────────── PRECIO ─────────────────────── -->
+  <section class="py-20 bg-sand/10">
+    <div class="max-w-3xl mx-auto px-6 text-center">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Precio</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Pide tu cotización</h2>
+      <p class="text-ink/70 text-base sm:text-lg leading-relaxed mb-8">
+        Baru Beach House es una experiencia privada, no un tour por persona. El precio depende del tamaño del grupo, la fecha, el tipo de transporte, la comida, la configuración de la celebración y los extras opcionales.
+      </p>
+      <p class="text-ink/60 text-sm mb-8">
+        Cuéntanos tu fecha, cuántos son y qué tipo de día quieres. Te respondemos rápido.
+      </p>
+      <a
+        href={WA_TRIP}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-8 py-4 rounded-full text-base font-medium hover:opacity-90 transition shadow-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Pedir cotización por WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── FORMULARIO PASADÍA ─────────────────────── -->
+  <section id="book" class="py-20 bg-ocean/5">
+    <div class="max-w-2xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Reserva tu pasadía</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-3">Envía una consulta de pasadía</h2>
+      <p class="text-center text-ink/60 text-sm mb-10">Te respondemos por WhatsApp o correo en pocas horas.</p>
+      <div class="bg-white rounded-3xl shadow-sm border border-sand/20 p-6 sm:p-8">
+        <DayTripForm
+          accessKey={import.meta.env.PUBLIC_WEB3FORMS_ACCESS_KEY}
+          lang="es"
+          client:load
+        />
+      </div>
+    </div>
+  </section>
+
+  <Footer lang="es" />
+  <WhatsAppButton lang="es" page="daytrip" />
+</Layout>

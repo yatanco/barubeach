@@ -1,0 +1,348 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import WhatsAppButton from '../../components/WhatsAppButton.astro';
+import BookingForm from '../../components/BookingForm.tsx';
+
+const WA_STAY = 'https://wa.me/573163946401?text=' + encodeURIComponent('Hola, estoy interesado en planear una estadía en Baru Beach House.');
+---
+
+<Layout
+  title="Baru Beach House — Casa de Playa Privada en Barú, Colombia"
+  description="Una casa de playa privada en Isla Barú cerca de Cartagena. 80 metros de playa privada, sin vendedores, sin multitudes. Servicio completo y privacidad total."
+  lang="es"
+>
+  <Header lang="es" page="stay" />
+
+  <!-- ─────────────────────── HERO ─────────────────────── -->
+  <section class="relative min-h-[88vh] flex items-end pb-20 md:items-center md:pb-0">
+    <!-- Real Baru Beach House photo -->
+    <img
+      src="/images/sunset.webp"
+      alt="Atardecer en la playa privada de Baru Beach House"
+      class="absolute inset-0 w-full h-full object-cover"
+    />
+    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10"></div>
+    <div class="relative z-10 w-full max-w-4xl mx-auto px-6 text-white">
+      <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-4">Barú · Colombia</p>
+      <h1 class="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold leading-none mb-5">
+        Baru Beach House
+      </h1>
+      <h2 class="text-lg sm:text-xl md:text-2xl font-light mb-3 max-w-xl">
+        Una casa de playa privada para desconectarse en Barú
+      </h2>
+      <p class="text-sm sm:text-base text-white/80 mb-2 max-w-lg">
+        Tranquila, natural y rodeada de mar — sin multitudes, solo tu grupo.
+      </p>
+      <p class="text-xs sm:text-sm text-white/60 uppercase tracking-wider mb-10">
+        80 metros de playa privada &middot; servicio completo &middot; privacidad total
+      </p>
+      <a
+        href={WA_STAY}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-7 py-4 rounded-full text-sm sm:text-base font-medium hover:opacity-90 transition shadow-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Planea tu estadía por WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── NO ES UN HOTEL ─────────────────────── -->
+  <section class="py-20 max-w-3xl mx-auto px-6 text-center">
+    <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Lo que es este lugar</p>
+    <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Baru Beach House no es un hotel</h2>
+    <p class="text-ink/70 text-base sm:text-lg leading-relaxed">
+      No es un beach club ni un hotel. Es una casa de playa privada diseñada para quienes quieren desacelerar, desconectarse y vivir la naturaleza sin distracciones.
+      Sin beach clubs. Sin vendedores. Sin multitudes. Solo tu grupo, el océano y el tiempo para relajarse.
+    </p>
+  </section>
+
+  <!-- ─────────────────────── FOTO STRIP ─────────────────────── -->
+  <section class="px-4 sm:px-6 pb-16">
+    <div class="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3">
+      <!-- Real Baru Beach House photos -->
+      <img src="/images/IMG_1195-1536x1152.webp" alt="Playa privada en Baru Beach House" class="rounded-2xl w-full aspect-square object-cover" />
+      <img src="/images/IMG_1011-1536x863.webp" alt="Exterior de la casa de playa" class="rounded-2xl w-full aspect-square object-cover" />
+      <img src="/images/IMG_1216-1536x1152.webp" alt="Vista al mar desde la casa" class="rounded-2xl w-full aspect-square object-cover" />
+      <img src="/images/IMG_5390-1536x1024.webp" alt="Acceso a la playa en Baru Beach House" class="rounded-2xl w-full aspect-square object-cover" />
+    </div>
+  </section>
+
+  <!-- ─────────────────────── RESEÑAS ─────────────────────── -->
+  <section id="reviews" class="py-20 bg-ink/[0.03]">
+    <div class="max-w-7xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Lo que dicen los huéspedes</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-12">Adorado por quienes se quedan</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {[
+          { quote: 'Un lugar increíblemente hermoso y tranquilo, ideal para desconectarse.', name: 'Huésped Airbnb' },
+          { quote: 'Un pedacito de paraíso… queremos volver.', name: 'Huésped Booking.com' },
+          { quote: 'Perfecto para relajarse y desconectarse de todo.', name: 'Reseña de Google' },
+          { quote: 'La comida fue mejor que en muchos restaurantes.', name: 'Huésped Airbnb' },
+        ].map(({ quote, name }) => (
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-sand/20 flex flex-col gap-4">
+            <div class="flex gap-0.5">
+              {Array.from({ length: 5 }).map(() => (
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-sand" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+              ))}
+            </div>
+            <p class="text-ink/80 text-sm leading-relaxed flex-1">"{quote}"</p>
+            <p class="text-xs text-ink/40 font-medium">{name}</p>
+          </div>
+        ))}
+      </div>
+      <p class="text-center text-sm text-ink/50 mt-8">Muy bien valorado en Airbnb, Booking.com y Google.</p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── LA EXPERIENCIA ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <!-- Real Baru Beach House photo -->
+      <img
+        src="/images/IMG_1205-1536x1152.webp"
+        alt="El equipo de Baru Beach House atendiendo huéspedes"
+        class="rounded-3xl w-full aspect-[4/3] object-cover"
+      />
+      <div>
+        <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">La experiencia</p>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Te cuidan desde que llegas</h2>
+        <p class="text-ink/70 text-base leading-relaxed mb-6">
+          Te cuidan desde el momento en que llegas. Manuel y el equipo de la casa te ayudan con el transporte, las comidas, la logística y todo lo que necesites durante tu estadía.
+        </p>
+        <p class="text-ink/70 text-base leading-relaxed">
+          La comida caribeña fresca se prepara en el lugar, y muchos huéspedes dicen que es uno de los momentos más especiales de la experiencia.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── UN DÍA EN LA CASA ─────────────────────── -->
+  <section class="py-20 bg-ocean/5">
+    <div class="max-w-3xl mx-auto px-6 text-center">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">El ritmo</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12">Un día en Baru Beach House</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+        {[
+          { icon: '🌅', text: 'Despertarse con el sonido del mar' },
+          { icon: '🌊', text: 'Nadar, descansar, leer, desconectarse' },
+          { icon: '🐟', text: 'Comer rico, fresco y sencillo' },
+          { icon: '🌇', text: 'Ver el atardecer' },
+          { icon: '🌙', text: 'Dormir con el sonido de las olas' },
+          { icon: '✨', text: 'Sin horarios. Sin presión.' },
+        ].map(({ icon, text }) => (
+          <div class="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 shadow-sm border border-sand/10">
+            <span class="text-2xl">{icon}</span>
+            <p class="text-sm sm:text-base text-ink/80">{text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── LA CASA ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">La casa</p>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Sencilla, cómoda y totalmente integrada con la naturaleza</h2>
+        <ul class="space-y-3">
+          {[
+            '3 habitaciones, hasta 8 huéspedes',
+            'Cada habitación con baño privado',
+            'Amplias áreas sociales',
+            'Acceso directo a la playa privada',
+            'Wi-Fi con Starlink',
+            'Ventiladores en todas las habitaciones',
+          ].map(item => (
+            <li class="flex items-start gap-3 text-ink/70 text-sm sm:text-base">
+              <span class="text-ocean mt-1 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              </span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Real Baru Beach House photos -->
+        <img src="/images/masterbedroom.webp" alt="Habitación principal en Baru Beach House" class="rounded-2xl w-full aspect-[4/3] object-cover" />
+        <img src="/images/twinbedroom.webp" alt="Habitación twin en Baru Beach House" class="rounded-2xl w-full aspect-[4/3] object-cover" />
+        <img src="/images/IMG_1206-1536x975.webp" alt="Área social en Baru Beach House" class="rounded-2xl w-full aspect-[4/3] object-cover col-span-2" />
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── QUÉ ESPERAR ─────────────────────── -->
+  <section class="py-20 bg-sand/10">
+    <div class="max-w-3xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Honestidad sobre lo que es</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-4">Qué esperar</h2>
+      <p class="text-ink/70 text-base leading-relaxed mb-8">
+        Baru Beach House es una casa de playa rústica en un entorno natural remoto. Eso es parte de lo que la hace especial, pero es importante entender qué esperar:
+      </p>
+      <ul class="space-y-3 mb-8">
+        {[
+          'Sin aire acondicionado — ventiladores y brisa del mar',
+          'Presencia de la naturaleza: insectos, condiciones del mar cambiantes, espacios abiertos',
+          'Algunas áreas de la casa son sencillas y no tienen estándar de hotel de lujo',
+          'El transporte requiere planificación: carro + lancha o lancha privada desde Cartagena',
+        ].map(item => (
+          <li class="flex items-start gap-3 text-ink/70 text-sm sm:text-base">
+            <span class="text-sand mt-1 shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            </span>
+            {item}
+          </li>
+        ))}
+      </ul>
+      <div class="bg-white rounded-2xl p-6 border border-sand/30">
+        <p class="text-ink/80 text-sm sm:text-base leading-relaxed">
+          <strong class="text-ink">Si buscas un hotel de lujo, este no es el lugar.</strong><br/>
+          Si buscas una experiencia tranquila, auténtica y privada en la naturaleza, lo vas a amar.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── UBICACIÓN ─────────────────────── -->
+  <section class="py-20 max-w-7xl mx-auto px-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4">Cómo llegar</p>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Ubicación y acceso</h2>
+        <p class="text-ink/70 text-base leading-relaxed mb-4">
+          Baru Beach House está ubicada en Barú, a aproximadamente 1–2 horas de Cartagena según el transporte. El recorrido es parte de la experiencia.
+        </p>
+        <p class="text-ink/70 text-base leading-relaxed mb-8">
+          Te ayudamos a coordinar todo, desde la recogida en Cartagena hasta la llegada a la casa.
+        </p>
+        <a
+          href="https://share.google/SHahHFkk8vXJIW7hH"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 border border-ocean/30 text-ocean px-5 py-3 rounded-full text-sm font-medium hover:bg-ocean/5 transition"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+          Ver en Google Maps
+        </a>
+      </div>
+      <!-- Real Baru Beach House photo -->
+      <img
+        src="/images/IMG_1222-768x512.webp"
+        alt="Vista aérea de la playa en Barú"
+        class="rounded-3xl w-full aspect-[4/3] object-cover"
+      />
+    </div>
+  </section>
+
+  <!-- ─────────────────────── PREGUNTAS FRECUENTES ─────────────────────── -->
+  <section id="faq" class="py-20 bg-ink/[0.02]">
+    <div class="max-w-3xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Preguntas</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">Preguntas frecuentes</h2>
+      <div class="space-y-4">
+        {[
+          {
+            q: '¿Qué tipo de lugar es Baru Beach House?',
+            a: 'Una casa de playa privada y rústica en un entorno natural. No es un hotel ni un resort de lujo. Está diseñada para huéspedes que quieren desconectarse, disfrutar de la privacidad y vivir un ritmo más tranquilo frente al mar.',
+          },
+          {
+            q: '¿Cómo se llega?',
+            a: 'Está ubicada en Barú — se necesita carro + lancha o lancha privada desde Cartagena. Te ayudamos a coordinar todo. El carro + lancha cuesta aproximadamente $200–250 USD solo de ida, dependiendo del tamaño del grupo. Una lancha privada cuesta alrededor de $300 USD solo de ida para hasta 10 personas. El último tramo siempre es en lancha.',
+          },
+          {
+            q: '¿Qué incluye la estadía?',
+            a: 'Uso privado de la casa, 80 metros de playa privada, servicio de limpieza, toallas y sábanas, y Wi-Fi con Starlink. La comida y el transporte se coordinan por separado.',
+          },
+          {
+            q: '¿Cómo funciona la comida?',
+            a: 'Paquete de comida caribeña: $50 USD/persona/día. Paquete de lujo con langosta: $80 USD/persona/día. Los huéspedes también pueden traer sus propios víveres.',
+          },
+          {
+            q: '¿Puedo traer mi propia comida y bebidas?',
+            a: 'Sí. Recomendamos comprar víveres en Cartagena antes de llegar.',
+          },
+          {
+            q: '¿Tienen aire acondicionado?',
+            a: 'No. La casa tiene ventilación natural y ventiladores. El diseño abierto y la brisa del mar mantienen el espacio fresco y agradable.',
+          },
+          {
+            q: '¿Hay Wi-Fi?',
+            a: 'Sí. Internet Starlink con energía de respaldo. Funciona bien para mensajes, trabajo y navegación.',
+          },
+          {
+            q: '¿Puedo ir solo por el día?',
+            a: 'Sí. Ofrecemos experiencias privadas de pasadía con transporte y almuerzo. Ver la página de Pasadía.',
+          },
+          {
+            q: '¿Qué actividades se pueden hacer?',
+            a: 'Paseos en lancha a las Islas del Rosario, esnórquel, visitas al Oceanario o al Aviario, caminatas en la naturaleza y música en vivo como una banda de papayera. Te ayudamos a organizar todo.',
+          },
+          {
+            q: '¿Cómo se reserva y se paga?',
+            a: 'Las reservas directas generalmente requieren un depósito con tarjeta o link de pago. El saldo restante se puede pagar en la casa en efectivo o con tarjeta. Las reservas de Airbnb se gestionan a través de Airbnb.',
+          },
+        ].map(({ q, a }) => (
+          <details class="group bg-white rounded-2xl border border-sand/20 overflow-hidden">
+            <summary class="flex items-center justify-between px-6 py-5 cursor-pointer list-none select-none font-medium text-sm sm:text-base text-ink/90 hover:text-ocean transition-colors">
+              {q}
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0 ml-4 text-sand transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </summary>
+            <div class="px-6 pb-5 text-sm sm:text-base text-ink/70 leading-relaxed border-t border-sand/20 pt-4">
+              {a}
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── FORMULARIO DE RESERVA ─────────────────────── -->
+  <section id="book" class="py-20 bg-ocean/5">
+    <div class="max-w-2xl mx-auto px-6">
+      <p class="text-sand text-xs uppercase tracking-widest font-medium mb-4 text-center">Reserva tu estadía</p>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-center mb-3">Envía una consulta de reserva</h2>
+      <p class="text-center text-ink/60 text-sm mb-10">Te respondemos por WhatsApp o correo en pocas horas.</p>
+      <div class="bg-white rounded-3xl shadow-sm border border-sand/20 p-6 sm:p-8">
+        <BookingForm
+          accessKey={import.meta.env.PUBLIC_WEB3FORMS_ACCESS_KEY}
+          lang="es"
+          client:load
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── CTA FINAL ─────────────────────── -->
+  <section class="py-24 relative overflow-hidden">
+    <!-- Real Baru Beach House photo -->
+    <img
+      src="/images/IMG_3784-1536x1024.webp"
+      alt="Vista hermosa de la playa en Baru Beach House"
+      class="absolute inset-0 w-full h-full object-cover"
+    />
+    <div class="absolute inset-0 bg-black/55"></div>
+    <div class="relative z-10 text-center text-white px-6 max-w-2xl mx-auto">
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-4">¿Listo para desconectarte?</h2>
+      <p class="text-white/80 mb-8 text-base sm:text-lg">
+        Escríbenos por WhatsApp y te ayudamos a planear la estadía perfecta.
+      </p>
+      <a
+        href={WA_STAY}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-8 py-4 rounded-full text-base font-medium hover:opacity-90 transition shadow-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Planea tu estadía por WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <Footer lang="es" />
+  <WhatsAppButton lang="es" page="stay" />
+</Layout>

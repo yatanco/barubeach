@@ -1,0 +1,155 @@
+---
+export interface Props {
+  lang?: 'en' | 'es';
+  page?: 'stay' | 'daytrip' | 'gallery' | 'confirm';
+}
+
+const { lang = 'en', page = 'stay' } = Astro.props;
+const isEs = lang === 'es';
+
+const stayPath = isEs ? '/es' : '/';
+const daytripPath = isEs ? '/es/pasadia' : '/daytrip';
+const galleryPath = '/gallery';
+
+// Alt-language equivalent of the current page
+const altLangPath = (() => {
+  if (page === 'daytrip') return isEs ? '/daytrip' : '/es/pasadia';
+  if (page === 'gallery') return '/gallery';
+  if (page === 'confirm') return isEs ? '/booking/confirm' : '/booking/confirm';
+  return isEs ? '/' : '/es';
+})();
+
+const nav = isEs
+  ? [
+      { label: 'Estadía', href: stayPath },
+      { label: 'Pasadía', href: daytripPath },
+      { label: 'Fotos', href: galleryPath },
+      { label: 'Reseñas', href: `${page === 'stay' || page === undefined ? stayPath : stayPath}#reviews` },
+      { label: 'Preguntas', href: `${stayPath}#faq` },
+    ]
+  : [
+      { label: 'Stay', href: stayPath },
+      { label: 'Day Trip', href: daytripPath },
+      { label: 'Gallery', href: galleryPath },
+      { label: 'Reviews', href: `${stayPath}#reviews` },
+      { label: 'FAQ', href: `${stayPath}#faq` },
+    ];
+
+const bookLabel = isEs ? 'Reservar' : 'Book';
+const bookHref = `${page === 'daytrip' ? daytripPath : stayPath}#book`;
+const altLangLabel = isEs ? 'EN' : 'ES';
+---
+
+<header
+  id="site-header"
+  class="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-sand/20 transition-shadow duration-200"
+>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+
+      <!-- Logo -->
+      <a href={stayPath} class="font-serif text-xl font-semibold text-ink hover:text-ocean transition-colors">
+        Baru Beach House
+      </a>
+
+      <!-- Desktop nav -->
+      <nav class="hidden lg:flex items-center gap-6">
+        {nav.map(({ label, href }) => (
+          <a
+            href={href}
+            class="text-sm font-medium text-ink/70 hover:text-ocean transition-colors"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+
+      <!-- Right actions -->
+      <div class="flex items-center gap-3">
+        <a
+          href={altLangPath}
+          class="hidden sm:inline-block text-xs font-medium border border-ink/20 px-2.5 py-1 rounded-full hover:border-ocean hover:text-ocean transition-colors"
+        >
+          {altLangLabel}
+        </a>
+        <a
+          href={bookHref}
+          class="hidden sm:inline-block bg-ocean text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-ocean-dark transition-colors"
+        >
+          {bookLabel}
+        </a>
+
+        <!-- Mobile burger -->
+        <button
+          id="mobile-menu-btn"
+          aria-label="Open menu"
+          class="lg:hidden flex flex-col gap-1.5 p-1"
+        >
+          <span class="block w-6 h-0.5 bg-ink transition-all" id="burger-1"></span>
+          <span class="block w-6 h-0.5 bg-ink transition-all" id="burger-2"></span>
+          <span class="block w-6 h-0.5 bg-ink transition-all" id="burger-3"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div
+    id="mobile-menu"
+    class="hidden lg:hidden border-t border-sand/20 bg-background/98"
+  >
+    <nav class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
+      {nav.map(({ label, href }) => (
+        <a
+          href={href}
+          class="text-base font-medium py-2 text-ink/80 hover:text-ocean transition-colors"
+        >
+          {label}
+        </a>
+      ))}
+      <div class="flex items-center gap-3 pt-3 mt-2 border-t border-sand/20">
+        <a
+          href={altLangPath}
+          class="text-xs font-medium border border-ink/20 px-2.5 py-1 rounded-full hover:border-ocean hover:text-ocean transition-colors"
+        >
+          {altLangLabel}
+        </a>
+        <a
+          href={bookHref}
+          class="bg-ocean text-white text-sm font-medium px-5 py-2 rounded-full hover:bg-ocean-dark transition-colors"
+        >
+          {bookLabel}
+        </a>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const btn = document.getElementById('mobile-menu-btn');
+  const menu = document.getElementById('mobile-menu');
+  const b1 = document.getElementById('burger-1');
+  const b2 = document.getElementById('burger-2');
+  const b3 = document.getElementById('burger-3');
+  let open = false;
+
+  btn?.addEventListener('click', () => {
+    open = !open;
+    menu?.classList.toggle('hidden', !open);
+    b1?.classList.toggle('rotate-45', open);
+    b1?.classList.toggle('translate-y-2', open);
+    b2?.classList.toggle('opacity-0', open);
+    b3?.classList.toggle('-rotate-45', open);
+    b3?.classList.toggle('-translate-y-2', open);
+  });
+
+  window.addEventListener('scroll', () => {
+    const header = document.getElementById('site-header');
+    if (!header) return;
+    if (window.scrollY > 10) {
+      header.classList.add('shadow-md');
+    } else {
+      header.classList.remove('shadow-md');
+    }
+  });
+</script>
