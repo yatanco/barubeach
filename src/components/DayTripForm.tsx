@@ -5,7 +5,7 @@ interface DayTripFormProps {
   lang?: 'en' | 'es';
 }
 
-type Status = 'idle' | 'submitting' | 'error';
+type Status = 'idle' | 'submitting' | 'error' | 'validation-error';
 
 const T = {
   en: {
@@ -18,6 +18,7 @@ const T = {
     submit: 'Send day trip inquiry',
     submitting: 'Sending…',
     error: 'Something went wrong. Please try again or message us on WhatsApp.',
+    required: 'Please fill in all required fields.',
     waFallback: 'Message us directly on WhatsApp',
     guestOptions: Array.from({ length: 20 }, (_, i) => `${i + 1} ${i === 0 ? 'guest' : 'guests'}`),
   },
@@ -31,6 +32,7 @@ const T = {
     submit: 'Enviar consulta de pasadía',
     submitting: 'Enviando…',
     error: 'Algo salió mal. Inténtalo de nuevo o escríbenos por WhatsApp.',
+    required: 'Por favor completa todos los campos requeridos.',
     waFallback: 'Escríbenos directamente por WhatsApp',
     guestOptions: Array.from({ length: 20 }, (_, i) => `${i + 1} ${i === 0 ? 'persona' : 'personas'}`),
   },
@@ -65,7 +67,7 @@ export default function DayTripForm({ accessKey, lang = 'en' }: DayTripFormProps
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!date || !name || !email || !phone) {
-      setStatus('error');
+      setStatus('validation-error');
       return;
     }
     setStatus('submitting');
@@ -186,6 +188,9 @@ export default function DayTripForm({ accessKey, lang = 'en' }: DayTripFormProps
         />
       </div>
 
+      {status === 'validation-error' && (
+        <p className="text-red-600 text-sm">{t.required}</p>
+      )}
       {status === 'error' && (
         <p className="text-red-600 text-sm">{t.error}</p>
       )}

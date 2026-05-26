@@ -5,7 +5,7 @@ interface BookingFormProps {
   lang?: 'en' | 'es';
 }
 
-type Status = 'idle' | 'submitting' | 'error';
+type Status = 'idle' | 'submitting' | 'error' | 'validation-error';
 
 const T = {
   en: {
@@ -69,7 +69,7 @@ export default function BookingForm({ accessKey, lang = 'en' }: BookingFormProps
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!checkin || !checkout || !name || !email || !phone) {
-      setStatus('error');
+      setStatus('validation-error');
       return;
     }
     setStatus('submitting');
@@ -206,6 +206,9 @@ export default function BookingForm({ accessKey, lang = 'en' }: BookingFormProps
         />
       </div>
 
+      {status === 'validation-error' && (
+        <p className="text-red-600 text-sm">{t.required}</p>
+      )}
       {status === 'error' && (
         <p className="text-red-600 text-sm">{t.error}</p>
       )}
