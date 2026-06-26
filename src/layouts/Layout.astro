@@ -11,7 +11,7 @@ const {
   title,
   description,
   canonical,
-  ogImage = '/images/sunset.webp',
+  ogImage = '/images/og-image.jpg',
   lang = 'en',
 } = Astro.props;
 
@@ -33,13 +33,13 @@ const ogImageURL = ogImage.startsWith('http') ? ogImage : new URL(ogImage, Astro
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:image" content={ogImageURL} />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Baru Beach House" />
+    <meta property="og:site_name" content="Casa Gaviota Baru" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageURL} />
 
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/images/logo.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -55,15 +55,14 @@ const ogImageURL = ogImage.startsWith('http') ? ogImage : new URL(ogImage, Astro
         rel="stylesheet"
       />
     </noscript>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y3SP3YNDE6"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
 
-  gtag('config', 'G-Y3SP3YNDE6');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y3SP3YNDE6"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-Y3SP3YNDE6');
+    </script>
   </head>
   <body class="bg-background text-ink font-sans antialiased">
     <slot />

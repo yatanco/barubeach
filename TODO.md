@@ -1,7 +1,20 @@
 # Phase 2 — Future Architecture
 
-This document tracks planned features for Phase 2 of barubeach.com.
-Phase 1 (marketing site + inquiry forms via Web3Forms) is complete.
+Phase 1 (marketing site + inquiry forms via Web3Forms → me@yatan.co) is complete and live at casagaviota.com.
+
+---
+
+## Availability & Calendar
+
+- [ ] **HostHub integration** — pull blocked dates from HostHub API on a schedule
+- [ ] **Push new direct bookings** to HostHub to block dates across platforms
+- [ ] **iCal feed** (`/api/calendar.ics`) for Airbnb / Booking.com / HostHub sync
+- [ ] **Conflict detection** before confirming a new booking
+- [ ] **Live availability calendar** widget on stay and day trip pages
+
+### Implementation
+- Cloudflare Scheduled Worker: runs every 15 minutes, polls HostHub, updates D1
+- Webhook from HostHub on new external bookings (if supported)
 
 ---
 
@@ -13,30 +26,16 @@ Phase 1 (marketing site + inquiry forms via Web3Forms) is complete.
 
 ---
 
-## Availability sync — HostHub
-
-- [ ] Pull blocked dates from HostHub API on a schedule
-- [ ] Push new direct bookings to HostHub to block dates
-- [ ] Expose an iCal feed (`/api/calendar.ics`) for Airbnb / Booking.com / HostHub
-- [ ] Bidirectional sync: respect existing bookings on all platforms
-- [ ] Conflict detection before confirming a new booking
-
-### Implementation
-- Cloudflare Scheduled Worker: runs every 15 minutes, polls HostHub, updates D1
-- Webhook from HostHub on new external bookings (if supported)
-
----
-
 ## Payments
 
 - [ ] **Stripe** — primary for international guests (credit/debit card)
-- [ ] **PayPal** — optional secondary
 - [ ] **MercadoPago** — for Colombian guests (PSE, Nequi, etc.)
+- [ ] **PayPal** — optional secondary
 
 ### Flow
-1. Guest selects dates → availability check against D1 (real-time Cloudflare Worker)
+1. Guest selects dates → availability check (real-time Cloudflare Worker)
 2. Guest fills in details → payment intent created server-side
-3. On payment success → booking saved to D1, HostHub updated, emails sent
+3. On payment success → booking saved to D1, HostHub updated, confirmation emails sent
 4. Deposit + balance split: deposit at booking, balance at house or before arrival
 
 ---
@@ -50,6 +49,14 @@ Phase 1 (marketing site + inquiry forms via Web3Forms) is complete.
 
 ---
 
+## CRM / Lead management — Supabase or Notion
+
+- [ ] Log every Web3Forms submission to a Supabase table (webhook → Worker)
+- [ ] Or push to Notion database as a fallback CRM
+- [ ] Dashboard view of all leads, their status, and follow-up notes
+
+---
+
 ## Admin panel
 
 - [ ] Simple password-protected admin at `/admin`
@@ -60,10 +67,8 @@ Phase 1 (marketing site + inquiry forms via Web3Forms) is complete.
 - [ ] Trigger manual sync
 - [ ] Mark bookings as paid / confirmed / cancelled
 
-### Tech
-- Cloudflare Pages with server-side rendering for admin routes
-- Session-based auth with a single admin password (stored as env var)
-- Or integrate with Cloudflare Access for zero-trust auth
+### Auth
+- Cloudflare Access (zero-trust, no code needed) or single admin password in env var
 
 ---
 
@@ -73,15 +78,13 @@ Phase 1 (marketing site + inquiry forms via Web3Forms) is complete.
 - [ ] **API Worker** — booking creation, availability check, payment webhooks
 - [ ] **D1 bindings** in `wrangler.toml`
 - [ ] **KV** — rate limiting, session tokens
-- [ ] **R2** — if storing uploaded photos or documents
 
 ---
 
-## Other
+## SEO & discoverability
 
 - [ ] Structured data (JSON-LD) for `LodgingBusiness` schema
 - [ ] `sitemap.xml` via `@astrojs/sitemap`
 - [ ] `robots.txt`
-- [ ] Google Analytics or Cloudflare Web Analytics
+- [ ] hreflang tags for EN/ES language alternates
 - [ ] WhatsApp Business API integration for automated reply / CRM logging
-- [ ] Multi-language SEO hreflang tags

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-interface DayTripFormProps {
+interface Props {
   accessKey: string;
   lang?: 'en' | 'es';
 }
@@ -10,63 +10,49 @@ type Status = 'idle' | 'submitting' | 'error' | 'validation-error';
 const T = {
   en: {
     date: 'Trip date',
-    guests: 'Group size',
+    guests: 'Number of guests',
     name: 'Full name',
     email: 'Email address',
-    phone: 'Phone / WhatsApp',
-    occasion: 'Occasion / notes (optional)',
+    phone: 'Phone / WhatsApp (optional)',
+    notes: 'Occasion or special requests (optional)',
     submit: 'Send day trip inquiry',
     submitting: 'Sending…',
-    error: 'Something went wrong. Please try again or message us on WhatsApp.',
+    error: 'Something went wrong. Please try again.',
     required: 'Please fill in all required fields.',
-    waFallback: 'Message us directly on WhatsApp',
-    guestOptions: Array.from({ length: 20 }, (_, i) => `${i + 1} ${i === 0 ? 'guest' : 'guests'}`),
+    or: 'Or chat directly on',
+    whatsapp: 'WhatsApp',
   },
   es: {
     date: 'Fecha del pasadía',
-    guests: 'Tamaño del grupo',
+    guests: 'Número de personas',
     name: 'Nombre completo',
     email: 'Correo electrónico',
-    phone: 'Teléfono / WhatsApp',
-    occasion: 'Ocasión / notas (opcional)',
+    phone: 'Teléfono / WhatsApp (opcional)',
+    notes: 'Ocasión o solicitudes especiales (opcional)',
     submit: 'Enviar consulta de pasadía',
     submitting: 'Enviando…',
-    error: 'Algo salió mal. Inténtalo de nuevo o escríbenos por WhatsApp.',
+    error: 'Algo salió mal. Inténtalo de nuevo.',
     required: 'Por favor completa todos los campos requeridos.',
-    waFallback: 'Escríbenos directamente por WhatsApp',
-    guestOptions: Array.from({ length: 20 }, (_, i) => `${i + 1} ${i === 0 ? 'persona' : 'personas'}`),
+    or: 'O escríbenos directamente por',
+    whatsapp: 'WhatsApp',
   },
 };
 
-export default function DayTripForm({ accessKey, lang = 'en' }: DayTripFormProps) {
+export default function DayTripForm({ accessKey, lang = 'en' }: Props) {
   const t = T[lang];
-  const waBaseMsg = lang === 'es'
-    ? 'Hola, estoy interesado en planear un pasadía privado en Baru Beach House.'
-    : 'Hi, I am interested in planning a private day trip at Baru Beach House.';
-
   const [date, setDate] = useState('');
   const [guests, setGuests] = useState('4');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [occasion, setOccasion] = useState('');
+  const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<Status>('idle');
 
   const today = new Date().toISOString().split('T')[0];
 
-  const waMessage = (() => {
-    let msg = waBaseMsg;
-    if (date) msg += ` Date: ${date}.`;
-    if (guests) msg += ` Group size: ${guests}.`;
-    if (occasion) msg += ` Occasion: ${occasion}.`;
-    return encodeURIComponent(msg);
-  })();
-
-  const waHref = `https://wa.me/573163946401?text=${waMessage}`;
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!date || !name || !email || !phone) {
+    if (!date || !name || !email) {
       setStatus('validation-error');
       return;
     }
@@ -78,13 +64,14 @@ export default function DayTripForm({ accessKey, lang = 'en' }: DayTripFormProps
         body: JSON.stringify({
           access_key: accessKey,
           subject: `New Day Trip Inquiry — ${name}`,
-          from_name: 'Baru Beach House Website',
-          trip_date: date,
+          from_name: 'Casa Gaviota Website',
+          experience: 'Day Trip',
+          date,
           guests,
           name,
           email,
           phone,
-          occasion,
+          notes,
         }),
       });
       const data = await res.json();
@@ -98,120 +85,74 @@ export default function DayTripForm({ accessKey, lang = 'en' }: DayTripFormProps
     }
   }
 
-  const inputClass =
-    'w-full rounded-xl border border-sand/40 bg-white px-4 py-3 text-sm text-ink placeholder-ink/40 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20 transition';
-  const labelClass = 'block text-sm font-medium text-ink/70 mb-1.5';
+  const inp = 'w-full rounded-xl border border-sand/40 bg-white px-4 py-3 text-sm text-ink placeholder-ink/40 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20 transition';
+  const lbl = 'block text-sm font-medium text-ink/70 mb-1.5';
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      {/* Date and group size */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="trip-date" className={labelClass}>{t.date} *</label>
-          <input
-            id="trip-date"
-            type="date"
-            min={today}
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            required
-            className={inputClass}
-          />
+          <label htmlFor="dt-date" className={lbl}>{t.date} *</label>
+          <input id="dt-date" type="date" min={today} value={date} onChange={e => setDate(e.target.value)} className={inp} required />
         </div>
         <div>
-          <label htmlFor="trip-guests" className={labelClass}>{t.guests} *</label>
-          <select
-            id="trip-guests"
-            value={guests}
-            onChange={e => setGuests(e.target.value)}
-            className={inputClass}
-          >
-            {t.guestOptions.map((opt, i) => (
-              <option key={i} value={String(i + 1)}>{opt}</option>
+          <label htmlFor="dt-guests" className={lbl}>{t.guests} *</label>
+          <select id="dt-guests" value={guests} onChange={e => setGuests(e.target.value)} className={inp}>
+            {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
+              <option key={n} value={String(n)}>{n}</option>
             ))}
           </select>
         </div>
       </div>
 
       <div>
-        <label htmlFor="trip-name" className={labelClass}>{t.name} *</label>
-        <input
-          id="trip-name"
-          type="text"
-          autoComplete="name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          required
-          className={inputClass}
-          placeholder="e.g. Carlos Reyes"
-        />
+        <label htmlFor="dt-name" className={lbl}>{t.name} *</label>
+        <input id="dt-name" type="text" autoComplete="name" value={name} onChange={e => setName(e.target.value)} className={inp} required />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="trip-email" className={labelClass}>{t.email} *</label>
-          <input
-            id="trip-email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-            className={inputClass}
-            placeholder="you@example.com"
-          />
+          <label htmlFor="dt-email" className={lbl}>{t.email} *</label>
+          <input id="dt-email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inp} required placeholder="you@example.com" />
         </div>
         <div>
-          <label htmlFor="trip-phone" className={labelClass}>{t.phone} *</label>
-          <input
-            id="trip-phone"
-            type="tel"
-            autoComplete="tel"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            required
-            className={inputClass}
-            placeholder="+57 300 000 0000"
-          />
+          <label htmlFor="dt-phone" className={lbl}>{t.phone}</label>
+          <input id="dt-phone" type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inp} placeholder="+57 300 000 0000" />
         </div>
       </div>
 
       <div>
-        <label htmlFor="trip-occasion" className={labelClass}>{t.occasion}</label>
+        <label htmlFor="dt-notes" className={lbl}>{t.notes}</label>
         <textarea
-          id="trip-occasion"
+          id="dt-notes"
           rows={3}
-          value={occasion}
-          onChange={e => setOccasion(e.target.value)}
-          className={inputClass + ' resize-none'}
-          placeholder={lang === 'es' ? 'Cumpleaños, aniversario, salida en familia, etc.' : 'Birthday, anniversary, family outing, etc.'}
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          className={inp + ' resize-none'}
+          placeholder={lang === 'es' ? 'Cumpleaños, aniversario, salida en familia…' : 'Birthday, anniversary, family outing…'}
         />
       </div>
 
-      {status === 'validation-error' && (
-        <p className="text-red-600 text-sm">{t.required}</p>
-      )}
-      {status === 'error' && (
-        <p className="text-red-600 text-sm">{t.error}</p>
-      )}
+      {status === 'validation-error' && <p className="text-red-600 text-sm">{t.required}</p>}
+      {status === 'error' && <p className="text-red-600 text-sm">{t.error}</p>}
 
       <button
         type="submit"
         disabled={status === 'submitting'}
-        className="w-full bg-ocean text-white font-medium py-4 rounded-xl hover:bg-ocean-dark disabled:opacity-60 transition-colors text-sm sm:text-base"
+        className="w-full bg-whatsapp text-white font-medium py-4 rounded-xl hover:opacity-90 disabled:opacity-60 transition-all text-sm sm:text-base"
       >
         {status === 'submitting' ? t.submitting : t.submit}
       </button>
 
       <p className="text-center text-sm text-ink/50">
-        {lang === 'es' ? 'o ' : 'or '}
+        {t.or}{' '}
         <a
-          href={waHref}
+          href="https://wa.me/573163946401?text=gaviotadaytrip"
           target="_blank"
           rel="noopener noreferrer"
           className="text-whatsapp font-medium hover:underline"
         >
-          {t.waFallback}
+          {t.whatsapp}
         </a>
       </p>
     </form>

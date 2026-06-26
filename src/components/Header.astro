@@ -1,155 +1,136 @@
 ---
-export interface Props {
+interface Props {
   lang?: 'en' | 'es';
-  page?: 'stay' | 'daytrip' | 'gallery' | 'confirm';
+  altHref?: string;
 }
 
-const { lang = 'en', page = 'stay' } = Astro.props;
-const isEs = lang === 'es';
+const { lang = 'en', altHref } = Astro.props;
+const isES = lang === 'es';
 
-const stayPath = isEs ? '/es' : '/';
-const daytripPath = isEs ? '/es/pasadia' : '/daytrip';
-const galleryPath = '/gallery';
+const altURL = altHref ?? (isES ? '/' : '/es');
 
-// Alt-language equivalent of the current page
-const altLangPath = (() => {
-  if (page === 'daytrip') return isEs ? '/daytrip' : '/es/pasadia';
-  if (page === 'gallery') return '/gallery';
-  if (page === 'confirm') return isEs ? '/booking/confirm' : '/booking/confirm';
-  return isEs ? '/' : '/es';
-})();
-
-const nav = isEs
+const nav = isES
   ? [
-      { label: 'Estadía', href: stayPath },
-      { label: 'Pasadía', href: daytripPath },
-      { label: 'Fotos', href: galleryPath },
-      { label: 'Reseñas', href: `${page === 'stay' || page === undefined ? stayPath : stayPath}#reviews` },
-      { label: 'Preguntas', href: `${stayPath}#faq` },
+      { href: '/es', label: 'Estadía' },
+      { href: '/es/pasadia', label: 'Pasadía' },
+      { href: '/gallery', label: 'Galería' },
+      { href: '/es/#faq', label: 'FAQ' },
     ]
   : [
-      { label: 'Stay', href: stayPath },
-      { label: 'Day Trip', href: daytripPath },
-      { label: 'Gallery', href: galleryPath },
-      { label: 'Reviews', href: `${stayPath}#reviews` },
-      { label: 'FAQ', href: `${stayPath}#faq` },
+      { href: '/', label: 'Stay' },
+      { href: '/daytrip', label: 'Day Trip' },
+      { href: '/gallery', label: 'Gallery' },
+      { href: '/#faq', label: 'FAQ' },
     ];
 
-const bookLabel = isEs ? 'Reservar' : 'Book';
-const bookHref = `${page === 'daytrip' ? daytripPath : stayPath}#book`;
-const altLangLabel = isEs ? 'EN' : 'ES';
+const waHref = 'https://wa.me/573163946401?text=gaviotastay';
+const waLabel = isES ? 'Planear por WhatsApp →' : 'Plan on WhatsApp →';
+const flagLabel = isES ? '🇬🇧' : '🇪🇸';
+const flagTitle = isES ? 'View in English' : 'Ver en español';
 ---
 
 <header
   id="site-header"
-  class="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-sand/20 transition-shadow duration-200"
+  class="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-sand/20"
 >
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6">
     <div class="flex items-center justify-between h-16">
 
       <!-- Logo -->
-      <a href={stayPath} class="font-serif text-xl font-semibold text-ink hover:text-ocean transition-colors">
-        Baru Beach House
+      <a href={isES ? '/es' : '/'} class="flex items-center gap-2.5 flex-shrink-0">
+        <img src="/images/logo.png" alt="Casa Gaviota Baru" class="h-8 w-auto" />
+        <span class="font-serif font-semibold text-ink text-sm hidden sm:block">Casa Gaviota</span>
       </a>
 
       <!-- Desktop nav -->
-      <nav class="hidden lg:flex items-center gap-6">
-        {nav.map(({ label, href }) => (
+      <nav class="hidden md:flex items-center gap-7">
+        {nav.map(link => (
           <a
-            href={href}
-            class="text-sm font-medium text-ink/70 hover:text-ocean transition-colors"
+            href={link.href}
+            class="text-sm font-medium text-ink/60 hover:text-ink transition-colors"
           >
-            {label}
+            {link.label}
           </a>
         ))}
       </nav>
 
-      <!-- Right actions -->
+      <!-- Right side -->
       <div class="flex items-center gap-3">
         <a
-          href={altLangPath}
-          class="hidden sm:inline-block text-xs font-medium border border-ink/20 px-2.5 py-1 rounded-full hover:border-ocean hover:text-ocean transition-colors"
+          href={altURL}
+          title={flagTitle}
+          aria-label={flagTitle}
+          class="text-base leading-none hover:opacity-70 transition-opacity select-none"
         >
-          {altLangLabel}
-        </a>
-        <a
-          href={bookHref}
-          class="hidden sm:inline-block bg-ocean text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-ocean-dark transition-colors"
-        >
-          {bookLabel}
+          {flagLabel}
         </a>
 
-        <!-- Mobile burger -->
-        <button
-          id="mobile-menu-btn"
-          aria-label="Open menu"
-          class="lg:hidden flex flex-col gap-1.5 p-1"
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hidden md:inline-flex items-center gap-1.5 bg-whatsapp text-white text-sm font-medium px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
         >
-          <span class="block w-6 h-0.5 bg-ink transition-all" id="burger-1"></span>
-          <span class="block w-6 h-0.5 bg-ink transition-all" id="burger-2"></span>
-          <span class="block w-6 h-0.5 bg-ink transition-all" id="burger-3"></span>
+          {waLabel}
+        </a>
+
+        <button
+          id="menu-btn"
+          aria-label="Toggle menu"
+          aria-expanded="false"
+          class="md:hidden p-2 -mr-1 rounded-lg hover:bg-sand/10 transition-colors"
+        >
+          <svg id="icon-open" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <svg id="icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
     </div>
-  </div>
 
-  <!-- Mobile menu -->
-  <div
-    id="mobile-menu"
-    class="hidden lg:hidden border-t border-sand/20 bg-background/98"
-  >
-    <nav class="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
-      {nav.map(({ label, href }) => (
-        <a
-          href={href}
-          class="text-base font-medium py-2 text-ink/80 hover:text-ocean transition-colors"
-        >
-          {label}
-        </a>
-      ))}
-      <div class="flex items-center gap-3 pt-3 mt-2 border-t border-sand/20">
-        <a
-          href={altLangPath}
-          class="text-xs font-medium border border-ink/20 px-2.5 py-1 rounded-full hover:border-ocean hover:text-ocean transition-colors"
-        >
-          {altLangLabel}
-        </a>
-        <a
-          href={bookHref}
-          class="bg-ocean text-white text-sm font-medium px-5 py-2 rounded-full hover:bg-ocean-dark transition-colors"
-        >
-          {bookLabel}
-        </a>
-      </div>
-    </nav>
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="hidden md:hidden border-t border-sand/20 py-4">
+      <nav class="flex flex-col gap-1 mb-4">
+        {nav.map(link => (
+          <a
+            href={link.href}
+            class="text-sm font-medium text-ink/70 hover:text-ink px-2 py-2.5 rounded-lg hover:bg-sand/10 transition-colors"
+          >
+            {link.label}
+          </a>
+        ))}
+      </nav>
+      <a
+        href={waHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center justify-center gap-2 bg-whatsapp text-white text-sm font-medium px-4 py-3 rounded-full hover:opacity-90 transition-opacity w-full"
+      >
+        {waLabel}
+      </a>
+    </div>
   </div>
 </header>
 
 <script>
-  const btn = document.getElementById('mobile-menu-btn');
+  const btn = document.getElementById('menu-btn');
   const menu = document.getElementById('mobile-menu');
-  const b1 = document.getElementById('burger-1');
-  const b2 = document.getElementById('burger-2');
-  const b3 = document.getElementById('burger-3');
-  let open = false;
+  const iconOpen = document.getElementById('icon-open');
+  const iconClose = document.getElementById('icon-close');
 
   btn?.addEventListener('click', () => {
-    open = !open;
-    menu?.classList.toggle('hidden', !open);
-    b1?.classList.toggle('rotate-45', open);
-    b1?.classList.toggle('translate-y-2', open);
-    b2?.classList.toggle('opacity-0', open);
-    b3?.classList.toggle('-rotate-45', open);
-    b3?.classList.toggle('-translate-y-2', open);
+    const isOpen = menu?.classList.contains('hidden') === false;
+    menu?.classList.toggle('hidden');
+    iconOpen?.classList.toggle('hidden');
+    iconClose?.classList.toggle('hidden');
+    btn.setAttribute('aria-expanded', String(!isOpen));
   });
 
   window.addEventListener('scroll', () => {
     const header = document.getElementById('site-header');
     if (!header) return;
-    if (window.scrollY > 10) {
-      header.classList.add('shadow-md');
-    } else {
-      header.classList.remove('shadow-md');
-    }
+    header.classList.toggle('shadow-sm', window.scrollY > 10);
   });
 </script>

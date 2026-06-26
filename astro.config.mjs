@@ -4,7 +4,7 @@ import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 
 export default defineConfig({
-  site: 'https://barubeach.com',
+  site: 'https://casagaviota.com',
   output: 'static',
   adapter: cloudflare(),
   integrations: [react(), tailwind()],

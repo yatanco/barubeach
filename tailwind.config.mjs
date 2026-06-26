@@ -6,6 +6,7 @@ export default {
       colors: {
         background: '#FAFAF8',
         ink: '#1A1A1A',
+        muted: '#6B7280',
         ocean: {
           DEFAULT: '#1B6CA8',
           dark: '#155a8a',
