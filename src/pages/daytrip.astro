@@ -27,7 +27,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
       width="1280"
       height="720"
     />
-    <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10"></div>
+    <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(87,57,46,0.85) 0%, rgba(87,57,46,0.35) 50%, rgba(87,57,46,0.10) 100%);"></div>
     <div class="relative z-10 w-full max-w-3xl mx-auto px-6 text-white">
       <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-4">Barú · Colombia</p>
       <h1 class="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight mb-4">
@@ -43,7 +43,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         href={WA}
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-7 py-4 rounded-full text-sm font-medium hover:opacity-90 transition shadow-lg"
+        class="inline-flex items-center gap-2.5 bg-sand text-brown px-7 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-lg"
       >
         Plan your day on WhatsApp →
       </a>
@@ -65,7 +65,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           />
         </div>
         <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug">
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
             The private version of Barú.
           </h2>
           <p class="text-ink/70 leading-relaxed mb-4">Barú is beautiful.</p>
@@ -78,7 +78,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           <ul class="space-y-2 mb-6">
             {['No rush.', 'No crowds.', 'No pressure.'].map(item => (
               <li class="flex items-center gap-3 font-medium text-ink/80">
-                <span class="text-sand text-lg">—</span>
+                <span class="text-terracotta text-lg">—</span>
                 {item}
               </li>
             ))}
@@ -90,11 +90,11 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- WHAT YOU'RE BOOKING -->
-  <section class="py-20 bg-sand/8">
+  <section class="py-20 bg-rose/20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div class="order-2 md:order-1">
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug">
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
             What you are really booking.
           </h2>
           <p class="text-ink/70 leading-relaxed mb-4">You are not booking a "tour."</p>
@@ -120,7 +120,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- WHAT PEOPLE SAY -->
   <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">What People Say</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">What People Say</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
           'It felt completely private.',
@@ -129,8 +129,8 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           'We could actually relax.',
           'The team made everything easy.',
         ].map(quote => (
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-sand/20">
-            <p class="text-sand text-3xl leading-none mb-3">"</p>
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
             <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
           </div>
         ))}
@@ -139,7 +139,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- WHAT IS INCLUDED -->
-  <section class="py-20 bg-sand/8">
+  <section class="py-20 bg-rose/20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div>
@@ -153,7 +153,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           />
         </div>
         <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8">What is included</h2>
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8 text-brown">What is included</h2>
           <ul class="space-y-4">
             {[
               { icon: '🏠', text: 'Private access to the house for your group' },
@@ -180,7 +180,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- A TYPICAL DAY -->
   <section class="py-20 md:py-28">
     <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">A typical day</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">A typical day</h2>
       <div class="space-y-0">
         {[
           { icon: '🌅', label: 'Morning', text: 'Pickup in Cartagena' },
@@ -191,7 +191,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           { icon: '🌴', label: 'Afternoon', text: 'Free time with your group' },
           { icon: '🌇', label: 'Evening', text: 'Return to Cartagena' },
         ].map(({ icon, label, text }, i) => (
-          <div class="flex items-start gap-4 py-4 border-b border-sand/20 last:border-0">
+          <div class="flex items-start gap-4 py-4 border-b border-terracotta/20 last:border-0">
             <span class="text-xl flex-shrink-0 mt-0.5">{icon}</span>
             <div>
               <p class="font-medium text-sm text-ink">{label}</p>
@@ -205,7 +205,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- FOOD -->
-  <section class="py-20 bg-ink text-white">
+  <section class="py-20 bg-brown text-white">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
         <div class="grid grid-cols-2 gap-3">
@@ -231,7 +231,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- CHOOSE YOUR DAY -->
   <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">Choose the kind of day you want</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Choose the kind of day you want</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
           {
@@ -250,9 +250,9 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             desc: 'Private boat, lobster, cocktails, DJ, or live music. Casa Gaviota as a special private event.',
           },
         ].map(({ icon, title, desc }) => (
-          <div class="bg-white rounded-2xl p-7 border border-sand/20 shadow-sm hover:shadow-md transition-shadow">
+          <div class="bg-white rounded-2xl p-7 border border-terracotta/20 shadow-sm hover:shadow-md transition-shadow">
             <div class="text-3xl mb-4">{icon}</div>
-            <h3 class="font-serif font-semibold text-xl mb-3">{title}</h3>
+            <h3 class="font-serif font-semibold text-xl mb-3 text-brown">{title}</h3>
             <p class="text-ink/65 text-sm leading-relaxed">{desc}</p>
           </div>
         ))}
@@ -261,9 +261,9 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- PRICING -->
-  <section class="py-20 bg-sand/8">
+  <section class="py-20 bg-rose/15">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Pricing</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 text-brown">Pricing</h2>
       <p class="text-ink/70 leading-relaxed mb-4">
         Casa Gaviota is a private experience, not a per-person group tour. Price depends on group size, date, transport, food, and extras. The more people, the better the value per person.
       </p>
@@ -274,7 +274,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         href={WA}
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-8 py-4 rounded-full text-sm font-medium hover:opacity-90 transition shadow-md"
+        class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md"
       >
         Get a quote on WhatsApp →
       </a>
@@ -284,7 +284,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- DAY TRIP FAQ -->
   <section id="faq" class="py-20 md:py-28">
     <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">Questions</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Questions</h2>
       <div class="space-y-2">
         {[
           {
@@ -324,12 +324,12 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             a: 'Yes, Casa Gaviota is also available for overnight stays depending on availability. Ask us if you want to extend the experience.',
           },
         ].map(({ q, a }) => (
-          <details class="group bg-white rounded-xl border border-sand/20 overflow-hidden">
-            <summary class="flex items-center justify-between gap-4 p-5 cursor-pointer list-none font-medium text-sm sm:text-base hover:bg-sand/5 transition-colors">
+          <details class="group bg-white rounded-xl border border-terracotta/20 overflow-hidden">
+            <summary class="flex items-center justify-between gap-4 p-5 cursor-pointer list-none font-medium text-sm sm:text-base hover:bg-rose/10 transition-colors">
               <span>{q}</span>
-              <span class="text-sand flex-shrink-0 text-xl leading-none group-open:rotate-45 transition-transform">+</span>
+              <span class="text-terracotta flex-shrink-0 text-xl leading-none group-open:rotate-45 transition-transform">+</span>
             </summary>
-            <div class="px-5 pb-5 text-ink/65 text-sm leading-relaxed border-t border-sand/10 pt-4">
+            <div class="px-5 pb-5 text-ink/65 text-sm leading-relaxed border-t border-terracotta/10 pt-4">
               {a}
             </div>
           </details>
@@ -339,10 +339,10 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- DAY TRIP FORM -->
-  <section id="book" class="py-20 bg-sand/8">
+  <section id="book" class="py-20 bg-rose/15">
     <div class="max-w-xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-10">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3">Ready to plan your private day?</h2>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Ready to plan your private day?</h2>
         <p class="text-muted">Tell us your date and group size. We will get back to you quickly.</p>
       </div>
       <DayTripForm accessKey={KEY} lang="en" client:load />

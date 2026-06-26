@@ -30,7 +30,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
       width="1280"
       height="720"
     />
-    <div class="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/70"></div>
+    <div class="absolute inset-0" style="background: rgba(87,57,46,0.50);"></div>
     <div class="relative z-10 text-center text-white px-6 max-w-3xl mx-auto py-24">
       <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-5">Barú · Colombia</p>
       <h1 class="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold leading-tight mb-4">
@@ -86,7 +86,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           />
         </div>
         <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug">
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
             Casa Gaviota no es un beach club ni un hotel.
           </h2>
           <p class="text-ink/70 leading-relaxed mb-6">
@@ -95,7 +95,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           <ul class="space-y-3 mb-8">
             {['Sin beach clubs.', 'Sin vendedores.', 'Sin multitudes.'].map(item => (
               <li class="flex items-center gap-3 font-medium text-ink/80">
-                <span class="text-sand text-lg">—</span>
+                <span class="text-terracotta text-lg">—</span>
                 {item}
               </li>
             ))}
@@ -107,10 +107,10 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- RESEÑAS -->
-  <section id="reviews" class="py-20 bg-sand/8">
+  <section id="reviews" class="py-20 bg-rose/20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-12">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3">Lo que dicen nuestros huéspedes</h2>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Lo que dicen nuestros huéspedes</h2>
         <p class="text-muted text-sm">Muy bien calificada en Airbnb, Booking y Google</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -120,8 +120,8 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           'Perfecto para relajarse y desconectarse de todo.',
           'La comida fue mejor que en muchos restaurantes.',
         ].map(quote => (
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-sand/20">
-            <p class="text-sand text-3xl leading-none mb-3">"</p>
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
             <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
           </div>
         ))}
@@ -134,7 +134,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div class="order-2 md:order-1">
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug">
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
             Te atendemos desde el momento en que llegas.
           </h2>
           <p class="text-ink/70 leading-relaxed mb-4">
@@ -159,7 +159,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- UN DÍA EN CASA GAVIOTA -->
-  <section class="py-24 md:py-32 bg-ink text-white">
+  <section class="py-24 md:py-32 bg-brown text-white">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center">
       <p class="text-sand text-xs uppercase tracking-widest mb-12">Un día en Casa Gaviota</p>
       <div class="space-y-5 font-serif">
@@ -184,7 +184,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
         <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8">La casa</h2>
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8 text-brown">La casa</h2>
           <ul class="space-y-4 mb-8">
             {[
               '3 habitaciones, para hasta 8 huéspedes',
@@ -195,12 +195,12 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
               'Ventiladores en todas las habitaciones',
             ].map(item => (
               <li class="flex items-start gap-3 text-ink/70">
-                <span class="text-sand font-bold mt-0.5">✓</span>
+                <span class="text-terracotta font-bold mt-0.5">✓</span>
                 <span>{item}</span>
               </li>
             ))}
           </ul>
-          <p class="text-ink/50 italic text-sm border-l-2 border-sand/40 pl-4">
+          <p class="text-ink/50 italic text-sm border-l-2 border-terracotta/40 pl-4">
             "Sencilla, cómoda y completamente integrada con la naturaleza."
           </p>
         </div>
@@ -221,7 +221,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- QUÉ ESPERAR -->
-  <section class="py-20 md:py-28 bg-stone-50">
+  <section class="py-20 md:py-28 bg-rose/15">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div>
@@ -235,7 +235,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           />
         </div>
         <div>
-          <h2 class="font-serif text-2xl sm:text-3xl font-semibold mb-5">Qué esperar</h2>
+          <h2 class="font-serif text-2xl sm:text-3xl font-semibold mb-5 text-brown">Qué esperar</h2>
           <p class="text-ink/70 leading-relaxed mb-6">
             Casa Gaviota es una casa de playa rústica en un entorno natural y remoto. Eso es parte de lo que la hace especial, pero es importante saber qué esperar:
           </p>
@@ -247,12 +247,12 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
               'El transporte requiere planificación: carro + lancha, o lancha directa',
             ].map(item => (
               <li class="flex items-start gap-3 text-sm text-ink/65">
-                <span class="text-sand mt-0.5 flex-shrink-0">—</span>
+                <span class="text-terracotta mt-0.5 flex-shrink-0">—</span>
                 {item}
               </li>
             ))}
           </ul>
-          <p class="text-sm text-ink/50 border-l-2 border-sand/30 pl-4 mb-4">
+          <p class="text-sm text-ink/50 border-l-2 border-terracotta/30 pl-4 mb-4">
             Si estás buscando un hotel de lujo, este no es el lugar indicado.
           </p>
           <p class="text-sm text-ink/70 font-medium">
@@ -268,19 +268,19 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Ubicación y acceso</h2>
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 text-brown">Ubicación y acceso</h2>
           <p class="text-ink/70 leading-relaxed mb-8">
             Casa Gaviota está ubicada en Barú, aproximadamente a 1–2 horas de Cartagena, dependiendo del tipo de transporte.
           </p>
           <div class="space-y-3 mb-8">
-            <div class="flex items-start gap-4 p-4 bg-sand/10 rounded-xl">
+            <div class="flex items-start gap-4 p-4 bg-sand/20 rounded-xl">
               <span class="text-xl flex-shrink-0">🚤</span>
               <div>
                 <p class="font-medium text-sm mb-0.5">Lancha privada desde Cartagena</p>
                 <p class="text-muted text-sm">~$300 USD por trayecto, hasta 10 personas</p>
               </div>
             </div>
-            <div class="flex items-start gap-4 p-4 bg-sand/10 rounded-xl">
+            <div class="flex items-start gap-4 p-4 bg-sand/20 rounded-xl">
               <span class="text-xl flex-shrink-0">🚗</span>
               <div>
                 <p class="font-medium text-sm mb-0.5">Carro + lancha</p>
@@ -293,7 +293,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             href={MAPS}
             target="_blank"
             rel="noopener noreferrer"
-            class="inline-flex items-center gap-2 text-ocean font-medium text-sm hover:underline"
+            class="inline-flex items-center gap-2 text-steel font-medium text-sm hover:underline"
           >
             Ver en Google Maps →
           </a>
@@ -313,9 +313,9 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- PREGUNTAS FRECUENTES -->
-  <section id="faq" class="py-20 bg-sand/8">
+  <section id="faq" class="py-20 bg-rose/15">
     <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">Preguntas frecuentes</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Preguntas frecuentes</h2>
       <div class="space-y-2">
         {[
           {
@@ -355,12 +355,12 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             a: 'Escríbenos por WhatsApp con la fecha, número de personas y el tipo de experiencia que buscas. Te confirmamos disponibilidad, opciones de transporte, comida y precio. Para reservar, normalmente se requiere un anticipo.',
           },
         ].map(({ q, a }) => (
-          <details class="group bg-white rounded-xl border border-sand/20 overflow-hidden">
-            <summary class="flex items-center justify-between gap-4 p-5 cursor-pointer list-none font-medium text-sm sm:text-base hover:bg-sand/5 transition-colors">
+          <details class="group bg-white rounded-xl border border-terracotta/20 overflow-hidden">
+            <summary class="flex items-center justify-between gap-4 p-5 cursor-pointer list-none font-medium text-sm sm:text-base hover:bg-rose/10 transition-colors">
               <span>{q}</span>
-              <span class="text-sand flex-shrink-0 text-xl leading-none group-open:rotate-45 transition-transform">+</span>
+              <span class="text-terracotta flex-shrink-0 text-xl leading-none group-open:rotate-45 transition-transform">+</span>
             </summary>
-            <div class="px-5 pb-5 text-ink/65 text-sm leading-relaxed border-t border-sand/10 pt-4">
+            <div class="px-5 pb-5 text-ink/65 text-sm leading-relaxed border-t border-terracotta/10 pt-4">
               {a}
             </div>
           </details>
@@ -373,7 +373,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <section id="book" class="py-20 md:py-28">
     <div class="max-w-xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-10">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3">¿Listo para planear tu escape?</h2>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">¿Listo para planear tu escape?</h2>
         <p class="text-muted">Cuéntanos tus fechas y tamaño del grupo. Te respondemos en pocas horas.</p>
       </div>
       <InquiryForm accessKey={KEY} lang="es" client:load />

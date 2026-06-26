@@ -85,7 +85,7 @@ export default function DayTripForm({ accessKey, lang = 'en' }: Props) {
     }
   }
 
-  const inp = 'w-full rounded-xl border border-sand/40 bg-white px-4 py-3 text-sm text-ink placeholder-ink/40 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20 transition';
+  const inp = 'w-full rounded-xl border border-terracotta/30 bg-white px-4 py-3 text-sm text-ink placeholder-ink/40 focus:border-brown focus:outline-none focus:ring-2 focus:ring-brown/15 transition';
   const lbl = 'block text-sm font-medium text-ink/70 mb-1.5';
 
   return (

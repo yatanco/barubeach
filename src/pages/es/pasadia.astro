@@ -28,7 +28,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
       width="1280"
       height="720"
     />
-    <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10"></div>
+    <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(87,57,46,0.85) 0%, rgba(87,57,46,0.35) 50%, rgba(87,57,46,0.10) 100%);"></div>
     <div class="relative z-10 w-full max-w-3xl mx-auto px-6 text-white">
       <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-4">Barú · Colombia</p>
       <h1 class="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight mb-4">
@@ -44,7 +44,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         href={WA}
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-7 py-4 rounded-full text-sm font-medium hover:opacity-90 transition shadow-lg"
+        class="inline-flex items-center gap-2.5 bg-sand text-brown px-7 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-lg"
       >
         Planea tu pasadía por WhatsApp →
       </a>
@@ -66,7 +66,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           />
         </div>
         <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug">
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
             La versión privada de Barú.
           </h2>
           <p class="text-ink/70 leading-relaxed mb-4">Barú es hermoso.</p>
@@ -79,7 +79,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           <ul class="space-y-2 mb-6">
             {['Sin afán.', 'Sin multitudes.', 'Sin interrupciones todo el tiempo.'].map(item => (
               <li class="flex items-center gap-3 font-medium text-ink/80">
-                <span class="text-sand text-lg">—</span>
+                <span class="text-terracotta text-lg">—</span>
                 {item}
               </li>
             ))}
@@ -91,11 +91,11 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- QUÉ ESTÁS RESERVANDO -->
-  <section class="py-20 bg-sand/8">
+  <section class="py-20 bg-rose/20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div class="order-2 md:order-1">
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug">
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
             Qué estás reservando realmente.
           </h2>
           <p class="text-ink/70 leading-relaxed mb-4">No estás reservando "un tour".</p>
@@ -121,7 +121,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- LO QUE MÁS LES GUSTA -->
   <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">Lo que más les gusta a nuestros huéspedes</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Lo que más les gusta a nuestros huéspedes</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
           'Se sintió completamente privado.',
@@ -130,8 +130,8 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           'Por fin pudimos relajarnos.',
           'El equipo hizo todo muy fácil.',
         ].map(quote => (
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-sand/20">
-            <p class="text-sand text-3xl leading-none mb-3">"</p>
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
             <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
           </div>
         ))}
@@ -140,7 +140,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- QUÉ PUEDE INCLUIR -->
-  <section class="py-20 bg-sand/8">
+  <section class="py-20 bg-rose/20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div>
@@ -154,7 +154,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           />
         </div>
         <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8">Qué puede incluir tu pasadía</h2>
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8 text-brown">Qué puede incluir tu pasadía</h2>
           <ul class="space-y-4">
             {[
               { icon: '🏠', text: 'Acceso privado a la casa para tu grupo' },
@@ -181,7 +181,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- UN DÍA SENCILLO -->
   <section class="py-20 md:py-28">
     <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">Un día sencillo, sin estrés</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Un día sencillo, sin estrés</h2>
       <div class="space-y-0">
         {[
           { icon: '🌅', label: 'Mañana', text: 'Recogida en Cartagena' },
@@ -192,7 +192,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           { icon: '🌴', label: 'Tarde', text: 'Tarde libre con tu grupo' },
           { icon: '🌇', label: 'Regreso', text: 'Regreso a Cartagena en la tarde' },
         ].map(({ icon, label, text }) => (
-          <div class="flex items-start gap-4 py-4 border-b border-sand/20 last:border-0">
+          <div class="flex items-start gap-4 py-4 border-b border-terracotta/20 last:border-0">
             <span class="text-xl flex-shrink-0 mt-0.5">{icon}</span>
             <div>
               <p class="font-medium text-sm text-ink">{label}</p>
@@ -206,7 +206,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- LA COMIDA -->
-  <section class="py-20 bg-ink text-white">
+  <section class="py-20 bg-brown text-white">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
         <div class="grid grid-cols-2 gap-3">
@@ -232,7 +232,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- ESCOGE TU DÍA -->
   <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">Escoge el tipo de día que quieres</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Escoge el tipo de día que quieres</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
           {
@@ -251,9 +251,9 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             desc: 'Transporte privado en lancha, menú de mariscos, langosta, cocteles, DJ, música en vivo, decoración o un día más largo.',
           },
         ].map(({ icon, title, desc }) => (
-          <div class="bg-white rounded-2xl p-7 border border-sand/20 shadow-sm hover:shadow-md transition-shadow">
+          <div class="bg-white rounded-2xl p-7 border border-terracotta/20 shadow-sm hover:shadow-md transition-shadow">
             <div class="text-3xl mb-4">{icon}</div>
-            <h3 class="font-serif font-semibold text-xl mb-3">{title}</h3>
+            <h3 class="font-serif font-semibold text-xl mb-3 text-brown">{title}</h3>
             <p class="text-ink/65 text-sm leading-relaxed">{desc}</p>
           </div>
         ))}
@@ -262,9 +262,9 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- PRECIO -->
-  <section class="py-20 bg-sand/8">
+  <section class="py-20 bg-rose/15">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6">Precio</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 text-brown">Precio</h2>
       <p class="text-ink/70 leading-relaxed mb-4">
         Casa Gaviota es una experiencia privada, no un tour compartido por persona. El precio depende del tamaño del grupo, la fecha, el transporte, la comida y los extras. Entre más personas vengan, mejor suele ser el valor por persona.
       </p>
@@ -275,7 +275,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         href={WA}
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-flex items-center gap-2.5 bg-whatsapp text-white px-8 py-4 rounded-full text-sm font-medium hover:opacity-90 transition shadow-md"
+        class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md"
       >
         Cotizar por WhatsApp →
       </a>
@@ -285,7 +285,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- PREGUNTAS FRECUENTES -->
   <section id="faq" class="py-20 md:py-28">
     <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center">Preguntas frecuentes</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Preguntas frecuentes</h2>
       <div class="space-y-2">
         {[
           {
@@ -325,12 +325,12 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             a: 'Sí. Casa Gaviota también está disponible para estadías nocturnas según disponibilidad. Pregúntanos si quieres extender la experiencia.',
           },
         ].map(({ q, a }) => (
-          <details class="group bg-white rounded-xl border border-sand/20 overflow-hidden">
-            <summary class="flex items-center justify-between gap-4 p-5 cursor-pointer list-none font-medium text-sm sm:text-base hover:bg-sand/5 transition-colors">
+          <details class="group bg-white rounded-xl border border-terracotta/20 overflow-hidden">
+            <summary class="flex items-center justify-between gap-4 p-5 cursor-pointer list-none font-medium text-sm sm:text-base hover:bg-rose/10 transition-colors">
               <span>{q}</span>
-              <span class="text-sand flex-shrink-0 text-xl leading-none group-open:rotate-45 transition-transform">+</span>
+              <span class="text-terracotta flex-shrink-0 text-xl leading-none group-open:rotate-45 transition-transform">+</span>
             </summary>
-            <div class="px-5 pb-5 text-ink/65 text-sm leading-relaxed border-t border-sand/10 pt-4">
+            <div class="px-5 pb-5 text-ink/65 text-sm leading-relaxed border-t border-terracotta/10 pt-4">
               {a}
             </div>
           </details>
@@ -340,10 +340,10 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- FORMULARIO -->
-  <section id="book" class="py-20 bg-sand/8">
+  <section id="book" class="py-20 bg-rose/15">
     <div class="max-w-xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-10">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3">¿Listos para planear su pasadía privado?</h2>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">¿Listos para planear su pasadía privado?</h2>
         <p class="text-muted">Cuéntanos la fecha y cuántas personas son. Te respondemos rápido.</p>
       </div>
       <DayTripForm accessKey={KEY} lang="es" client:load />

@@ -4,19 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#FAFAF8',
+        background: '#FAFAF5',
         ink: '#1A1A1A',
         muted: '#6B7280',
-        ocean: {
-          DEFAULT: '#1B6CA8',
-          dark: '#155a8a',
-          light: '#2580c1',
-        },
-        sand: {
-          DEFAULT: '#D4A96A',
-          light: '#e8c897',
-          dark: '#b8893e',
-        },
+        brown: '#57392E',
+        terracotta: '#B28471',
+        sand: '#E6C497',
+        rose: '#C1A8A1',
+        steel: '#7D98AB',
         whatsapp: '#25D366',
       },
       fontFamily: {

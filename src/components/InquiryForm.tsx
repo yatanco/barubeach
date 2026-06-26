@@ -102,7 +102,7 @@ export default function InquiryForm({ accessKey, lang = 'en', defaultType = 'sta
     }
   }
 
-  const inp = 'w-full rounded-xl border border-sand/40 bg-white px-4 py-3 text-sm text-ink placeholder-ink/40 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20 transition';
+  const inp = 'w-full rounded-xl border border-terracotta/30 bg-white px-4 py-3 text-sm text-ink placeholder-ink/40 focus:border-brown focus:outline-none focus:ring-2 focus:ring-brown/15 transition';
   const lbl = 'block text-sm font-medium text-ink/70 mb-1.5';
 
   return (
@@ -118,8 +118,8 @@ export default function InquiryForm({ accessKey, lang = 'en', defaultType = 'sta
               onClick={() => setType(opt)}
               className={`py-3 px-4 rounded-xl border text-sm font-medium transition-all ${
                 type === opt
-                  ? 'bg-ocean text-white border-ocean shadow-sm'
-                  : 'bg-white text-ink border-sand/40 hover:border-ocean/40'
+                  ? 'bg-brown text-white border-brown shadow-sm'
+                  : 'bg-white text-ink border-terracotta/30 hover:border-brown/40'
               }`}
             >
               {opt === 'daytrip' ? t.daytrip : t.stay}
