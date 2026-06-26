@@ -1,4 +1,6 @@
 ---
+import WhatsAppPopup from '../components/WhatsAppPopup.tsx';
+
 export interface Props {
   title: string;
   description: string;
@@ -66,5 +68,6 @@ const ogImageURL = ogImage.startsWith('http') ? ogImage : new URL(ogImage, Astro
   </head>
   <body class="bg-background text-ink font-sans antialiased">
     <slot />
+    <WhatsAppPopup client:load />
   </body>
 </html>

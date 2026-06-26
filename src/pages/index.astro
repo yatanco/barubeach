@@ -2,11 +2,8 @@
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import WhatsAppButton from '../components/WhatsAppButton.astro';
 import InquiryForm from '../components/InquiryForm.tsx';
 
-const WA_STAY = 'https://wa.me/573163946401?text=gaviotastay';
-const WA_DAYTRIP = 'https://wa.me/573163946401?text=gaviotadaytrip';
 const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
 const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
 ---
@@ -40,33 +37,62 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         80 meters of private beach · no crowds · just your group
       </p>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto mb-10">
-        <a
-          href={WA_DAYTRIP}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-left hover:bg-white/20 transition-all group"
-        >
-          <div class="text-2xl mb-3">☀️</div>
-          <div class="font-semibold text-base mb-1">Day Trip (Pasadía)</div>
-          <p class="text-white/65 text-xs mb-4 leading-relaxed">A private day by the sea — transport, food, and your own space.</p>
-          <span class="text-xs font-medium text-sand group-hover:underline">Plan a Day Trip →</span>
-        </a>
-        <a
-          href={WA_STAY}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-left hover:bg-white/20 transition-all group"
-        >
-          <div class="text-2xl mb-3">🌙</div>
-          <div class="font-semibold text-base mb-1">Overnight Stay</div>
-          <p class="text-white/65 text-xs mb-4 leading-relaxed">Stay 1 or more nights in a private beach house.</p>
-          <span class="text-xs font-medium text-sand group-hover:underline">Plan a Stay →</span>
-        </a>
-      </div>
-      <a href="#house" class="text-white/45 text-sm hover:text-white/70 transition-colors">
-        Or scroll to learn more about the house ↓
+      <button
+        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
+        class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-10"
+      >
+        Plan on WhatsApp →
+      </button>
+      <a href="#experience" class="block text-white/45 text-sm hover:text-white/70 transition-colors">
+        Scroll to explore ↓
       </a>
+    </div>
+  </section>
+
+  <!-- EXPERIENCE CARDS -->
+  <section id="experience" class="py-16 md:py-20">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brown text-center mb-3">What are you looking for?</h2>
+      <p class="text-center text-ink/55 text-sm mb-10">Two ways to experience Casa Gaviota — both private, both unforgettable.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <!-- Day Trip card -->
+        <div class="bg-white rounded-2xl border border-terracotta/15 p-7 shadow-sm flex flex-col">
+          <div class="text-3xl mb-4">☀️</div>
+          <h3 class="font-serif text-xl font-semibold text-brown mb-2">Day Trip <span class="font-sans font-normal text-sm text-ink/50">(Pasadía)</span></h3>
+          <p class="text-ink/65 text-sm leading-relaxed mb-6 flex-1">Arrive in the morning, leave by sunset. Private beach, fresh food, and total freedom from crowds.</p>
+          <a
+            href="/daytrip"
+            class="inline-flex items-center gap-1.5 bg-sand text-brown font-semibold text-sm px-5 py-3 rounded-full hover:opacity-90 transition-opacity self-start"
+          >
+            See Day Trip →
+          </a>
+        </div>
+
+        <!-- Overnight Stay card -->
+        <div class="bg-white rounded-2xl border border-terracotta/15 p-7 shadow-sm flex flex-col">
+          <div class="text-3xl mb-4">🌙</div>
+          <h3 class="font-serif text-xl font-semibold text-brown mb-2">Overnight Stay <span class="font-sans font-normal text-sm text-ink/50">(Estadía)</span></h3>
+          <p class="text-ink/65 text-sm leading-relaxed mb-6 flex-1">Sleep to the sound of waves. Wake up with the ocean. 3 bedrooms, up to 8 guests, fully private.</p>
+          <div class="flex flex-wrap gap-2">
+            <a
+              href="http://airbnb.com/h/casagaviotabaru"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 bg-sand text-brown font-semibold text-sm px-5 py-3 rounded-full hover:opacity-90 transition-opacity"
+            >
+              Book on Airbnb →
+            </a>
+            <button
+              onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
+              class="inline-flex items-center gap-1.5 border border-brown text-brown font-semibold text-sm px-5 py-3 rounded-full hover:bg-brown/5 transition cursor-pointer"
+            >
+              Plan directly →
+            </button>
+          </div>
+        </div>
+
+      </div>
     </div>
   </section>
 
@@ -376,5 +402,4 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <Footer lang="en" />
-  <WhatsAppButton text="gaviotastay" />
 </Layout>

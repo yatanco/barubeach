@@ -15,15 +15,16 @@ const nav = isES
       { href: '/es/pasadia', label: 'Pasadía' },
       { href: '/gallery', label: 'Galería' },
       { href: '/es/#faq', label: 'FAQ' },
+      { href: '/plan', label: 'Plan' },
     ]
   : [
       { href: '/', label: 'Stay' },
       { href: '/daytrip', label: 'Day Trip' },
       { href: '/gallery', label: 'Gallery' },
       { href: '/#faq', label: 'FAQ' },
+      { href: '/plan', label: 'Plan' },
     ];
 
-const waHref = 'https://wa.me/573163946401?text=gaviotastay';
 const waLabel = isES ? 'Planear por WhatsApp →' : 'Plan on WhatsApp →';
 const flagLabel = isES ? '🇬🇧' : '🇪🇸';
 const flagTitle = isES ? 'View in English' : 'Ver en español';
@@ -65,14 +66,12 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
           {flagLabel}
         </a>
 
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="hidden md:inline-flex items-center gap-1.5 bg-sand text-brown text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
+        <button
+          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
+          class="hidden md:inline-flex items-center gap-1.5 bg-sand text-brown text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity cursor-pointer"
         >
           {waLabel}
-        </a>
+        </button>
 
         <button
           id="menu-btn"
@@ -102,14 +101,12 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
           </a>
         ))}
       </nav>
-      <a
-        href={waHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex items-center justify-center gap-2 bg-sand text-brown text-sm font-semibold px-4 py-3 rounded-full hover:opacity-90 transition-opacity w-full"
+      <button
+        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
+        class="flex items-center justify-center gap-2 bg-sand text-brown text-sm font-semibold px-4 py-3 rounded-full hover:opacity-90 transition-opacity w-full cursor-pointer"
       >
         {waLabel}
-      </a>
+      </button>
     </div>
   </div>
 </header>
