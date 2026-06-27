@@ -4,56 +4,150 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import DayTripForm from '../components/DayTripForm.tsx';
 
-const WA = 'https://wa.me/573163946401?text=gaviotadaytrip';
 const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
 ---
 
 <Layout
-  title="Private Day Trip to Barú from Cartagena — Casa Gaviota"
-  description="A private beach house as your base for the day. Transport from Cartagena, fresh Caribbean lunch, beach, no shared tours. Perfect for groups, families, and celebrations."
+  title="Day Trip to Barú — Private Beach House | Casa Gaviota"
+  description="A private day trip to a beach house on Isla Barú near Cartagena. Transport, private beach, and fresh Caribbean lunch — all included. No beach clubs, no crowds."
   lang="en"
+  defaultPopupType="daytrip"
 >
   <Header lang="en" altHref="/es/pasadia" />
 
   <!-- HERO -->
-  <section class="relative min-h-[85vh] flex items-end pb-20 md:items-center md:pb-0">
+  <section class="relative min-h-screen flex items-center justify-center">
     <img
       src="/images/daytrip-1.jpg"
-      alt="Private beach day trip at Casa Gaviota, Barú"
+      alt="Day trip to Casa Gaviota private beach in Barú"
       class="absolute inset-0 w-full h-full object-cover"
       loading="eager"
       fetchpriority="high"
       width="1280"
       height="720"
     />
-    <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(87,57,46,0.85) 0%, rgba(87,57,46,0.35) 50%, rgba(87,57,46,0.10) 100%);"></div>
-    <div class="relative z-10 w-full max-w-3xl mx-auto px-6 text-white">
-      <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-4">Barú · Colombia</p>
-      <h1 class="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight mb-4">
-        Private Day Trip to Barú
+    <div class="absolute inset-0" style="background: rgba(87,57,46,0.50);"></div>
+    <div class="relative z-10 text-center text-white px-6 max-w-3xl mx-auto py-24">
+      <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-5">Barú · Colombia</p>
+      <h1 class="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold leading-tight mb-4">
+        Private Day Trip
       </h1>
-      <h2 class="text-lg sm:text-xl font-light mb-4 text-white/90 max-w-xl">
-        Just Your Group — No Crowds, No Shared Tours
-      </h2>
-      <p class="text-sm text-white/70 mb-10 max-w-lg leading-relaxed">
-        A private beach house as your base for the day. Transport, food, and space to actually relax or celebrate.
+      <h2 class="text-xl sm:text-2xl font-light mb-3">A Private Beach House in Barú — Just for Your Group</h2>
+      <p class="text-sm sm:text-base text-white/70 mb-12 uppercase tracking-wider">
+        Transport · private beach · fresh lunch · all included
       </p>
-      <a
-        href={WA}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex items-center gap-2.5 bg-sand text-brown px-7 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-lg"
+
+      <button
+        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'daytrip'}}))"
+        class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-10"
       >
         Plan your day on WhatsApp →
+      </button>
+      <a href="#pricing" class="block text-white/45 text-sm hover:text-white/70 transition-colors">
+        See pricing ↓
       </a>
     </div>
   </section>
 
-  <!-- THE PRIVATE VERSION -->
+  <!-- TRUST BAR -->
+  <section class="py-5 text-white text-center font-semibold" style="background: #57392E;">
+    <p class="text-base sm:text-lg tracking-wide">⭐ 4.8 · 200+ reviews · Airbnb, Booking.com &amp; Google</p>
+  </section>
+
+  <!-- ALL-IN PRICING -->
+  <section id="pricing" class="py-20 md:py-28" style="background: #E6C497;">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-12">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Simple, all-in pricing</h2>
+        <p class="text-ink/70">Transport, house, beach, and lunch — all included. No surprises.</p>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+        {[
+          { group: 'Couple', people: '2 people', price: '$300 USD' },
+          { group: 'Family', people: '4 people', price: '$500 USD' },
+          { group: 'Group of 6', people: '6 people', price: '$700 USD' },
+          { group: 'Group of 8', people: '8 people', price: '$900 USD' },
+        ].map(({ group, people, price }) => (
+          <div class="bg-white rounded-2xl p-5 text-center shadow-sm">
+            <p class="font-semibold text-brown text-sm mb-1">{group}</p>
+            <p class="text-xs text-ink/50 mb-3">{people}</p>
+            <p class="text-xl font-bold text-brown">{price}</p>
+          </div>
+        ))}
+      </div>
+
+      <div class="bg-white/60 rounded-2xl p-6 text-center mb-8">
+        <p class="text-sm text-ink/70 font-medium">All-in price. Includes transport from Cartagena, private beach access, and fresh Caribbean lunch.</p>
+      </div>
+
+      <div class="text-center">
+        <button
+          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'daytrip'}}))"
+          class="inline-flex items-center gap-2 bg-brown text-white px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition cursor-pointer"
+        >
+          Plan your day on WhatsApp →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVIEWS -->
+  <section id="reviews" class="py-20 bg-rose/20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-12">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">What guests say about the day trip</h2>
+        <p class="text-muted text-sm">⭐ 4.8 average across Airbnb, Booking.com and Google</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="reviews-initial">
+        {[
+          'Best day trip we did in Colombia. Private beach, incredible food, and no tourists.',
+          'The boat ride alone was worth it. Then the beach house blew us away.',
+          'We wanted total privacy and that is exactly what we got. Just our group, the ocean, and amazing service.',
+          'The lunch was better than any restaurant in Cartagena. And we did not share the beach with anyone.',
+        ].map(quote => (
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
+            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
+          </div>
+        ))}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 hidden" id="reviews-extra">
+        {[
+          'I have done beach clubs in Cartagena. This is not that. This is so much better.',
+          'Our kids were free to run, swim, and play. We were free to relax. No one bothered us.',
+          'Manuel and his team are legends. Food, service, everything was perfect.',
+          'Honestly one of the highlights of our whole trip to Colombia.',
+          'We came for one day and already booked a full stay for next year.',
+        ].map(quote => (
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
+            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
+          </div>
+        ))}
+      </div>
+      <div class="mt-8 text-center">
+        <button
+          id="show-more-reviews"
+          class="border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
+        >
+          Show more reviews
+        </button>
+      </div>
+    </div>
+  </section>
+  <script is:inline>
+    document.getElementById('show-more-reviews')?.addEventListener('click', function() {
+      document.getElementById('reviews-extra')?.classList.remove('hidden');
+      this.style.display = 'none';
+    });
+  </script>
+
+  <!-- PRIVATE VERSION -->
   <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
-        <div data-lightbox="daytrip-private" class="grid grid-cols-2 gap-3">
+        <div data-lightbox="private" class="grid grid-cols-2 gap-3">
           <img
             src="/images/beach-1.jpg"
             alt="Private beach at Casa Gaviota"
@@ -63,8 +157,8 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             height="225"
           />
           <img
-            src="/images/beach-3.jpg"
-            alt="Casa Gaviota beach access"
+            src="/images/beach-2.jpg"
+            alt="Exclusive beach access at Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
             width="300"
@@ -73,140 +167,199 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         </div>
         <div>
           <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
-            The private version of Barú.
+            A private version of the beach.
           </h2>
-          <p class="text-ink/70 leading-relaxed mb-4">Barú is beautiful.</p>
-          <p class="text-ink/70 leading-relaxed mb-6">
-            But most day trips from Cartagena are not very relaxing. Crowded beaches. Loud music. Vendors every few minutes. Fixed schedules. Shared spaces.
+          <p class="text-ink/70 leading-relaxed mb-4">
+            This is not a beach club. You are not sharing with 50 strangers at a bar playing reggaeton. This is a real beach house on 80 meters of private beach, reserved entirely for your group.
           </p>
-          <p class="text-ink/70 leading-relaxed mb-6">
-            Casa Gaviota is different. Here, your group gets a private beach house as your home base for the day. Swim, eat, rest, celebrate, listen to music, or simply do nothing.
-          </p>
-          <ul class="space-y-2 mb-6">
-            {['No rush.', 'No crowds.', 'No pressure.'].map(item => (
-              <li class="flex items-center gap-3 font-medium text-ink/80">
-                <span class="text-terracotta text-lg">—</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-          <p class="text-ink/70 leading-relaxed">Just your people, the sea, good food, and a house where you can actually settle in.</p>
+          <p class="text-ink/70 leading-relaxed">Manuel and the team handle everything — pickup, arrival, food, and return. You just show up.</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- WHAT YOU'RE BOOKING -->
-  <section class="py-20 bg-rose/20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
-        <div class="order-2 md:order-1">
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
-            What you are really booking.
-          </h2>
-          <p class="text-ink/70 leading-relaxed mb-4">You are not booking a "tour."</p>
-          <p class="text-ink/70 leading-relaxed mb-6">
-            You are booking a private space for the day. A place where your group can arrive, leave your things safely, eat comfortably, rest in the shade, play music, celebrate, and enjoy Barú without fighting for space.
-          </p>
-          <p class="text-ink/70 leading-relaxed font-medium">That is why groups choose Casa Gaviota.</p>
-        </div>
-        <div class="order-1 md:order-2">
-          <div data-lightbox="daytrip-booking" class="grid grid-cols-2 gap-3">
-            <img
-              src="/images/house-1.jpg"
-              alt="Casa Gaviota house and social areas"
-              class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
-              loading="lazy"
-              width="300"
-              height="225"
-            />
-            <img
-              src="/images/beach-2.jpg"
-              alt="Private beach access at Casa Gaviota"
-              class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
-              loading="lazy"
-              width="300"
-              height="225"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- WHAT PEOPLE SAY -->
-  <section class="py-20 md:py-28">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">What People Say</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  <section class="py-16 md:py-20" style="background: #FAFAF5;">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brown text-center mb-10">What you are booking</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {[
-          'It felt completely private.',
-          'It was peaceful and beautiful.',
-          'The food was one of the best parts.',
-          'We could actually relax.',
-          'The team made everything easy.',
-        ].map(quote => (
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
-            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
-            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
+          { icon: '🌊', title: 'Private beach', desc: '80 meters of beach — only your group. No vendors, no music from the neighbors.' },
+          { icon: '🏠', title: 'The whole house', desc: 'Private beach house, shaded areas, hammocks, outdoor showers. Use it all.' },
+          { icon: '🍽️', title: 'Fresh Caribbean lunch', desc: 'Prepared on-site by the house team. Fish, rice, patacones, fresh fruit. Included.' },
+        ].map(({ icon, title, desc }) => (
+          <div class="text-center p-6">
+            <div class="text-4xl mb-4">{icon}</div>
+            <h3 class="font-semibold text-brown mb-2">{title}</h3>
+            <p class="text-sm text-ink/65 leading-relaxed">{desc}</p>
           </div>
         ))}
-      </div>
-      <div class="mt-10 text-center">
-        <p class="text-sm text-ink/50 mb-4">200+ verified reviews across platforms</p>
-        <div class="flex flex-col sm:flex-row gap-3 justify-center">
-          <a
-            href="http://airbnb.com/h/casagaviotabaru"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
-          >
-            Read all reviews on Airbnb →
-          </a>
-          <a
-            href="https://share.google/SHahHFkk8vXJIW7hH"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
-          >
-            Read all reviews on Google →
-          </a>
-        </div>
       </div>
     </div>
   </section>
 
   <!-- WHAT IS INCLUDED -->
-  <section class="py-20 bg-rose/20">
+  <section class="py-20 md:py-28">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-brown text-center mb-12">What is included</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          'Round-trip transport from Cartagena',
+          'Private beach house for the day',
+          '80 meters of private beach, just for your group',
+          'Fresh Caribbean lunch',
+          'Non-alcoholic drinks',
+          'Hammocks and outdoor seating areas',
+          'Showers and changing areas',
+          'Service from the house team throughout the day',
+        ].map(item => (
+          <div class="flex items-center gap-3 p-4 bg-sand/20 rounded-xl">
+            <span class="text-terracotta font-bold flex-shrink-0">✓</span>
+            <span class="text-sm text-ink/80">{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- A TYPICAL DAY -->
+  <section class="py-24 md:py-32 bg-brown text-white">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center">
+      <p class="text-sand text-xs uppercase tracking-widest mb-12">A Typical Day</p>
+      <div class="space-y-6">
+        {[
+          { time: '7:30 AM', label: 'Pickup in Cartagena' },
+          { time: '9:00 AM', label: 'Arrive at the house' },
+          { time: '9:00 – 1:00', label: 'Swim, explore, relax on the beach' },
+          { time: '1:00 PM', label: 'Fresh Caribbean lunch served' },
+          { time: '1:00 – 5:00', label: 'More beach time, hammocks, naps' },
+          { time: '5:00 PM', label: 'Head back to Cartagena' },
+        ].map(({ time, label }, i) => (
+          <div class={`flex items-center gap-4 ${i % 2 === 1 ? 'opacity-60' : ''}`}>
+            <span class="text-sand text-sm w-28 text-right flex-shrink-0">{time}</span>
+            <span class="w-2 h-2 rounded-full bg-sand/60 flex-shrink-0"></span>
+            <span class="font-serif text-xl text-left">{label}</span>
+          </div>
+        ))}
+      </div>
+      <p class="text-white/40 mt-12 text-base">Times are approximate. The day adjusts to you.</p>
+      <div data-lightbox="typical-day" class="grid grid-cols-2 gap-3 mt-10 max-w-sm mx-auto">
+        <img
+          src="/images/daytrip-2.jpg"
+          alt="Day trip to Casa Gaviota beach"
+          class="rounded-xl w-full aspect-square object-cover opacity-80"
+          loading="lazy"
+          width="200"
+          height="200"
+        />
+        <img
+          src="/images/beach-3.jpg"
+          alt="Casa Gaviota beach scene"
+          class="rounded-xl w-full aspect-square object-cover opacity-80"
+          loading="lazy"
+          width="200"
+          height="200"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOD -->
+  <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
-        <div data-lightbox="daytrip-included">
+        <div>
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
+            Fresh food, made at the house.
+          </h2>
+          <p class="text-ink/70 leading-relaxed mb-4">
+            The Caribbean lunch is prepared on-site by the house team. Grilled fish, coconut rice, patacones, fresh salads, tropical fruit. Simple, fresh, and genuinely delicious.
+          </p>
+          <p class="text-ink/70 leading-relaxed mb-8">
+            Many guests say it is one of the best meals of their trip to Colombia.
+          </p>
+          <p class="text-sm font-medium text-ink/50 border-l-2 border-terracotta/40 pl-4 italic">
+            "The food was better than restaurants." — Guest review
+          </p>
+        </div>
+        <div data-lightbox="food" class="grid grid-cols-2 gap-3">
           <img
-            src="/images/daytrip-2.jpg"
-            alt="Day trip at Casa Gaviota includes private beach access"
+            src="/images/food-1.jpg"
+            alt="Fresh Caribbean lunch at Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
-            width="600"
-            height="450"
+            width="300"
+            height="225"
+          />
+          <img
+            src="/images/food-2.jpg"
+            alt="Prepared food at Casa Gaviota"
+            class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+            loading="lazy"
+            width="300"
+            height="225"
           />
         </div>
-        <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8 text-brown">What is included</h2>
-          <ul class="space-y-4">
+      </div>
+    </div>
+  </section>
+
+  <!-- CHOOSE YOUR DAY -->
+  <section class="py-16 md:py-20 bg-sand/30">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+      <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brown mb-4">Choose your day</h2>
+      <p class="text-ink/60 text-sm mb-10">We run private day trips Thursday through Sunday. Only one group per day.</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {['Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+          <div class="bg-white border border-terracotta/20 rounded-xl py-5 px-4 text-center">
+            <p class="font-semibold text-brown text-sm">{day}</p>
+            <p class="text-xs text-ink/45 mt-1">Available</p>
+          </div>
+        ))}
+      </div>
+      <p class="text-xs text-ink/40 mt-6">Availability subject to confirmation. Contact us to check specific dates.</p>
+    </div>
+  </section>
+
+  <!-- BEACH CLUB VS PRIVATE COMPARISON -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-brown text-center mb-12">
+        Beach club or private beach house?
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="rounded-2xl p-7 border-2 border-red-200 bg-red-50/50">
+          <h3 class="font-semibold text-red-700 text-sm uppercase tracking-wide mb-5">Beach Club</h3>
+          <ul class="space-y-3">
             {[
-              { icon: '🏠', text: 'Private access to the house for your group' },
-              { icon: '🚤', text: 'Transport from Cartagena' },
-              { icon: '🍹', text: 'Welcome drink' },
-              { icon: '🍽️', text: 'Fresh Caribbean lunch prepared at the house' },
-              { icon: '🏖️', text: 'Beach access · hammocks · shaded areas' },
-              { icon: '🚿', text: 'Bathrooms and social spaces' },
-              { icon: '👤', text: 'On-site support from Manuel and the team' },
-              { icon: '🎂', text: 'Help with birthdays and celebrations' },
-              { icon: '✨', text: 'Optional upgrades: seafood, music, decoration' },
-            ].map(({ icon, text }) => (
-              <li class="flex items-start gap-3 text-sm text-ink/70">
-                <span class="flex-shrink-0">{icon}</span>
-                {text}
+              'Shared with dozens of strangers',
+              'Vendors walking the beach all day',
+              'Loud music from neighboring parties',
+              'Generic food from a shared kitchen',
+              'No privacy or sense of ownership',
+              'You have to fight for a good spot',
+            ].map(item => (
+              <li class="flex items-start gap-2.5 text-sm text-red-800/80">
+                <span class="flex-shrink-0 font-bold text-red-400 mt-0.5">✗</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div class="rounded-2xl p-7" style="background: #57392E;">
+          <h3 class="font-semibold text-sand text-sm uppercase tracking-wide mb-5">Casa Gaviota</h3>
+          <ul class="space-y-3">
+            {[
+              'Entire beach reserved for your group',
+              'No vendors, no strangers, no noise',
+              'Complete silence except the ocean',
+              'Fresh Caribbean lunch made at the house',
+              'Full privacy from arrival to departure',
+              'The whole beach is yours all day',
+            ].map(item => (
+              <li class="flex items-start gap-2.5 text-sm text-white/85">
+                <span class="flex-shrink-0 font-bold text-sand mt-0.5">✓</span>
+                {item}
               </li>
             ))}
           </ul>
@@ -215,175 +368,65 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     </div>
   </section>
 
-  <!-- A TYPICAL DAY -->
-  <section class="py-20 md:py-28">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">A typical day</h2>
-      <div class="space-y-0">
-        {[
-          { icon: '🌅', label: 'Morning', text: 'Pickup in Cartagena' },
-          { icon: '🚤', label: 'Travel', text: 'Arrive at Casa Gaviota' },
-          { icon: '🍹', label: 'Welcome', text: 'Welcome drink — settle in, drop your things' },
-          { icon: '🏖️', label: 'Your time', text: 'Swim, rest, music, photos, or just relax' },
-          { icon: '🍽️', label: 'Lunch', text: 'Fresh food prepared at the house' },
-          { icon: '🌴', label: 'Afternoon', text: 'Free time with your group' },
-          { icon: '🌇', label: 'Evening', text: 'Return to Cartagena' },
-        ].map(({ icon, label, text }, i) => (
-          <div class="flex items-start gap-4 py-4 border-b border-terracotta/20 last:border-0">
-            <span class="text-xl flex-shrink-0 mt-0.5">{icon}</span>
-            <div>
-              <p class="font-medium text-sm text-ink">{label}</p>
-              <p class="text-ink/60 text-sm">{text}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-      <p class="text-center text-muted text-sm mt-8">The day has structure, but does not feel rushed.</p>
-    </div>
-  </section>
-
-  <!-- FOOD -->
-  <section class="py-20 bg-brown text-white">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-        <div data-lightbox="daytrip-food" class="grid grid-cols-2 gap-3">
-          <img src="/images/food-1.jpg" alt="Caribbean food at Casa Gaviota" class="rounded-2xl w-full aspect-square object-cover" loading="lazy" width="300" height="300" />
-          <img src="/images/food-2.jpg" alt="Fresh lunch at Casa Gaviota" class="rounded-2xl w-full aspect-square object-cover" loading="lazy" width="300" height="300" />
-        </div>
-        <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 text-white">Food is one of the things guests remember most.</h2>
-          <p class="text-white/65 leading-relaxed mb-4">
-            Lunch is prepared fresh at the house and served in a relaxed, family-style way. Fresh fish, chicken, coconut rice, patacones, salad, fruit, juice.
-          </p>
-          <p class="text-white/65 leading-relaxed mb-4">
-            Lobster, birthday cakes, drinks, and special menus can be arranged in advance.
-          </p>
-          <p class="text-white/50 leading-relaxed italic text-sm">
-            "It feels like being invited to a beach house where someone cooks well and takes care of you."
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CHOOSE YOUR DAY -->
-  <section class="py-20 md:py-28">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-10 text-center text-brown">Choose the kind of day you want</h2>
-      <img
-        src="/images/daytrip-2.jpg"
-        alt="Casa Gaviota from the water"
-        class="rounded-2xl w-full aspect-[21/9] object-cover mb-10 shadow-md"
-        loading="lazy"
-        width="1200"
-        height="514"
-      />
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          {
-            icon: '☀️',
-            title: 'Relaxed Private Day',
-            desc: 'For families, couples, or friends who want a peaceful day by the sea. House + beach + lunch + hammocks + team.',
-          },
-          {
-            icon: '🎂',
-            title: 'Birthday or Celebration',
-            desc: 'Add music, drinks, cake, decoration, or upgraded food. Celebrate without a crowded beach club.',
-          },
-          {
-            icon: '🦞',
-            title: 'Premium Private Day',
-            desc: 'Private boat, lobster, cocktails, DJ, or live music. Casa Gaviota as a special private event.',
-          },
-        ].map(({ icon, title, desc }) => (
-          <div class="bg-white rounded-2xl p-7 border border-terracotta/20 shadow-sm hover:shadow-md transition-shadow">
-            <div class="text-3xl mb-4">{icon}</div>
-            <h3 class="font-serif font-semibold text-xl mb-3 text-brown">{title}</h3>
-            <p class="text-ink/65 text-sm leading-relaxed">{desc}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <!-- PRICING -->
-  <section class="py-20 bg-rose/15">
+  <!-- WHO THIS IS FOR -->
+  <section class="py-20 md:py-28 bg-rose/15">
     <div class="max-w-4xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-10">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-4 text-brown">Pricing</h2>
-        <p class="text-ink/70 leading-relaxed max-w-xl mx-auto">
-          Casa Gaviota is a private experience. Price depends on group size, date, transport, food, and extras.
-        </p>
-      </div>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold text-brown text-center mb-12">Who this is for</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {[
-          { icon: '👫', label: 'Couple', price: 'from $300 USD' },
-          { icon: '👨‍👩‍👧', label: 'Family of 4', price: 'from $500 USD' },
-          { icon: '👥', label: 'Group of 6', price: 'from $700 USD' },
-          { icon: '🎉', label: 'Group of 8', price: 'from $900 USD' },
-        ].map(({ icon, label, price }) => (
-          <div class="bg-white rounded-2xl p-5 border border-terracotta/15 shadow-sm text-center">
-            <div class="text-2xl mb-2">{icon}</div>
-            <p class="font-medium text-sm text-ink mb-1">{label}</p>
-            <p class="text-brown font-semibold text-sm">{price}</p>
+          { icon: '👨‍👩‍👧‍👦', title: 'Families', desc: 'Safe, quiet beach. Kids can run free. Parents actually relax.' },
+          { icon: '🎂', title: 'Birthday groups', desc: 'Private setting for a celebration that feels truly special.' },
+          { icon: '💑', title: 'Couples', desc: 'Total seclusion. No other people. Just the two of you and the sea.' },
+          { icon: '🥂', title: 'Friend groups', desc: 'Bigger groups up to 10. A day everyone will remember.' },
+          { icon: '💼', title: 'Corporate teams', desc: 'Offsite or team-building with a backdrop nobody forgets.' },
+        ].map(({ icon, title, desc }) => (
+          <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
+            <div class="text-3xl mb-3">{icon}</div>
+            <h3 class="font-semibold text-brown mb-2">{title}</h3>
+            <p class="text-sm text-ink/65 leading-relaxed">{desc}</p>
           </div>
         ))}
-      </div>
-      <p class="text-center text-sm text-ink/50 mb-8">Transport and food added separately. The larger your group, the lower the cost per person.</p>
-      <div class="text-center">
-        <a
-          href={WA}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md"
-        >
-          Get a quote on WhatsApp →
-        </a>
       </div>
     </div>
   </section>
 
-  <!-- DAY TRIP FAQ -->
-  <section id="faq" class="py-20 md:py-28">
+  <!-- FAQ -->
+  <section id="faq" class="py-20 bg-rose/15">
     <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Questions</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Frequently Asked Questions</h2>
       <div class="space-y-2">
         {[
           {
-            q: 'Is Casa Gaviota private for our group?',
-            a: 'Yes. Your group has a private beach house as your base for the day, instead of joining a shared tour or beach club.',
-          },
-          {
             q: 'Is transport included?',
-            a: 'Transport can be included depending on the package. We help coordinate land transport, boat transport, or a combination depending on your group, date, and conditions.',
-          },
-          {
-            q: 'How far is it from Cartagena?',
-            a: 'Casa Gaviota is in Barú, outside Cartagena. Travel time is between 1 and 2 hours depending on weather and transport type. We will explain the best option before you book.',
+            a: 'Yes — included in all day trip packages. We pick you up from Cartagena and bring you back. The boat ride to the house is also included.',
           },
           {
             q: 'Is food included?',
-            a: 'Most day trip options include lunch or can include lunch. We will confirm the menu, price, and any upgrades before your visit.',
+            a: 'Yes — a fresh Caribbean lunch is included in all day trip packages. Grilled fish, coconut rice, patacones, fresh salad, and tropical fruit. Prepared at the house by the team.',
           },
           {
-            q: 'Can we celebrate a birthday?',
-            a: 'Yes. Casa Gaviota is a great place for birthdays and small celebrations. We can help with a simple setup, music, cake, drinks, food, and timing.',
+            q: 'What time does the day start and end?',
+            a: 'Pickup in Cartagena around 7:30 AM. Arrive at the house around 9:00 AM. Return to Cartagena around 5:00 PM. Times can be adjusted depending on your group.',
           },
           {
-            q: 'Is it good for children?',
-            a: 'Yes, families are welcome. Adults are responsible for supervising children, especially near the sea.',
+            q: 'Can we bring alcohol or extra food?',
+            a: 'Yes — feel free to bring drinks. Alcoholic beverages are not included in the package but are welcome. Just let us know in advance if you have any special requests.',
           },
           {
-            q: 'Can we bring our own drinks?',
-            a: 'Yes. You can bring drinks or snacks, and we can help with ice, coolers, or service depending on the package.',
+            q: 'How many people can come?',
+            a: 'The house holds up to 8 guests for a day trip. For groups of up to 10, message us to arrange.',
           },
           {
-            q: 'Is this a luxury beach club?',
-            a: 'No. Casa Gaviota is a private beach house. Beautiful, warm, natural, and comfortable — but not a luxury resort or commercial beach club.',
+            q: 'What if the weather is bad?',
+            a: 'In case of bad weather we coordinate rescheduling or a full refund. We will always communicate with you in advance if conditions look problematic.',
           },
           {
-            q: 'Can we stay overnight?',
-            a: 'Yes, Casa Gaviota is also available for overnight stays depending on availability. Ask us if you want to extend the experience.',
+            q: 'What activities can we do?',
+            a: 'Swimming, snorkeling, hammock time, walks, boat trips to nearby islands. We can also arrange a live papayera band, kayaks, or other activities on request.',
+          },
+          {
+            q: 'How do I book?',
+            a: 'Message us on WhatsApp with your preferred date and number of guests. We will confirm availability and send payment details. A deposit is required to hold your date.',
           },
         ].map(({ q, a }) => (
           <details class="group bg-white rounded-xl border border-terracotta/20 overflow-hidden">
@@ -401,11 +444,11 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- DAY TRIP FORM -->
-  <section id="book" class="py-20 bg-rose/15">
+  <section id="book" class="py-20 md:py-28">
     <div class="max-w-xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-10">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Ready to plan your private day?</h2>
-        <p class="text-muted">Tell us your date and group size. We will get back to you quickly.</p>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Book your private day trip</h2>
+        <p class="text-muted">Choose your date and group size. We will confirm and send details within a few hours.</p>
       </div>
       <DayTripForm accessKey={KEY} lang="en" client:load />
     </div>

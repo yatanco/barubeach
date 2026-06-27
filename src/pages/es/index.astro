@@ -9,10 +9,10 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
 ---
 
 <Layout
-  title="Casa Gaviota Baru — Casa de Playa Privada en Barú, Colombia"
-  description="Una casa de playa privada en Isla Barú cerca de Cartagena. 80 metros de playa privada, sin vendedores, sin multitudes. Servicio completo, privacidad total."
+  title="Casa Gaviota Barú — Casa de Playa Privada en Barú, Colombia"
+  description="Una casa de playa privada en Isla Barú, cerca de Cartagena. 80 metros de playa privada, sin vendedores, sin multitudes. Servicio completo, privacidad total. Reserva estadía o pasadía."
   lang="es"
-  canonical="https://casagaviota.com/es"
+  defaultPopupType="stay"
 >
   <Header lang="es" altHref="/" />
 
@@ -31,37 +31,42 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     <div class="relative z-10 text-center text-white px-6 max-w-3xl mx-auto py-24">
       <p class="text-sand text-xs sm:text-sm uppercase tracking-widest font-medium mb-5">Barú · Colombia</p>
       <h1 class="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold leading-tight mb-4">
-        Casa Gaviota Baru
+        Casa Gaviota Barú
       </h1>
-      <h2 class="text-xl sm:text-2xl font-light mb-3">Una casa de playa privada para desconectarse en Barú</h2>
+      <h2 class="text-xl sm:text-2xl font-light mb-3">Una Casa de Playa Privada en Barú</h2>
       <p class="text-sm sm:text-base text-white/70 mb-12 uppercase tracking-wider">
-        80 metros de playa privada · servicio completo · privacidad total
+        80 metros de playa privada · sin multitudes · solo tu grupo
       </p>
 
       <button
-        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
+        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
         class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-10"
       >
         Planear por WhatsApp →
       </button>
       <a href="#experiencia" class="block text-white/45 text-sm hover:text-white/70 transition-colors">
-        Descubrir más ↓
+        Explorar ↓
       </a>
     </div>
   </section>
 
-  <!-- TARJETAS DE EXPERIENCIA -->
+  <!-- TRUST BAR -->
+  <section class="py-5 text-white text-center font-semibold" style="background: #57392E;">
+    <p class="text-base sm:text-lg tracking-wide">⭐ 4.8 · 200+ reseñas · Airbnb, Booking.com y Google</p>
+  </section>
+
+  <!-- EXPERIENCE CARDS -->
   <section id="experiencia" class="py-16 md:py-20">
     <div class="max-w-4xl mx-auto px-4 sm:px-6">
       <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brown text-center mb-3">¿Qué estás buscando?</h2>
-      <p class="text-center text-ink/55 text-sm mb-10">Dos formas de vivir Casa Gaviota — ambas privadas, ambas únicas.</p>
+      <p class="text-center text-ink/55 text-sm mb-10">Dos formas de vivir Casa Gaviota — ambas privadas, ambas inolvidables.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-        <!-- Pasadía -->
+        <!-- Pasadía card -->
         <div class="bg-white rounded-2xl border border-terracotta/15 p-7 shadow-sm flex flex-col">
           <div class="text-3xl mb-4">☀️</div>
-          <h3 class="font-serif text-xl font-semibold text-brown mb-2">Pasadía Privado</h3>
-          <p class="text-ink/65 text-sm leading-relaxed mb-6 flex-1">Llega en la mañana, regresa al atardecer. Playa privada, comida fresca, y total libertad sin multitudes.</p>
+          <h3 class="font-serif text-xl font-semibold text-brown mb-2">Pasadía</h3>
+          <p class="text-ink/65 text-sm leading-relaxed mb-6 flex-1">Llega en la mañana, sal al atardecer. Playa privada, comida fresca y total libertad sin multitudes.</p>
           <a
             href="/es/pasadia"
             class="inline-flex items-center gap-1.5 bg-sand text-brown font-semibold text-sm px-5 py-3 rounded-full hover:opacity-90 transition-opacity self-start"
@@ -70,11 +75,11 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           </a>
         </div>
 
-        <!-- Estadía -->
+        <!-- Estadía card -->
         <div class="bg-white rounded-2xl border border-terracotta/15 p-7 shadow-sm flex flex-col">
           <div class="text-3xl mb-4">🌙</div>
-          <h3 class="font-serif text-xl font-semibold text-brown mb-2">Estadía Nocturna</h3>
-          <p class="text-ink/65 text-sm leading-relaxed mb-6 flex-1">Duerme al son de las olas. Despierta frente al mar. 3 habitaciones, hasta 8 personas, privacidad total.</p>
+          <h3 class="font-serif text-xl font-semibold text-brown mb-2">Estadía</h3>
+          <p class="text-ink/65 text-sm leading-relaxed mb-6 flex-1">Duerme con el sonido de las olas. Despierta con el océano. 3 habitaciones, hasta 8 personas, total privacidad.</p>
           <div class="flex flex-wrap gap-2">
             <a
               href="http://airbnb.com/h/casagaviotabaru"
@@ -88,7 +93,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
               onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
               class="inline-flex items-center gap-1.5 border border-brown text-brown font-semibold text-sm px-5 py-3 rounded-full hover:bg-brown/5 transition cursor-pointer"
             >
-              Planear directamente →
+              Planear directo →
             </button>
           </div>
         </div>
@@ -97,14 +102,14 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     </div>
   </section>
 
-  <!-- NO ES UN HOTEL -->
+  <!-- NOT A HOTEL -->
   <section id="casa" class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
-        <div data-lightbox="not-hotel" class="grid grid-cols-2 gap-3">
+        <div data-lightbox="no-hotel" class="grid grid-cols-2 gap-3">
           <img
             src="/images/beach-1.jpg"
-            alt="Playa privada de Casa Gaviota"
+            alt="Playa privada en Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
             width="300"
@@ -112,7 +117,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           />
           <img
             src="/images/beach-2.jpg"
-            alt="Entorno natural en Casa Gaviota"
+            alt="Playa natural en Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
             width="300"
@@ -124,7 +129,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             Casa Gaviota no es un beach club ni un hotel.
           </h2>
           <p class="text-ink/70 leading-relaxed mb-6">
-            Es una casa de playa privada diseñada para personas que quieren bajar el ritmo, desconectarse y vivir la naturaleza sin distracciones.
+            Es una casa de playa privada diseñada para personas que quieren descansar, desconectarse y vivir la naturaleza sin distracciones.
           </p>
           <ul class="space-y-3 mb-8">
             {['Sin beach clubs.', 'Sin vendedores.', 'Sin multitudes.'].map(item => (
@@ -134,25 +139,25 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
               </li>
             ))}
           </ul>
-          <p class="text-ink/70 leading-relaxed">Solo tu grupo, el mar y tiempo para descansar.</p>
+          <p class="text-ink/70 leading-relaxed">Solo tu grupo, el océano y tiempo para relajarse.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- RESEÑAS -->
-  <section id="reviews" class="py-20 bg-rose/20">
+  <!-- REVIEWS -->
+  <section id="resenas" class="py-20 bg-rose/20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-12">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Lo que dicen más de 200 huéspedes</h2>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Lo que dicen 200+ huéspedes</h2>
         <p class="text-muted text-sm">⭐ 4.8 de promedio en Airbnb, Booking.com y Google</p>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="reviews-initial">
         {[
-          'Un lugar increíblemente hermoso y tranquilo, ideal para desconectarse.',
-          'Un pedacito de paraíso… queremos volver.',
+          'Insanamente hermoso y tranquilo, el lugar ideal para descansar.',
+          'Un pedazo de cielo… ya estamos planeando volver.',
           'Perfecto para relajarse y desconectarse de todo.',
-          'La comida fue mejor que en muchos restaurantes.',
+          'La comida estaba mejor que en los restaurantes.',
         ].map(quote => (
           <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
             <p class="text-terracotta text-3xl leading-none mb-3">"</p>
@@ -160,8 +165,29 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           </div>
         ))}
       </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 hidden" id="reviews-extra">
+        {[
+          'Manuel y su equipo son increíblemente atentos. Nos sentimos completamente cuidados.',
+          'El lugar más hermoso y tranquilo que hemos visitado en Colombia.',
+          'Perfecto para el viaje familiar. Los niños lo amaron, los adultos finalmente descansamos.',
+          'Vale cada peso. Ya estamos planeando la próxima visita.',
+        ].map(quote => (
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
+            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
+          </div>
+        ))}
+      </div>
+      <div class="mt-8 text-center">
+        <button
+          id="show-more-reviews"
+          class="border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
+        >
+          Ver más reseñas
+        </button>
+      </div>
       <div class="mt-10 text-center">
-        <p class="text-sm text-ink/50 mb-4">Más de 200 reseñas verificadas en distintas plataformas</p>
+        <p class="text-sm text-ink/50 mb-4">200+ reseñas verificadas en múltiples plataformas</p>
         <div class="flex flex-col sm:flex-row gap-3 justify-center">
           <a
             href="http://airbnb.com/h/casagaviotabaru"
@@ -169,7 +195,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             rel="noopener noreferrer"
             class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
           >
-            Ver todas las reseñas en Airbnb →
+            Leer todas las reseñas en Airbnb →
           </a>
           <a
             href="https://share.google/SHahHFkk8vXJIW7hH"
@@ -177,30 +203,36 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             rel="noopener noreferrer"
             class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
           >
-            Ver todas las reseñas en Google →
+            Leer todas las reseñas en Google →
           </a>
         </div>
       </div>
     </div>
   </section>
+  <script is:inline>
+    document.getElementById('show-more-reviews')?.addEventListener('click', function() {
+      document.getElementById('reviews-extra')?.classList.remove('hidden');
+      this.style.display = 'none';
+    });
+  </script>
 
-  <!-- LA EXPERIENCIA -->
+  <!-- THE EXPERIENCE -->
   <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div class="order-2 md:order-1">
           <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 leading-snug text-brown">
-            Te atendemos desde el momento en que llegas.
+            Te cuidamos desde que llegas.
           </h2>
           <p class="text-ink/70 leading-relaxed mb-4">
-            Manuel y el equipo de la casa ayudan con todo: transporte, comidas, logística y cualquier cosa que necesites durante tu estadía.
+            Manuel y el equipo de la casa ayudan con todo — transporte, comidas, logística y lo que necesites durante tu estadía.
           </p>
           <p class="text-ink/70 leading-relaxed">
-            La comida caribeña se prepara fresca en la casa, y muchos huéspedes dicen que es una de las mejores partes de la experiencia.
+            La comida caribeña fresca se prepara en el lugar, y muchos huéspedes dicen que es uno de los momentos más destacados de la experiencia.
           </p>
         </div>
         <div class="order-1 md:order-2">
-          <div data-lightbox="experience" class="grid grid-cols-2 gap-3">
+          <div data-lightbox="experiencia" class="grid grid-cols-2 gap-3">
             <img
               src="/images/food-1.jpg"
               alt="Comida caribeña fresca en Casa Gaviota"
@@ -211,7 +243,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             />
             <img
               src="/images/food-2.jpg"
-              alt="Almuerzo fresco en Casa Gaviota"
+              alt="Almuerzo preparado en Casa Gaviota"
               class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
               loading="lazy"
               width="300"
@@ -226,22 +258,22 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- UN DÍA EN CASA GAVIOTA -->
   <section class="py-24 md:py-32 bg-brown text-white">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center">
-      <p class="text-sand text-xs uppercase tracking-widest mb-12">Un día en Casa Gaviota</p>
+      <p class="text-sand text-xs uppercase tracking-widest mb-12">Un Día en Casa Gaviota</p>
       <div class="space-y-5 font-serif">
         {[
-          'Despertar frente al mar',
-          'Nadar, descansar, leer y desconectarte',
-          'Comer comida fresca, sencilla y deliciosa',
+          'Despertar con el océano',
+          'Nadar, descansar, leer, desconectarse',
+          'Comer fresco, simple y delicioso',
           'Ver el atardecer',
-          'Dormirte con el sonido de las olas',
+          'Dormir con el sonido de las olas',
         ].map((line, i) => (
           <p class={`text-2xl sm:text-3xl md:text-4xl font-medium ${i % 2 === 1 ? 'text-white/60' : 'text-white'}`}>
             {line}
           </p>
         ))}
       </div>
-      <p class="text-white/40 mt-12 text-lg">Sin horario. Sin presión.</p>
-      <div data-lightbox="day-timeline" class="grid grid-cols-2 gap-3 mt-10 max-w-sm mx-auto">
+      <p class="text-white/40 mt-12 text-lg">Sin horarios. Sin presión.</p>
+      <div data-lightbox="dia-timeline" class="grid grid-cols-2 gap-3 mt-10 max-w-sm mx-auto">
         <img
           src="/images/beach-3.jpg"
           alt="Llegando a Casa Gaviota en lancha"
@@ -252,7 +284,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         />
         <img
           src="/images/hero-2.jpg"
-          alt="Casa Gaviota desde la playa"
+          alt="Playa de Casa Gaviota"
           class="rounded-xl w-full aspect-square object-cover opacity-80"
           loading="lazy"
           width="200"
@@ -267,14 +299,14 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
         <div>
-          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8 text-brown">La casa</h2>
+          <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-8 text-brown">La Casa</h2>
           <ul class="space-y-4 mb-8">
             {[
-              '3 habitaciones, para hasta 8 huéspedes',
+              '3 habitaciones · hasta 8 huéspedes',
               'Cada habitación con baño privado',
-              'Zonas sociales amplias',
+              'Amplias áreas sociales',
               'Acceso directo a 80m de playa privada',
-              'Wi-Fi con Starlink',
+              'Wi-Fi Starlink',
               'Ventiladores en todas las habitaciones',
             ].map(item => (
               <li class="flex items-start gap-3 text-ink/70">
@@ -284,14 +316,14 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             ))}
           </ul>
           <p class="text-ink/50 italic text-sm border-l-2 border-terracotta/40 pl-4">
-            "Sencilla, cómoda y completamente integrada con la naturaleza."
+            "Simple, cómoda y completamente integrada con la naturaleza."
           </p>
         </div>
-        <div data-lightbox="house" class="grid grid-cols-2 gap-3">
+        <div data-lightbox="casa" class="grid grid-cols-2 gap-3">
           {['house-1.jpg', 'house-2.jpg', 'house-3.jpg', 'house-4.jpg'].map((img, i) => (
             <img
               src={`/images/${img}`}
-              alt={`Casa Gaviota foto ${i + 1}`}
+              alt={`Foto de la casa ${i + 1}`}
               class="rounded-xl w-full aspect-square object-cover"
               loading="lazy"
               width="300"
@@ -303,12 +335,97 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     </div>
   </section>
 
-  <!-- QUÉ ESPERAR -->
+  <!-- PRECIOS DE ESTADÍA -->
+  <section class="py-20 md:py-28" style="background: #FAFAF5;">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-12">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Cómo funciona el precio</h2>
+        <p class="text-ink/60">La casa es tuya — agrega lo que necesitas.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
+          <div class="text-3xl mb-3">🏠</div>
+          <h3 class="font-semibold text-brown text-lg mb-1">La casa</h3>
+          <p class="text-2xl font-bold text-brown mb-2">$350 USD <span class="text-base font-normal text-ink/50">/noche</span></p>
+          <p class="text-sm text-ink/60">Hasta 8 personas · mínimo 2 noches · 3 habitaciones con baño privado</p>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
+          <div class="text-3xl mb-3">🚤</div>
+          <h3 class="font-semibold text-brown text-lg mb-3">Transporte <span class="text-sm font-normal text-ink/50">(elige uno)</span></h3>
+          <div class="space-y-3">
+            <div>
+              <p class="font-semibold text-sm text-ink">Lancha privada: $250 USD cada trayecto</p>
+              <p class="text-sm text-ink/55">Directo desde Cartagena · hasta 10 personas</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm text-ink">Carro + lancha: $200 USD cada trayecto</p>
+              <p class="text-sm text-ink/55">Drive a Barú + lancha corta hasta la casa</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
+          <div class="text-3xl mb-3">🍽️</div>
+          <h3 class="font-semibold text-brown text-lg mb-3">Comida <span class="text-sm font-normal text-ink/50">(elige una)</span></h3>
+          <div class="space-y-3">
+            <div>
+              <p class="font-semibold text-sm text-ink">Servicio de comida: $50 USD/persona/día</p>
+              <p class="text-sm text-ink/55">Comidas caribeñas frescas preparadas en la casa</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm text-ink">Lujo con langosta: $80 USD/persona/día</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm text-ink">Traer tus propios víveres: $0</p>
+              <p class="text-sm text-ink/55">Compra en Cartagena antes de llegar</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl p-7 mb-8" style="background: #E6C497;">
+        <p class="font-semibold text-brown text-sm uppercase tracking-wide mb-5">Ejemplo: 2 noches · 4 personas · lancha privada · servicio de comida</p>
+        <div class="space-y-2 text-sm text-ink/80 mb-4">
+          <div class="flex justify-between">
+            <span>🏠 Casa (2 noches)</span>
+            <span class="font-semibold">$700 USD</span>
+          </div>
+          <div class="flex justify-between">
+            <span>🚤 Transporte (lancha, ida y vuelta)</span>
+            <span class="font-semibold">$500 USD</span>
+          </div>
+          <div class="flex justify-between">
+            <span>🍽️ Comida (4 personas × $50 × 2 noches)</span>
+            <span class="font-semibold">$400 USD</span>
+          </div>
+          <div class="border-t border-ink/20 pt-3 flex justify-between font-bold text-base">
+            <span>Total</span>
+            <span>~$1,600 USD</span>
+          </div>
+          <div class="flex justify-between text-ink/55">
+            <span>Por persona</span>
+            <span>~$400 USD</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-center text-sm text-ink/50 mb-8">Precio final confirmado por WhatsApp. Se requiere 50% de depósito para reservar las fechas.</p>
+      <div class="text-center">
+        <button
+          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
+          class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md cursor-pointer"
+        >
+          Planear tu estadía por WhatsApp →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXPECTATIVAS HONESTAS -->
   <section class="py-20 md:py-28 bg-rose/15">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div>
-          <div data-lightbox="expectations" class="grid grid-cols-2 gap-3">
+          <div data-lightbox="expectativas" class="grid grid-cols-2 gap-3">
             <img
               src="/images/house-1.jpg"
               alt="Interior de Casa Gaviota"
@@ -319,7 +436,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             />
             <img
               src="/images/house-2.jpg"
-              alt="Habitación en Casa Gaviota"
+              alt="Habitación de Casa Gaviota"
               class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
               loading="lazy"
               width="300"
@@ -328,16 +445,16 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           </div>
         </div>
         <div>
-          <h2 class="font-serif text-2xl sm:text-3xl font-semibold mb-5 text-brown">Qué esperar</h2>
+          <h2 class="font-serif text-2xl sm:text-3xl font-semibold mb-5 text-brown">Expectativas honestas</h2>
           <p class="text-ink/70 leading-relaxed mb-6">
-            Casa Gaviota es una casa de playa rústica en un entorno natural y remoto. Eso es parte de lo que la hace especial, pero es importante saber qué esperar:
+            Casa Gaviota es una casa de playa rústica en un entorno natural remoto. Esto es parte de lo que la hace especial, pero es importante saber qué esperar:
           </p>
           <ul class="space-y-3 mb-8">
             {[
-              'No hay aire acondicionado; usamos ventiladores',
-              'Hay presencia de naturaleza: insectos, brisa, arena y condiciones del mar que pueden variar',
-              'Algunas zonas de la casa son sencillas y no de lujo',
-              'El transporte requiere planificación: carro + lancha, o lancha directa',
+              'Sin aire acondicionado (ventiladores en lugar)',
+              'La naturaleza está presente: insectos, humedad, condiciones del mar variables',
+              'Algunas áreas de la casa son simples, no de lujo',
+              'Llegar requiere planificación: carro + lancha o lancha privada',
             ].map(item => (
               <li class="flex items-start gap-3 text-sm text-ink/65">
                 <span class="text-terracotta mt-0.5 flex-shrink-0">—</span>
@@ -346,10 +463,10 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             ))}
           </ul>
           <p class="text-sm text-ink/50 border-l-2 border-terracotta/30 pl-4 mb-4">
-            Si estás buscando un hotel de lujo, este no es el lugar indicado.
+            Si buscas un hotel de lujo, este no es el lugar indicado.
           </p>
           <p class="text-sm text-ink/70 font-medium">
-            Si estás buscando una experiencia tranquila, auténtica y privada en la naturaleza, te va a encantar.
+            Si buscas una experiencia auténtica, tranquila y privada en la naturaleza, lo vas a amar.
           </p>
         </div>
       </div>
@@ -363,25 +480,25 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         <div>
           <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 text-brown">Ubicación y acceso</h2>
           <p class="text-ink/70 leading-relaxed mb-8">
-            Casa Gaviota está ubicada en Barú, aproximadamente a 1–2 horas de Cartagena, dependiendo del tipo de transporte.
+            Casa Gaviota está en Barú, a 1–2 horas de Cartagena según el transporte.
           </p>
           <div class="space-y-3 mb-8">
             <div class="flex items-start gap-4 p-4 bg-sand/20 rounded-xl">
               <span class="text-xl flex-shrink-0">🚤</span>
               <div>
                 <p class="font-medium text-sm mb-0.5">Lancha privada desde Cartagena</p>
-                <p class="text-muted text-sm">$250 USD por trayecto · hasta 10 personas</p>
+                <p class="text-muted text-sm">$250 USD cada trayecto · hasta 10 personas</p>
               </div>
             </div>
             <div class="flex items-start gap-4 p-4 bg-sand/20 rounded-xl">
               <span class="text-xl flex-shrink-0">🚗</span>
               <div>
                 <p class="font-medium text-sm mb-0.5">Carro + lancha</p>
-                <p class="text-muted text-sm">$200 USD por trayecto. El tramo final siempre es en lancha.</p>
+                <p class="text-muted text-sm">$200 USD cada trayecto. El tramo final siempre es en lancha.</p>
               </div>
             </div>
           </div>
-          <p class="text-ink/50 text-sm mb-5">Nosotros te ayudamos a coordinar todo.</p>
+          <p class="text-ink/50 text-sm mb-5">Ayudamos a coordinar todo.</p>
           <a
             href={MAPS}
             target="_blank"
@@ -391,10 +508,10 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             Ver en Google Maps →
           </a>
         </div>
-        <div data-lightbox="location">
+        <div data-lightbox="ubicacion">
           <img
             src="/images/beach-3.jpg"
-            alt="Llegada a Casa Gaviota en lancha"
+            alt="Llegando a Casa Gaviota en lancha"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
             width="600"
@@ -405,47 +522,47 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     </div>
   </section>
 
-  <!-- PREGUNTAS FRECUENTES -->
+  <!-- FAQ -->
   <section id="faq" class="py-20 bg-rose/15">
     <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Preguntas frecuentes</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Preguntas Frecuentes</h2>
       <div class="space-y-2">
         {[
           {
             q: '¿Qué tipo de lugar es Casa Gaviota?',
-            a: 'Casa Gaviota es una casa de playa privada en Barú, cerca de Cartagena. No es un hotel grande ni un beach club. Es un lugar tranquilo, natural y privado para descansar, compartir y desconectarse.',
+            a: 'Una casa de playa privada y rústica en un entorno natural. No es un hotel ni un resort. Para huéspedes que quieren desconectarse, disfrutar de la privacidad y relajarse junto al mar.',
+          },
+          {
+            q: '¿Qué está incluido en la estadía?',
+            a: 'Uso privado de la casa, 80m de playa privada, limpieza diaria, toallas y sábanas, Wi-Fi Starlink con batería de respaldo. Comida y transporte se coordinan por separado.',
           },
           {
             q: '¿Cómo llego?',
-            a: 'Casa Gaviota está ubicada en Barú y requiere una combinación de carro y lancha, o una lancha privada desde Cartagena. Nosotros te ayudamos a coordinar todo. Opciones: carro + lancha ($200 USD por trayecto) o lancha privada ($250 USD por trayecto, hasta 10 personas).',
-          },
-          {
-            q: '¿Qué incluye la estadía?',
-            a: 'Acceso privado a la casa, habitaciones, baños privados, zonas sociales, playa, Wi-Fi, apoyo del equipo en sitio y coordinación de comida, limpieza y transporte, según el tipo de reserva.',
+            a: 'Para pasadías, el transporte desde Cartagena está incluido en el precio del paquete. Para estadías, coordinamos una lancha privada ($250 USD cada trayecto, hasta 10 personas) o carro + lancha ($200 USD cada trayecto). El tramo final siempre es en lancha.',
           },
           {
             q: '¿Cómo funciona la comida?',
-            a: 'Paquete de comida caribeña: USD $50 por persona por día. Paquete luxury con langosta: USD $80 por persona por día. O traer tus propios víveres. Muchos huéspedes destacan la comida como una de las mejores partes de la experiencia.',
+            a: 'Para pasadías, un almuerzo caribeño fresco está incluido en el precio del paquete. Para estadías, puedes agregar nuestro servicio de comida ($50 USD/persona/día), hacer el upgrade al paquete con langosta ($80 USD/persona/día), o traer tus propios víveres de Cartagena.',
           },
           {
-            q: '¿Puedo llevar mi propia comida y bebidas?',
-            a: 'Sí. Puedes traer tu propia comida, bebidas o snacks. También podemos ayudarte con compras, hielo, neveras o preparación, dependiendo de lo que necesite tu grupo.',
-          },
-          {
-            q: '¿Tienen aire acondicionado?',
-            a: 'No. Casa Gaviota no tiene aire acondicionado. Las habitaciones tienen ventiladores. La casa está pensada para una experiencia más natural, abierta y conectada con el entorno.',
+            q: '¿Hay aire acondicionado?',
+            a: 'No. Ventilación natural con ventiladores. La brisa del mar y el diseño abierto mantienen la casa fresca, especialmente en las noches.',
           },
           {
             q: '¿Hay Wi-Fi?',
-            a: 'Sí. Tenemos Wi-Fi con Starlink. Aun así, estamos en una zona natural y remota, así que pueden existir interrupciones ocasionales. Para el que quiera trabajar remoto lo puede hacer sin problema con nuestro Wi-Fi, baterías y generador.',
+            a: 'Sí — Starlink con batería de respaldo. Bueno para mensajes y trabajo liviano. Pero te recomendamos venir dispuesto a desconectarte.',
           },
           {
             q: '¿Puedo visitar solo por el día?',
-            a: 'Sí. También ofrecemos pasadías privados para grupos, ideales para familias, cumpleaños, amigos y ocasiones especiales.',
+            a: 'Sí — visita nuestra página de Pasadía para experiencias privadas de un día con transporte y almuerzo incluidos.',
+          },
+          {
+            q: '¿Qué actividades hay?',
+            a: 'Paseos en lancha a las Islas del Rosario, snorkel, Oceanario / Aviario, caminatas por la naturaleza, música en vivo (banda papayera). Ayudamos a organizar todo.',
           },
           {
             q: '¿Cómo reservo y pago?',
-            a: 'Escríbenos por WhatsApp con la fecha, número de personas y el tipo de experiencia que buscas. Te confirmamos disponibilidad, opciones de transporte, comida y precio. Para reservar, normalmente se requiere un anticipo.',
+            a: 'Escríbenos por WhatsApp con tus fechas y tamaño del grupo. Las reservas directas requieren un depósito. El saldo se paga en la casa. Las reservas por Airbnb se manejan en esa plataforma.',
           },
         ].map(({ q, a }) => (
           <details class="group bg-white rounded-xl border border-terracotta/20 overflow-hidden">

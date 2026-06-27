@@ -9,6 +9,10 @@ const isES = lang === 'es';
 
 const altURL = altHref ?? (isES ? '/' : '/es');
 
+// Hide nav for ad traffic (UTM params, fbclid, gclid)
+const hasAd = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid']
+  .some(p => Astro.url.searchParams.has(p));
+
 const nav = isES
   ? [
       { href: '/es', label: 'Estadía' },
@@ -41,28 +45,32 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
         <span class="font-serif font-semibold text-white text-sm hidden sm:block">Casa Gaviota</span>
       </a>
 
-      <!-- Desktop nav -->
-      <nav class="hidden md:flex items-center gap-7">
-        {nav.map(link => (
-          <a
-            href={link.href}
-            class="text-base font-medium text-white/70 hover:text-white transition-colors"
-          >
-            {link.label}
-          </a>
-        ))}
-      </nav>
+      <!-- Desktop nav — hidden for ad traffic -->
+      {!hasAd && (
+        <nav class="hidden md:flex items-center gap-7">
+          {nav.map(link => (
+            <a
+              href={link.href}
+              class="text-base font-medium text-white/70 hover:text-white transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+      )}
 
       <!-- Right side -->
       <div class="flex items-center gap-3">
-        <a
-          href={altURL}
-          title={flagTitle}
-          aria-label={flagTitle}
-          class="text-base leading-none hover:opacity-70 transition-opacity select-none"
-        >
-          {flagLabel}
-        </a>
+        {!hasAd && (
+          <a
+            href={altURL}
+            title={flagTitle}
+            aria-label={flagTitle}
+            class="text-base leading-none hover:opacity-70 transition-opacity select-none"
+          >
+            {flagLabel}
+          </a>
+        )}
 
         <button
           onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
@@ -71,41 +79,45 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
           {waLabel}
         </button>
 
-        <button
-          id="menu-btn"
-          aria-label="Toggle menu"
-          aria-expanded="false"
-          class="md:hidden p-2 -mr-1 rounded-lg hover:bg-white/10 transition-colors text-white"
-        >
-          <svg id="icon-open" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <svg id="icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        {!hasAd && (
+          <button
+            id="menu-btn"
+            aria-label="Toggle menu"
+            aria-expanded="false"
+            class="md:hidden p-2 -mr-1 rounded-lg hover:bg-white/10 transition-colors text-white"
+          >
+            <svg id="icon-open" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <svg id="icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
 
-    <!-- Mobile menu -->
-    <div id="mobile-menu" class="hidden md:hidden border-t border-white/20 py-4">
-      <nav class="flex flex-col gap-1 mb-4">
-        {nav.map(link => (
-          <a
-            href={link.href}
-            class="text-base font-medium text-white/70 hover:text-white px-2 py-2.5 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            {link.label}
-          </a>
-        ))}
-      </nav>
-      <button
-        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
-        class="flex items-center justify-center gap-2 bg-sand text-brown text-sm font-semibold px-4 py-3 rounded-full hover:opacity-90 transition-opacity w-full cursor-pointer"
-      >
-        {waLabel}
-      </button>
-    </div>
+    <!-- Mobile menu — hidden for ad traffic -->
+    {!hasAd && (
+      <div id="mobile-menu" class="hidden md:hidden border-t border-white/20 py-4">
+        <nav class="flex flex-col gap-1 mb-4">
+          {nav.map(link => (
+            <a
+              href={link.href}
+              class="text-base font-medium text-white/70 hover:text-white px-2 py-2.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+        <button
+          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
+          class="flex items-center justify-center gap-2 bg-sand text-brown text-sm font-semibold px-4 py-3 rounded-full hover:opacity-90 transition-opacity w-full cursor-pointer"
+        >
+          {waLabel}
+        </button>
+      </div>
+    )}
   </div>
 </header>
 

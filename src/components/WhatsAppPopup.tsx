@@ -5,6 +5,7 @@ type ExperienceType = 'daytrip' | 'stay';
 
 interface Props {
   lang?: 'en' | 'es';
+  defaultType?: ExperienceType;
 }
 
 const T = {
@@ -24,17 +25,17 @@ const T = {
     notesOptional: '(optional)',
     notesPh: 'Birthday, dietary needs, questions…',
     submitBtn: 'Send on WhatsApp →',
-    typeMsgDaytrip: 'Day Trip (Pasadía)',
-    typeMsgStay: 'Overnight Stay (Estadía)',
+    introDaytrip: "I'd like a private day trip.",
+    introStay: "I'd like to plan an overnight stay.",
     dateMsg: 'Date',
     checkinMsg: 'Check-in',
     checkoutMsg: 'Check-out',
     adultsMsg: 'Adults',
+    peopleMsg: 'People',
     waPhoneMsg: 'My WhatsApp',
     noteMsg: 'Note',
     tbd: 'TBD',
     greeting: 'Hello Casa Gaviota! 👋',
-    intro: 'I want to book:',
     footer: 'Sent from casagaviota.com',
   },
   es: {
@@ -53,17 +54,17 @@ const T = {
     notesOptional: '(opcional)',
     notesPh: 'Cumpleaños, alergias, preguntas…',
     submitBtn: 'Enviar por WhatsApp →',
-    typeMsgDaytrip: 'Pasadía',
-    typeMsgStay: 'Estadía Nocturna',
+    introDaytrip: 'Quiero un pasadía privado.',
+    introStay: 'Quiero información sobre estadía.',
     dateMsg: 'Fecha',
     checkinMsg: 'Check-in',
     checkoutMsg: 'Check-out',
     adultsMsg: 'Adultos',
+    peopleMsg: 'Personas',
     waPhoneMsg: 'Mi WhatsApp',
     noteMsg: 'Nota',
     tbd: 'Por confirmar',
     greeting: 'Hola Casa Gaviota! 👋',
-    intro: 'Quiero reservar:',
     footer: 'Enviado desde casagaviota.com',
   },
 };
@@ -82,9 +83,16 @@ const WA_ICON_SM = (
 
 const inp = 'w-full rounded-xl border border-terracotta/30 bg-white px-4 py-2.5 text-sm text-ink placeholder-ink/40 focus:border-brown focus:outline-none focus:ring-2 focus:ring-brown/15 transition';
 
-export default function WhatsAppPopup({ lang = 'en' }: Props) {
+function daytripEstimate(n: number): string {
+  if (n <= 2) return '$300 USD';
+  if (n <= 4) return '$500 USD';
+  if (n <= 6) return '$700 USD';
+  return '$900 USD';
+}
+
+export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: Props) {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<ExperienceType>('daytrip');
+  const [type, setType] = useState<ExperienceType>(defaultType);
   const [date, setDate] = useState('');
   const [checkin, setCheckin] = useState('');
   const [checkout, setCheckout] = useState('');
@@ -108,19 +116,30 @@ export default function WhatsAppPopup({ lang = 'en' }: Props) {
   const today = new Date().toISOString().split('T')[0];
 
   function buildMessage(): string {
-    const typeLabel = type === 'daytrip' ? t.typeMsgDaytrip : t.typeMsgStay;
-    let msg = `${t.greeting}\n\n${t.intro}\n`;
-    msg += `Tipo: ${typeLabel}\n`;
+    const intro = type === 'daytrip' ? t.introDaytrip : t.introStay;
+    let msg = `${t.greeting}\n${intro}\n`;
     if (type === 'daytrip') {
-      msg += `${t.dateMsg}: ${date || t.tbd}`;
+      msg += `${t.dateMsg}: ${date || t.tbd}\n`;
+      msg += `${t.peopleMsg}: ${adults}\n`;
     } else {
-      msg += `${t.checkinMsg}: ${checkin || t.tbd}\n${t.checkoutMsg}: ${checkout || t.tbd}`;
+      msg += `${t.checkinMsg}: ${checkin || t.tbd}\n`;
+      msg += `${t.checkoutMsg}: ${checkout || t.tbd}\n`;
+      msg += `${t.adultsMsg}: ${adults}\n`;
     }
-    msg += `\n${t.adultsMsg}: ${adults}`;
-    if (phone.trim()) msg += `\n${t.waPhoneMsg}: ${phone.trim()}`;
-    if (notes.trim()) msg += `\n${t.noteMsg}: ${notes.trim()}`;
-    msg += `\n\n${t.footer}`;
+    if (notes.trim()) msg += `${t.noteMsg}: ${notes.trim()}\n`;
+    msg += `\n${t.footer}`;
     return msg;
+  }
+
+  function closePopup() {
+    setOpen(false);
+    setDate('');
+    setCheckin('');
+    setCheckout('');
+    setAdults(2);
+    setPhone('');
+    setNotes('');
+    setType(defaultType);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -134,19 +153,17 @@ export default function WhatsAppPopup({ lang = 'en' }: Props) {
       adults,
       whatsapp: phone || undefined,
       notes: notes || undefined,
+      estimatedPrice: type === 'daytrip'
+        ? daytripEstimate(adults)
+        : 'From $350 USD/night + transport + food',
     });
+    sessionStorage.setItem('popup_shown', '1');
     window.open(`https://wa.me/573163946401?text=${encodeURIComponent(buildMessage())}`, '_blank');
-    setOpen(false);
-    setDate('');
-    setCheckin('');
-    setCheckout('');
-    setAdults(2);
-    setPhone('');
-    setNotes('');
+    closePopup();
   }
 
   function handleOverlayClick(e: React.MouseEvent) {
-    if (e.target === overlayRef.current) setOpen(false);
+    if (e.target === overlayRef.current) closePopup();
   }
 
   return (
@@ -167,7 +184,7 @@ export default function WhatsAppPopup({ lang = 'en' }: Props) {
         >
           <div className="w-full sm:w-96 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 relative animate-slide-up">
             <button
-              onClick={() => setOpen(false)}
+              onClick={closePopup}
               className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center text-ink/40 hover:text-ink transition-colors text-xl"
               aria-label="Close"
             >
@@ -234,20 +251,7 @@ export default function WhatsAppPopup({ lang = 'en' }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.phoneLabel}</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder={t.phonePh}
-                  className={inp}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">
-                  {t.notesLabel} <span className="normal-case font-normal text-ink/35">{t.notesOptional}</span>
-                </label>
+                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.notesLabel} <span className="normal-case font-normal text-ink/35">{t.notesOptional}</span></label>
                 <input
                   type="text"
                   value={notes}

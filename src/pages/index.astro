@@ -12,6 +12,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   title="Casa Gaviota Baru — Private Beach House in Barú, Colombia"
   description="A private beach house on Isla Barú near Cartagena. 80 meters of private beach, no vendors, no crowds. Full service, total privacy. Book a stay or day trip."
   lang="en"
+  defaultPopupType="stay"
 >
   <Header lang="en" altHref="/es" />
 
@@ -38,7 +39,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
       </p>
 
       <button
-        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
+        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
         class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-10"
       >
         Plan on WhatsApp →
@@ -47,6 +48,11 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         Scroll to explore ↓
       </a>
     </div>
+  </section>
+
+  <!-- TRUST BAR -->
+  <section class="py-5 text-white text-center font-semibold" style="background: #57392E;">
+    <p class="text-base sm:text-lg tracking-wide">⭐ 4.8 · 200+ reviews · Airbnb, Booking.com &amp; Google</p>
   </section>
 
   <!-- EXPERIENCE CARDS -->
@@ -146,7 +152,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">What 200+ guests say</h2>
         <p class="text-muted text-sm">⭐ 4.8 average across Airbnb, Booking.com and Google</p>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="reviews-initial">
         {[
           'Insanely beautiful and peaceful, the ideal place to unwind.',
           "A slice of heaven… we can't wait to go back.",
@@ -158,6 +164,27 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
           </div>
         ))}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 hidden" id="reviews-extra">
+        {[
+          'Manuel and his team are incredibly attentive. We felt completely taken care of.',
+          'The most beautiful and peaceful place we have ever stayed in Colombia.',
+          'Perfect for our family trip. Kids loved it, adults finally relaxed.',
+          'Worth every peso. We are already planning our next visit.',
+        ].map(quote => (
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
+            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
+          </div>
+        ))}
+      </div>
+      <div class="mt-8 text-center">
+        <button
+          id="show-more-reviews"
+          class="border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
+        >
+          Show more reviews
+        </button>
       </div>
       <div class="mt-10 text-center">
         <p class="text-sm text-ink/50 mb-4">200+ verified reviews across platforms</p>
@@ -182,6 +209,12 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
       </div>
     </div>
   </section>
+  <script is:inline>
+    document.getElementById('show-more-reviews')?.addEventListener('click', function() {
+      document.getElementById('reviews-extra')?.classList.remove('hidden');
+      this.style.display = 'none';
+    });
+  </script>
 
   <!-- THE EXPERIENCE -->
   <section class="py-20 md:py-28">
@@ -298,6 +331,91 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             />
           ))}
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OVERNIGHT STAY PRICING -->
+  <section class="py-20 md:py-28" style="background: #FAFAF5;">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-12">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">How pricing works</h2>
+        <p class="text-ink/60">The house is yours — add what you need.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
+          <div class="text-3xl mb-3">🏠</div>
+          <h3 class="font-semibold text-brown text-lg mb-1">The house</h3>
+          <p class="text-2xl font-bold text-brown mb-2">$350 USD <span class="text-base font-normal text-ink/50">/night</span></p>
+          <p class="text-sm text-ink/60">Up to 8 guests · minimum 2 nights · 3 bedrooms each with private bathroom</p>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
+          <div class="text-3xl mb-3">🚤</div>
+          <h3 class="font-semibold text-brown text-lg mb-3">Transport <span class="text-sm font-normal text-ink/50">(choose one)</span></h3>
+          <div class="space-y-3">
+            <div>
+              <p class="font-semibold text-sm text-ink">Private boat: $250 USD each way</p>
+              <p class="text-sm text-ink/55">Direct from Cartagena · up to 10 people</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm text-ink">Car + boat: $200 USD each way</p>
+              <p class="text-sm text-ink/55">Drive to Barú + short boat to the house</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
+          <div class="text-3xl mb-3">🍽️</div>
+          <h3 class="font-semibold text-brown text-lg mb-3">Food <span class="text-sm font-normal text-ink/50">(choose one)</span></h3>
+          <div class="space-y-3">
+            <div>
+              <p class="font-semibold text-sm text-ink">Casa Gaviota food service: $50 USD/person/day</p>
+              <p class="text-sm text-ink/55">Fresh Caribbean meals prepared at the house</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm text-ink">Luxury with lobster: $80 USD/person/day</p>
+            </div>
+            <div>
+              <p class="font-semibold text-sm text-ink">Bring your own groceries: $0</p>
+              <p class="text-sm text-ink/55">Buy in Cartagena before arriving</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl p-7 mb-8" style="background: #E6C497;">
+        <p class="font-semibold text-brown text-sm uppercase tracking-wide mb-5">Example: 2 nights · 4 guests · private boat · food service</p>
+        <div class="space-y-2 text-sm text-ink/80 mb-4">
+          <div class="flex justify-between">
+            <span>🏠 House (2 nights)</span>
+            <span class="font-semibold">$700 USD</span>
+          </div>
+          <div class="flex justify-between">
+            <span>🚤 Transport (boat, both ways)</span>
+            <span class="font-semibold">$500 USD</span>
+          </div>
+          <div class="flex justify-between">
+            <span>🍽️ Food (4 guests × $50 × 2 nights)</span>
+            <span class="font-semibold">$400 USD</span>
+          </div>
+          <div class="border-t border-ink/20 pt-3 flex justify-between font-bold text-base">
+            <span>Total</span>
+            <span>~$1,600 USD</span>
+          </div>
+          <div class="flex justify-between text-ink/55">
+            <span>Per person</span>
+            <span>~$400 USD</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-center text-sm text-ink/50 mb-8">Final price confirmed on WhatsApp. 50% deposit required to hold your dates.</p>
+      <div class="text-center">
+        <button
+          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
+          class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md cursor-pointer"
+        >
+          Plan your stay on WhatsApp →
+        </button>
       </div>
     </div>
   </section>
@@ -419,8 +537,12 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             a: 'Private use of the house, 80m private beach, daily cleaning, towels and sheets, Starlink Wi-Fi with backup power. Food and transport arranged separately.',
           },
           {
+            q: 'How do I get there?',
+            a: 'For day trips, transport from Cartagena is included in the package price. For overnight stays, we coordinate a private boat ($250 USD each way, up to 10 people) or car + boat ($200 USD each way). The final stretch is always by boat.',
+          },
+          {
             q: 'How does food work?',
-            a: 'Caribbean food package: $50 USD/person/day. Luxury package with lobster: $80 USD/person/day. Or bring your own groceries from Cartagena. Many guests say the food is one of the best parts.',
+            a: 'For day trips, a fresh Caribbean lunch is included in the package price. For overnight stays, you can add our food service ($50 USD/person/day), upgrade to the lobster package ($80 USD/person/day), or bring your own groceries from Cartagena.',
           },
           {
             q: 'Do you have air conditioning?',
