@@ -97,14 +97,6 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     </div>
   </section>
 
-  <!-- BARRA DE CONFIANZA -->
-  <section class="py-10 border-b border-terracotta/10">
-    <div class="max-w-lg mx-auto px-4 sm:px-6 text-center">
-      <p class="text-2xl font-bold text-brown tracking-tight">⭐ 4.8 · 200+ reseñas</p>
-      <p class="text-sm text-ink/55 mt-1">En Airbnb, Booking.com y Google</p>
-    </div>
-  </section>
-
   <!-- NO ES UN HOTEL -->
   <section id="casa" class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
@@ -159,6 +151,27 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
           </div>
         ))}
+      </div>
+      <div class="mt-10 text-center">
+        <p class="text-sm text-ink/50 mb-4">Más de 200 reseñas verificadas en distintas plataformas</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <a
+            href="http://airbnb.com/h/casagaviotabaru"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
+          >
+            Ver todas las reseñas en Airbnb →
+          </a>
+          <a
+            href="https://share.google/SHahHFkk8vXJIW7hH"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
+          >
+            Ver todas las reseñas en Google →
+          </a>
+        </div>
       </div>
     </div>
   </section>
