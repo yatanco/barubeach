@@ -69,5 +69,9 @@ const ogImageURL = ogImage.startsWith('http') ? ogImage : new URL(ogImage, Astro
   <body class="bg-background text-ink font-sans antialiased">
     <slot />
     <WhatsAppPopup lang={lang} client:load />
+    <script>
+      import { initLightbox } from '../lib/lightbox';
+      initLightbox();
+    </script>
   </body>
 </html>

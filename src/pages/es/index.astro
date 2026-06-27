@@ -101,14 +101,22 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <section id="casa" class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
-        <div>
+        <div data-lightbox="not-hotel" class="grid grid-cols-2 gap-3">
           <img
             src="/images/beach-1.jpg"
             alt="Playa privada de Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
-            width="600"
-            height="450"
+            width="300"
+            height="225"
+          />
+          <img
+            src="/images/beach-2.jpg"
+            alt="Entorno natural en Casa Gaviota"
+            class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+            loading="lazy"
+            width="300"
+            height="225"
           />
         </div>
         <div>
@@ -192,14 +200,24 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           </p>
         </div>
         <div class="order-1 md:order-2">
-          <img
-            src="/images/food-1.jpg"
-            alt="Comida caribeña fresca en Casa Gaviota"
-            class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
-            loading="lazy"
-            width="600"
-            height="450"
-          />
+          <div data-lightbox="experience" class="grid grid-cols-2 gap-3">
+            <img
+              src="/images/food-1.jpg"
+              alt="Comida caribeña fresca en Casa Gaviota"
+              class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+              loading="lazy"
+              width="300"
+              height="225"
+            />
+            <img
+              src="/images/food-2.jpg"
+              alt="Almuerzo fresco en Casa Gaviota"
+              class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+              loading="lazy"
+              width="300"
+              height="225"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -223,6 +241,24 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         ))}
       </div>
       <p class="text-white/40 mt-12 text-lg">Sin horario. Sin presión.</p>
+      <div data-lightbox="day-timeline" class="grid grid-cols-2 gap-3 mt-10 max-w-sm mx-auto">
+        <img
+          src="/images/beach-3.jpg"
+          alt="Llegando a Casa Gaviota en lancha"
+          class="rounded-xl w-full aspect-square object-cover opacity-80"
+          loading="lazy"
+          width="200"
+          height="200"
+        />
+        <img
+          src="/images/hero-2.jpg"
+          alt="Casa Gaviota desde la playa"
+          class="rounded-xl w-full aspect-square object-cover opacity-80"
+          loading="lazy"
+          width="200"
+          height="200"
+        />
+      </div>
     </div>
   </section>
 
@@ -251,7 +287,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             "Sencilla, cómoda y completamente integrada con la naturaleza."
           </p>
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div data-lightbox="house" class="grid grid-cols-2 gap-3">
           {['house-1.jpg', 'house-2.jpg', 'house-3.jpg', 'house-4.jpg'].map((img, i) => (
             <img
               src={`/images/${img}`}
@@ -272,14 +308,24 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div>
-          <img
-            src="/images/beach-2.jpg"
-            alt="Entorno natural en Casa Gaviota"
-            class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
-            loading="lazy"
-            width="600"
-            height="450"
-          />
+          <div data-lightbox="expectations" class="grid grid-cols-2 gap-3">
+            <img
+              src="/images/house-1.jpg"
+              alt="Interior de Casa Gaviota"
+              class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+              loading="lazy"
+              width="300"
+              height="225"
+            />
+            <img
+              src="/images/house-2.jpg"
+              alt="Habitación en Casa Gaviota"
+              class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+              loading="lazy"
+              width="300"
+              height="225"
+            />
+          </div>
         </div>
         <div>
           <h2 class="font-serif text-2xl sm:text-3xl font-semibold mb-5 text-brown">Qué esperar</h2>
@@ -345,7 +391,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
             Ver en Google Maps →
           </a>
         </div>
-        <div>
+        <div data-lightbox="location">
           <img
             src="/images/beach-3.jpg"
             alt="Llegada a Casa Gaviota en lancha"

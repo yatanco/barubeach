@@ -53,14 +53,22 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
-        <div>
+        <div data-lightbox="daytrip-private" class="grid grid-cols-2 gap-3">
           <img
             src="/images/beach-1.jpg"
             alt="Private beach at Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
-            width="600"
-            height="450"
+            width="300"
+            height="225"
+          />
+          <img
+            src="/images/beach-3.jpg"
+            alt="Casa Gaviota beach access"
+            class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+            loading="lazy"
+            width="300"
+            height="225"
           />
         </div>
         <div>
@@ -103,14 +111,24 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
           <p class="text-ink/70 leading-relaxed font-medium">That is why groups choose Casa Gaviota.</p>
         </div>
         <div class="order-1 md:order-2">
-          <img
-            src="/images/house-1.jpg"
-            alt="Casa Gaviota house and social areas"
-            class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
-            loading="lazy"
-            width="600"
-            height="450"
-          />
+          <div data-lightbox="daytrip-booking" class="grid grid-cols-2 gap-3">
+            <img
+              src="/images/house-1.jpg"
+              alt="Casa Gaviota house and social areas"
+              class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+              loading="lazy"
+              width="300"
+              height="225"
+            />
+            <img
+              src="/images/beach-2.jpg"
+              alt="Private beach access at Casa Gaviota"
+              class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
+              loading="lazy"
+              width="300"
+              height="225"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -162,7 +180,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <section class="py-20 bg-rose/20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
-        <div>
+        <div data-lightbox="daytrip-included">
           <img
             src="/images/daytrip-2.jpg"
             alt="Day trip at Casa Gaviota includes private beach access"
@@ -228,7 +246,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <section class="py-20 bg-brown text-white">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-        <div class="grid grid-cols-2 gap-3">
+        <div data-lightbox="daytrip-food" class="grid grid-cols-2 gap-3">
           <img src="/images/food-1.jpg" alt="Caribbean food at Casa Gaviota" class="rounded-2xl w-full aspect-square object-cover" loading="lazy" width="300" height="300" />
           <img src="/images/food-2.jpg" alt="Fresh lunch at Casa Gaviota" class="rounded-2xl w-full aspect-square object-cover" loading="lazy" width="300" height="300" />
         </div>
@@ -251,7 +269,15 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   <!-- CHOOSE YOUR DAY -->
   <section class="py-20 md:py-28">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-12 text-center text-brown">Choose the kind of day you want</h2>
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-10 text-center text-brown">Choose the kind of day you want</h2>
+      <img
+        src="/images/daytrip-2.jpg"
+        alt="Casa Gaviota from the water"
+        class="rounded-2xl w-full aspect-[21/9] object-cover mb-10 shadow-md"
+        loading="lazy"
+        width="1200"
+        height="514"
+      />
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
           {
