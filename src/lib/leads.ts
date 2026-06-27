@@ -1,6 +1,6 @@
 export interface LeadData {
   timestamp: string;
-  source: 'popup' | 'plan' | 'stay' | 'daytrip';
+  source: 'popup' | 'home_form' | 'daytrip_form' | 'plan' | 'stay' | 'daytrip';
   language: string;
   type: string;
   date?: string;

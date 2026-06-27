@@ -2,9 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import DayTripForm from '../components/DayTripForm.tsx';
-
-const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
+import WAInlineForm from '../components/WAInlineForm.tsx';
 ---
 
 <Layout
@@ -444,13 +442,13 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   </section>
 
   <!-- DAY TRIP FORM -->
-  <section id="book" class="py-20 md:py-28">
+  <section id="book" class="py-20 md:py-28" style="background: #E6C497;">
     <div class="max-w-xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-10">
         <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Book your private day trip</h2>
         <p class="text-muted">Choose your date and group size. We will confirm and send details within a few hours.</p>
       </div>
-      <DayTripForm accessKey={KEY} lang="en" client:load />
+      <WAInlineForm lang="en" defaultType="daytrip" client:load />
     </div>
   </section>
 
