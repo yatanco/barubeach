@@ -309,22 +309,38 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
 
   <!-- PRECIO -->
   <section class="py-20 bg-rose/15">
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 text-brown">Precio</h2>
-      <p class="text-ink/70 leading-relaxed mb-4">
-        Casa Gaviota es una experiencia privada, no un tour compartido por persona. El precio depende del tamaño del grupo, la fecha, el transporte, la comida y los extras. Entre más personas vengan, mejor suele ser el valor por persona.
-      </p>
-      <p class="text-ink/70 leading-relaxed mb-10">
-        Cuéntanos la fecha y cuántas personas son y te damos una cotización clara.
-      </p>
-      <a
-        href={WA}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md"
-      >
-        Cotizar por WhatsApp →
-      </a>
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-10">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-4 text-brown">Precio</h2>
+        <p class="text-ink/70 leading-relaxed max-w-xl mx-auto">
+          Casa Gaviota es una experiencia privada. El precio depende del tamaño del grupo, la fecha, el transporte, la comida y los extras.
+        </p>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {[
+          { icon: '👫', label: 'Pareja', price: 'desde $300 USD' },
+          { icon: '👨‍👩‍👧', label: 'Familia de 4', price: 'desde $500 USD' },
+          { icon: '👥', label: 'Grupo de 6', price: 'desde $700 USD' },
+          { icon: '🎉', label: 'Grupo de 8', price: 'desde $900 USD' },
+        ].map(({ icon, label, price }) => (
+          <div class="bg-white rounded-2xl p-5 border border-terracotta/15 shadow-sm text-center">
+            <div class="text-2xl mb-2">{icon}</div>
+            <p class="font-medium text-sm text-ink mb-1">{label}</p>
+            <p class="text-brown font-semibold text-sm">{price}</p>
+          </div>
+        ))}
+      </div>
+      <p class="text-center text-sm text-ink/50 mb-8">Transporte y comida se agregan aparte. Entre más personas, menor el costo por persona.</p>
+      <div class="text-center">
+        <a
+          href={WA}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md"
+        >
+          Cotizar por WhatsApp →
+        </a>
+      </div>
     </div>
   </section>
 

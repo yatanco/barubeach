@@ -59,17 +59,17 @@ const T = {
     s4h: 'How will you arrive?',
     s4sub: 'We can help coordinate transport from Cartagena.',
     boatTitle: 'Private boat from Cartagena',
-    boatDesc: '~$600.000 COP one way · up to 10 people · fastest option',
+    boatDesc: '$250 USD each way · up to 10 people · fastest option',
     carTitle: 'Car + boat',
-    carDesc: '~$200.000 COP/person one way · min $800.000 COP · most popular',
+    carDesc: '$200 USD each way · most popular',
     ownTitle: 'Own transport',
     ownDesc: "You'll arrange your own way to Barú",
 
     s5h: 'How about food?',
     s5sub: 'Fresh Caribbean meals prepared on-site, or bring your own provisions.',
     svcTitle: 'Casa Gaviota food service',
-    svcDayDesc: '$150.000 COP/person — fresh Caribbean lunch and snacks',
-    svcStayDesc: '$150.000 COP/person/night — breakfast, lunch, and dinner',
+    svcDayDesc: '$50 USD per person — fresh Caribbean lunch and snacks',
+    svcStayDesc: '$50 USD per person/night — breakfast, lunch, and dinner',
     ownFoodTitle: 'Bring your own provisions',
     ownFoodDesc: 'Buy groceries in Cartagena and bring them along',
 
@@ -168,17 +168,17 @@ const T = {
     s4h: '¿Cómo llegarán?',
     s4sub: 'Podemos ayudar a coordinar el transporte desde Cartagena.',
     boatTitle: 'Lancha privada desde Cartagena',
-    boatDesc: '~$600.000 COP por trayecto · hasta 10 personas · más rápido',
+    boatDesc: '$250 USD por trayecto · hasta 10 personas · más rápido',
     carTitle: 'Carro + lancha',
-    carDesc: '~$200.000 COP/persona por trayecto · mín $800.000 COP · más popular',
+    carDesc: '$200 USD por trayecto · más popular',
     ownTitle: 'Transporte propio',
     ownDesc: 'Organizás tu propio camino hasta Barú',
 
     s5h: '¿Y la comida?',
     s5sub: 'Comida caribeña fresca preparada en la casa, o traé tus propios víveres.',
     svcTitle: 'Servicio de comida (Casa Gaviota)',
-    svcDayDesc: '$150.000 COP/persona — almuerzo caribeño fresco y snacks',
-    svcStayDesc: '$150.000 COP/persona/noche — desayuno, almuerzo y cena',
+    svcDayDesc: '$50 USD por persona — almuerzo caribeño fresco y snacks',
+    svcStayDesc: '$50 USD por persona/noche — desayuno, almuerzo y cena',
     ownFoodTitle: 'Víveres propios',
     ownFoodDesc: 'Comprás en Cartagena y lo traés',
 
@@ -253,18 +253,18 @@ function calcNights(a: string, b: string): number {
 
 function calcDayTrip(adults: number, transport: Transport, food: Food): number {
   let total = 1_200_000;
-  if (transport === 'boat') total += 600_000 * 2;
-  else if (transport === 'car_boat') total += Math.max(800_000, adults * 200_000) * 2;
-  if (food === 'service') total += 150_000 * adults;
+  if (transport === 'boat') total += 1_000_000 * 2;
+  else if (transport === 'car_boat') total += 800_000 * 2;
+  if (food === 'service') total += 200_000 * adults;
   return total;
 }
 
 function calcStay(nights: number, adults: number, transport: Transport, food: Food): number {
   const n = Math.max(1, nights);
   let total = n * 350 * 4_000 + 320_000;
-  if (transport === 'boat') total += 600_000 * 2;
-  else if (transport === 'car_boat') total += Math.max(800_000, adults * 200_000) * 2;
-  if (food === 'service') total += 150_000 * adults * n;
+  if (transport === 'boat') total += 1_000_000 * 2;
+  else if (transport === 'car_boat') total += 800_000 * 2;
+  if (food === 'service') total += 200_000 * adults * n;
   return total;
 }
 

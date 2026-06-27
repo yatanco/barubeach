@@ -308,22 +308,38 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
 
   <!-- PRICING -->
   <section class="py-20 bg-rose/15">
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center">
-      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-6 text-brown">Pricing</h2>
-      <p class="text-ink/70 leading-relaxed mb-4">
-        Casa Gaviota is a private experience, not a per-person group tour. Price depends on group size, date, transport, food, and extras. The more people, the better the value per person.
-      </p>
-      <p class="text-ink/70 leading-relaxed mb-10">
-        Send us your date and group size and we will give you a clear quote.
-      </p>
-      <a
-        href={WA}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md"
-      >
-        Get a quote on WhatsApp →
-      </a>
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-10">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-4 text-brown">Pricing</h2>
+        <p class="text-ink/70 leading-relaxed max-w-xl mx-auto">
+          Casa Gaviota is a private experience. Price depends on group size, date, transport, food, and extras.
+        </p>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {[
+          { icon: '👫', label: 'Couple', price: 'from $300 USD' },
+          { icon: '👨‍👩‍👧', label: 'Family of 4', price: 'from $500 USD' },
+          { icon: '👥', label: 'Group of 6', price: 'from $700 USD' },
+          { icon: '🎉', label: 'Group of 8', price: 'from $900 USD' },
+        ].map(({ icon, label, price }) => (
+          <div class="bg-white rounded-2xl p-5 border border-terracotta/15 shadow-sm text-center">
+            <div class="text-2xl mb-2">{icon}</div>
+            <p class="font-medium text-sm text-ink mb-1">{label}</p>
+            <p class="text-brown font-semibold text-sm">{price}</p>
+          </div>
+        ))}
+      </div>
+      <p class="text-center text-sm text-ink/50 mb-8">Transport and food added separately. The larger your group, the lower the cost per person.</p>
+      <div class="text-center">
+        <a
+          href={WA}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md"
+        >
+          Get a quote on WhatsApp →
+        </a>
+      </div>
     </div>
   </section>
 
