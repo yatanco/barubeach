@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { captureLead } from '../lib/leads';
 
 interface Props {
   accessKey: string;
@@ -76,6 +77,17 @@ export default function DayTripForm({ accessKey, lang = 'en' }: Props) {
       });
       const data = await res.json();
       if (data.success) {
+        captureLead({
+          source: 'daytrip',
+          language: lang,
+          type: 'daytrip',
+          date,
+          adults: parseInt(guests, 10),
+          name: name || undefined,
+          email: email || undefined,
+          whatsapp: phone || undefined,
+          notes: notes || undefined,
+        });
         window.location.href = '/booking/confirm';
       } else {
         setStatus('error');

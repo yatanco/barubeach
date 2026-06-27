@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { captureLead } from '../lib/leads';
 
 interface Props {
   accessKey: string;
@@ -335,10 +336,25 @@ const counterBtn = 'w-9 h-9 rounded-full border border-terracotta/30 text-ink/60
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+interface BlockedRange { start: string; end: string; }
+
+function dateToMs(d: string) { return new Date(d).getTime(); }
+
+function isDateBlocked(date: string, blocked: BlockedRange[]): boolean {
+  const t = dateToMs(date);
+  return blocked.some(r => t >= dateToMs(r.start) && t <= dateToMs(r.end));
+}
+
+function isRangeBlocked(start: string, end: string, blocked: BlockedRange[]): boolean {
+  const s = dateToMs(start), e = dateToMs(end);
+  return blocked.some(r => s < dateToMs(r.end) && e > dateToMs(r.start));
+}
+
 export default function EscapePlanner({ accessKey, lang = 'en' }: Props) {
   const t = T[lang];
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<BlockedRange[]>([]);
   const [s, setS] = useState<State>({
     type: 'daytrip',
     adults: 2,
@@ -358,6 +374,13 @@ export default function EscapePlanner({ accessKey, lang = 'en' }: Props) {
   const [emailMessage, setEmailMessage] = useState('');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
 
+  useEffect(() => {
+    fetch('/api/availability')
+      .then(r => r.json())
+      .then((data: { blocked?: BlockedRange[] }) => { if (data.blocked) setBlocked(data.blocked); })
+      .catch(() => {});
+  }, []);
+
   function update<K extends keyof State>(key: K, val: State[K]) {
     setS(prev => ({ ...prev, [key]: val }));
     setError(null);
@@ -371,9 +394,18 @@ export default function EscapePlanner({ accessKey, lang = 'en' }: Props) {
 
   function handleNext() {
     setError(null);
-    if (step === 3 && s.type === 'stay') {
-      if (!s.checkin || !s.checkout) { setError(t.validationDates); return; }
-      if (calcNights(s.checkin, s.checkout) < 1) { setError(t.validationCheckout); return; }
+    if (step === 3) {
+      if (s.type === 'stay') {
+        if (!s.checkin || !s.checkout) { setError(t.validationDates); return; }
+        if (calcNights(s.checkin, s.checkout) < 1) { setError(t.validationCheckout); return; }
+        if (blocked.length > 0 && isRangeBlocked(s.checkin, s.checkout, blocked)) {
+          setError(lang === 'es' ? 'Esas fechas no están disponibles. Por favor elige otras.' : 'Those dates are not available. Please choose different dates.');
+          return;
+        }
+      } else if (s.type === 'daytrip' && s.date && blocked.length > 0 && isDateBlocked(s.date, blocked)) {
+        setError(lang === 'es' ? 'Esa fecha no está disponible. Por favor elige otra.' : 'That date is not available. Please choose a different date.');
+        return;
+      }
     }
     setStep(p => p + 1);
   }
@@ -390,8 +422,25 @@ export default function EscapePlanner({ accessKey, lang = 'en' }: Props) {
       fd.append('phone', emailPhone);
       fd.append('message', emailMessage);
       const res = await fetch('https://api.web3forms.com/submit', { method: 'POST', body: fd });
-      if (res.ok) { window.location.href = '/booking/confirm'; }
-      else { setEmailStatus('error'); }
+      if (res.ok) {
+        captureLead({
+          source: 'plan',
+          language: lang,
+          type: s.type,
+          date: s.type === 'daytrip' ? s.date : s.checkin,
+          checkOut: s.type === 'stay' ? s.checkout : undefined,
+          adults: s.adults,
+          children: s.children || undefined,
+          transport: s.transport,
+          food: s.food,
+          occasion: s.occasion || undefined,
+          name: emailName || undefined,
+          email: emailEmail || undefined,
+          whatsapp: emailPhone || undefined,
+          estimatedPrice: formatCOP(price),
+        });
+        window.location.href = '/booking/confirm';
+      } else { setEmailStatus('error'); }
     } catch { setEmailStatus('error'); }
   }
 
@@ -608,6 +657,19 @@ export default function EscapePlanner({ accessKey, lang = 'en' }: Props) {
             {/* Primary CTA */}
             <button
               onClick={() => {
+                captureLead({
+                  source: 'plan',
+                  language: lang,
+                  type: s.type,
+                  date: s.type === 'daytrip' ? s.date : s.checkin,
+                  checkOut: s.type === 'stay' ? s.checkout : undefined,
+                  adults: s.adults,
+                  children: s.children || undefined,
+                  transport: s.transport,
+                  food: s.food,
+                  occasion: s.occasion || undefined,
+                  estimatedPrice: formatCOP(price),
+                });
                 const msg = buildWAMessage(s, t);
                 window.open(`https://wa.me/573163946401?text=${encodeURIComponent(msg)}`, '_blank');
               }}

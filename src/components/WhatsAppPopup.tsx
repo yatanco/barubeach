@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { captureLead } from '../lib/leads';
 
 type ExperienceType = 'daytrip' | 'stay';
 
@@ -124,6 +125,16 @@ export default function WhatsAppPopup({ lang = 'en' }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    captureLead({
+      source: 'popup',
+      language: lang,
+      type,
+      date: type === 'daytrip' ? date : checkin,
+      checkOut: type === 'stay' ? checkout : undefined,
+      adults,
+      whatsapp: phone || undefined,
+      notes: notes || undefined,
+    });
     window.open(`https://wa.me/573163946401?text=${encodeURIComponent(buildMessage())}`, '_blank');
     setOpen(false);
     setDate('');

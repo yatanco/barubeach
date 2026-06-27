@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { captureLead } from '../lib/leads';
 
 interface Props {
   accessKey: string;
@@ -93,6 +94,18 @@ export default function InquiryForm({ accessKey, lang = 'en', defaultType = 'sta
       });
       const data = await res.json();
       if (data.success) {
+        captureLead({
+          source: 'stay',
+          language: lang,
+          type,
+          date: type === 'daytrip' ? date : checkin,
+          checkOut: type === 'stay' ? checkout : undefined,
+          adults: parseInt(guests, 10),
+          name: name || undefined,
+          email: email || undefined,
+          whatsapp: phone || undefined,
+          notes: notes || undefined,
+        });
         window.location.href = '/booking/confirm';
       } else {
         setStatus('error');

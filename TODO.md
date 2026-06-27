@@ -1,90 +1,65 @@
-# Phase 2 — Future Architecture
+# Roadmap
 
 Phase 1 (marketing site + inquiry forms via Web3Forms → me@yatan.co) is complete and live at casagaviota.com.
 
----
-
-## Availability & Calendar
-
-- [ ] **HostHub integration** — pull blocked dates from HostHub API on a schedule
-- [ ] **Push new direct bookings** to HostHub to block dates across platforms
-- [ ] **iCal feed** (`/api/calendar.ics`) for Airbnb / Booking.com / HostHub sync
-- [ ] **Conflict detection** before confirming a new booking
-- [ ] **Live availability calendar** widget on stay and day trip pages
-
-### Implementation
-- Cloudflare Scheduled Worker: runs every 15 minutes, polls HostHub, updates D1
-- Webhook from HostHub on new external bookings (if supported)
+Phase 2 (WhatsApp popup, EscapePlanner /plan, HostHub availability API, iCal stub, Google Sheets lead capture) is complete.
 
 ---
 
-## Database
+## Phase 3 — Booking Engine
 
-- [ ] **Cloudflare D1** — SQLite-compatible, edge-native
-  - Tables: `bookings`, `blocked_dates`, `pricing_rules`, `sync_log`
-  - Migrations tracked in `migrations/`
-
----
-
-## Payments
+### Payments
 
 - [ ] **Stripe** — primary for international guests (credit/debit card)
 - [ ] **MercadoPago** — for Colombian guests (PSE, Nequi, etc.)
-- [ ] **PayPal** — optional secondary
+- [ ] Deposit at booking + balance reminder before arrival
+- [ ] Webhook handlers for payment success/failure → save to D1 → push to HostHub
 
-### Flow
-1. Guest selects dates → availability check (real-time Cloudflare Worker)
-2. Guest fills in details → payment intent created server-side
-3. On payment success → booking saved to D1, HostHub updated, confirmation emails sent
-4. Deposit + balance split: deposit at booking, balance at house or before arrival
+### Database — Cloudflare D1
 
----
+- [ ] Tables: `bookings`, `pricing_rules`, `sync_log`
+- [ ] Migrations tracked in `migrations/`
+- [ ] Replace Google Sheets lead capture with D1 insert on `/api/capture-lead`
 
-## Transactional emails — Resend
+### Transactional emails — Resend
 
-- [ ] **Guest confirmation email** — booking details, what to bring, transport tips
-- [ ] **Admin notification email** — new booking alert with full guest details
-- [ ] **Reminder emails** — 7 days and 1 day before arrival
-- [ ] **Post-stay review request** — 2 days after checkout
+- [ ] Guest confirmation email — booking details, what to bring, transport tips
+- [ ] Admin notification — new booking alert with full guest details
+- [ ] Reminder at 7 days and 1 day before arrival
+- [ ] Post-stay review request 2 days after checkout
 
----
+### HostHub push
 
-## CRM / Lead management — Supabase or Notion
+- [ ] On confirmed (paid) booking → `POST /api/v1/rentals/{id}/reservations` to block the dates
+- [ ] Cloudflare Scheduled Worker for periodic re-sync (belt-and-suspenders)
 
-- [ ] Log every Web3Forms submission to a Supabase table (webhook → Worker)
-- [ ] Or push to Notion database as a fallback CRM
-- [ ] Dashboard view of all leads, their status, and follow-up notes
+### iCal — complete
 
----
+- [ ] `/api/ical.ts` currently returns an empty calendar stub
+- [ ] Phase 3: read confirmed bookings from D1 and emit VEVENT blocks per booking
 
-## Admin panel
+### Admin panel — `/admin`
 
-- [ ] Simple password-protected admin at `/admin`
 - [ ] View all bookings (upcoming, past, cancelled)
-- [ ] Manually block date ranges
-- [ ] Set pricing rules (per night, seasonal, weekend premium)
-- [ ] View HostHub sync log (last sync time, any errors)
-- [ ] Trigger manual sync
+- [ ] Manually block/unblock date ranges
+- [ ] Set seasonal pricing rules
+- [ ] HostHub sync log (last sync, errors)
 - [ ] Mark bookings as paid / confirmed / cancelled
+- [ ] Auth: Cloudflare Access (zero-trust) or single admin password in env var
 
-### Auth
-- Cloudflare Access (zero-trust, no code needed) or single admin password in env var
+### Dynamic pricing
 
----
-
-## Cloudflare infrastructure
-
-- [ ] **Scheduled Worker** — HostHub sync (every 15 min)
-- [ ] **API Worker** — booking creation, availability check, payment webhooks
-- [ ] **D1 bindings** in `wrangler.toml`
-- [ ] **KV** — rate limiting, session tokens
+- [ ] Seasonal rates (high: Dec–Jan, Semana Santa, Puentes; low: rest of year)
+- [ ] Weekend premium
+- [ ] Minimum nights rules
 
 ---
 
-## SEO & discoverability
+## Phase 4 — Growth & SEO
 
-- [ ] Structured data (JSON-LD) for `LodgingBusiness` schema
+- [ ] Structured data (JSON-LD `LodgingBusiness`) on homepage
 - [ ] `sitemap.xml` via `@astrojs/sitemap`
 - [ ] `robots.txt`
-- [ ] hreflang tags for EN/ES language alternates
-- [ ] WhatsApp Business API integration for automated reply / CRM logging
+- [ ] hreflang tags for EN/ES alternates
+- [ ] WhatsApp Business API for automated inquiry reply + CRM logging
+- [ ] Supabase or Notion CRM view of all leads + follow-up notes
