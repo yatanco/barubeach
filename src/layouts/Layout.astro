@@ -68,6 +68,6 @@ const ogImageURL = ogImage.startsWith('http') ? ogImage : new URL(ogImage, Astro
   </head>
   <body class="bg-background text-ink font-sans antialiased">
     <slot />
-    <WhatsAppPopup client:load />
+    <WhatsAppPopup lang={lang} client:load />
   </body>
 </html>

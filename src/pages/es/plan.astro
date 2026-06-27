@@ -1,0 +1,37 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import EscapePlanner from '../../components/EscapePlanner.tsx';
+
+const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
+---
+
+<Layout
+  title="Diseña tu Escape — Casa Gaviota Baru"
+  description="Planea tu pasadía o estadía perfecta en Casa Gaviota. Obtén un estimado de precios al instante y reserva directamente por WhatsApp o email."
+  lang="es"
+  canonical="https://casagaviota.com/es/plan"
+>
+  <Header lang="es" altHref="/plan" />
+
+  <section class="py-16 md:py-24">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-10">
+        <p class="text-terracotta text-xs uppercase tracking-widest font-medium mb-4">Barú · Colombia</p>
+        <h1 class="font-serif text-4xl sm:text-5xl font-semibold text-brown mb-4">Diseña tu Escape</h1>
+        <p class="text-ink/60 text-base leading-relaxed">
+          Respondé unas preguntas y te mostramos exactamente cómo sería tu experiencia — y cuánto cuesta.
+        </p>
+      </div>
+
+      <EscapePlanner accessKey={KEY} lang="es" client:load />
+
+      <p class="text-center text-xs text-ink/35 mt-8">
+        Los precios son estimados. El precio final se confirma por WhatsApp.
+      </p>
+    </div>
+  </section>
+
+  <Footer lang="es" />
+</Layout>

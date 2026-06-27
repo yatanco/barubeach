@@ -15,7 +15,7 @@ const nav = isES
       { href: '/es/pasadia', label: 'Pasadía' },
       { href: '/gallery', label: 'Galería' },
       { href: '/es/#faq', label: 'FAQ' },
-      { href: '/plan', label: 'Plan' },
+      { href: '/es/plan', label: 'Plan' },
     ]
   : [
       { href: '/', label: 'Stay' },
@@ -48,7 +48,7 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
         {nav.map(link => (
           <a
             href={link.href}
-            class="text-sm font-medium text-white/70 hover:text-white transition-colors"
+            class="text-base font-medium text-white/70 hover:text-white transition-colors"
           >
             {link.label}
           </a>
@@ -95,7 +95,7 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
         {nav.map(link => (
           <a
             href={link.href}
-            class="text-sm font-medium text-white/70 hover:text-white px-2 py-2.5 rounded-lg hover:bg-white/10 transition-colors"
+            class="text-base font-medium text-white/70 hover:text-white px-2 py-2.5 rounded-lg hover:bg-white/10 transition-colors"
           >
             {link.label}
           </a>

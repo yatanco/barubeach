@@ -2,6 +2,71 @@ import { useState, useEffect, useRef } from 'react';
 
 type ExperienceType = 'daytrip' | 'stay';
 
+interface Props {
+  lang?: 'en' | 'es';
+}
+
+const T = {
+  en: {
+    header: 'Plan your escape 🌴',
+    sub: "A few details and we'll reply on WhatsApp within a few hours.",
+    typeLabel: 'What are you planning?',
+    dayOpt: '☀️ Day Trip',
+    stayOpt: '🌙 Overnight',
+    whenLabel: 'When?',
+    checkinLabel: 'Check-in',
+    checkoutLabel: 'Check-out',
+    adultsLabel: 'Adults',
+    phoneLabel: 'Your WhatsApp number',
+    phonePh: '+57 300 000 0000',
+    notesLabel: 'Anything else?',
+    notesOptional: '(optional)',
+    notesPh: 'Birthday, dietary needs, questions…',
+    submitBtn: 'Send on WhatsApp →',
+    typeMsgDaytrip: 'Day Trip (Pasadía)',
+    typeMsgStay: 'Overnight Stay (Estadía)',
+    dateMsg: 'Date',
+    checkinMsg: 'Check-in',
+    checkoutMsg: 'Check-out',
+    adultsMsg: 'Adults',
+    waPhoneMsg: 'My WhatsApp',
+    noteMsg: 'Note',
+    tbd: 'TBD',
+    greeting: 'Hello Casa Gaviota! 👋',
+    intro: 'I want to book:',
+    footer: 'Sent from casagaviota.com',
+  },
+  es: {
+    header: 'Planea tu escape 🌴',
+    sub: 'Cuéntanos lo básico y te respondemos por WhatsApp en pocas horas.',
+    typeLabel: '¿Qué estás planeando?',
+    dayOpt: '☀️ Pasadía',
+    stayOpt: '🌙 Estadía',
+    whenLabel: '¿Cuándo?',
+    checkinLabel: 'Check-in',
+    checkoutLabel: 'Check-out',
+    adultsLabel: 'Adultos',
+    phoneLabel: 'Tu número de WhatsApp',
+    phonePh: '+57 300 000 0000',
+    notesLabel: '¿Algo más?',
+    notesOptional: '(opcional)',
+    notesPh: 'Cumpleaños, alergias, preguntas…',
+    submitBtn: 'Enviar por WhatsApp →',
+    typeMsgDaytrip: 'Pasadía',
+    typeMsgStay: 'Estadía Nocturna',
+    dateMsg: 'Fecha',
+    checkinMsg: 'Check-in',
+    checkoutMsg: 'Check-out',
+    adultsMsg: 'Adultos',
+    waPhoneMsg: 'Mi WhatsApp',
+    noteMsg: 'Nota',
+    tbd: 'Por confirmar',
+    greeting: 'Hola Casa Gaviota! 👋',
+    intro: 'Quiero reservar:',
+    footer: 'Enviado desde casagaviota.com',
+  },
+};
+
 const WA_ICON = (
   <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
@@ -16,7 +81,7 @@ const WA_ICON_SM = (
 
 const inp = 'w-full rounded-xl border border-terracotta/30 bg-white px-4 py-2.5 text-sm text-ink placeholder-ink/40 focus:border-brown focus:outline-none focus:ring-2 focus:ring-brown/15 transition';
 
-export default function WhatsAppPopup() {
+export default function WhatsAppPopup({ lang = 'en' }: Props) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<ExperienceType>('daytrip');
   const [date, setDate] = useState('');
@@ -26,6 +91,8 @@ export default function WhatsAppPopup() {
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  const t = T[lang];
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -39,20 +106,25 @@ export default function WhatsAppPopup() {
 
   const today = new Date().toISOString().split('T')[0];
 
+  function buildMessage(): string {
+    const typeLabel = type === 'daytrip' ? t.typeMsgDaytrip : t.typeMsgStay;
+    let msg = `${t.greeting}\n\n${t.intro}\n`;
+    msg += `Tipo: ${typeLabel}\n`;
+    if (type === 'daytrip') {
+      msg += `${t.dateMsg}: ${date || t.tbd}`;
+    } else {
+      msg += `${t.checkinMsg}: ${checkin || t.tbd}\n${t.checkoutMsg}: ${checkout || t.tbd}`;
+    }
+    msg += `\n${t.adultsMsg}: ${adults}`;
+    if (phone.trim()) msg += `\n${t.waPhoneMsg}: ${phone.trim()}`;
+    if (notes.trim()) msg += `\n${t.noteMsg}: ${notes.trim()}`;
+    msg += `\n\n${t.footer}`;
+    return msg;
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const typeLabel = type === 'daytrip' ? 'Pasadía (Day Trip)' : 'Estadía (Overnight Stay)';
-    let msg = `Hola Casa Gaviota! 👋\n\nTipo: ${typeLabel}\n`;
-    if (type === 'daytrip') {
-      msg += `Fecha: ${date || 'Por confirmar'}`;
-    } else {
-      msg += `Check-in: ${checkin || 'Por confirmar'}\nCheck-out: ${checkout || 'Por confirmar'}`;
-    }
-    msg += `\nAdultos: ${adults}`;
-    if (phone.trim()) msg += `\nMi WhatsApp: ${phone.trim()}`;
-    if (notes.trim()) msg += `\nNota: ${notes.trim()}`;
-    msg += '\n\nEnviado desde casagaviota.com';
-    window.open(`https://wa.me/573163946401?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://wa.me/573163946401?text=${encodeURIComponent(buildMessage())}`, '_blank');
     setOpen(false);
     setDate('');
     setCheckin('');
@@ -91,12 +163,12 @@ export default function WhatsAppPopup() {
               ×
             </button>
 
-            <h3 className="font-serif text-xl font-semibold text-brown mb-1">Plan your escape 🌴</h3>
-            <p className="text-sm text-ink/55 mb-5">A few details and we'll reply on WhatsApp within a few hours.</p>
+            <h3 className="font-serif text-xl font-semibold text-brown mb-1">{t.header}</h3>
+            <p className="text-sm text-ink/55 mb-5">{t.sub}</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <p className="text-xs font-semibold text-ink/50 uppercase tracking-wide mb-2">What are you planning?</p>
+                <p className="text-xs font-semibold text-ink/50 uppercase tracking-wide mb-2">{t.typeLabel}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {(['daytrip', 'stay'] as const).map(opt => (
                     <button
@@ -109,7 +181,7 @@ export default function WhatsAppPopup() {
                           : 'bg-white text-ink border-terracotta/30 hover:border-brown/40'
                       }`}
                     >
-                      {opt === 'daytrip' ? '☀️ Day Trip' : '🌙 Overnight'}
+                      {opt === 'daytrip' ? t.dayOpt : t.stayOpt}
                     </button>
                   ))}
                 </div>
@@ -117,24 +189,24 @@ export default function WhatsAppPopup() {
 
               {type === 'daytrip' ? (
                 <div>
-                  <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">When?</label>
+                  <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.whenLabel}</label>
                   <input type="date" min={today} value={date} onChange={e => setDate(e.target.value)} className={inp} />
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">Check-in</label>
+                    <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.checkinLabel}</label>
                     <input type="date" min={today} value={checkin} onChange={e => setCheckin(e.target.value)} className={inp} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">Check-out</label>
+                    <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.checkoutLabel}</label>
                     <input type="date" min={checkin || today} value={checkout} onChange={e => setCheckout(e.target.value)} className={inp} />
                   </div>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">Adults</label>
+                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.adultsLabel}</label>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -151,25 +223,25 @@ export default function WhatsAppPopup() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">Your WhatsApp number</label>
+                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.phoneLabel}</label>
                 <input
                   type="tel"
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
-                  placeholder="+57 300 000 0000"
+                  placeholder={t.phonePh}
                   className={inp}
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">
-                  Anything else? <span className="normal-case font-normal text-ink/35">(optional)</span>
+                  {t.notesLabel} <span className="normal-case font-normal text-ink/35">{t.notesOptional}</span>
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  placeholder="Birthday, dietary needs, questions…"
+                  placeholder={t.notesPh}
                   className={inp}
                 />
               </div>
@@ -179,7 +251,7 @@ export default function WhatsAppPopup() {
                 className="w-full bg-whatsapp text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition text-sm flex items-center justify-center gap-2 mt-2"
               >
                 {WA_ICON_SM}
-                Send on WhatsApp →
+                {t.submitBtn}
               </button>
             </form>
           </div>

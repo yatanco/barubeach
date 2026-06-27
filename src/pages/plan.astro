@@ -12,7 +12,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
   description="Plan your perfect day trip or overnight stay at Casa Gaviota. Get an instant price estimate and book directly via WhatsApp or email."
   lang="en"
 >
-  <Header lang="en" altHref="/plan" />
+  <Header lang="en" altHref="/es/plan" />
 
   <section class="py-16 md:py-24">
     <div class="max-w-2xl mx-auto px-4 sm:px-6">
@@ -24,7 +24,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         </p>
       </div>
 
-      <EscapePlanner accessKey={KEY} client:load />
+      <EscapePlanner accessKey={KEY} lang="en" client:load />
 
       <p class="text-center text-xs text-ink/35 mt-8">
         Prices are estimates only. Final pricing confirmed via WhatsApp.
