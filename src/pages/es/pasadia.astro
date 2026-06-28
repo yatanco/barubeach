@@ -30,17 +30,19 @@ import WAInlineForm from '../../components/WAInlineForm.tsx';
       <h1 class="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold leading-tight mb-4">
         Pasadía Privado
       </h1>
-      <h2 class="text-xl sm:text-2xl font-light mb-3">Una Casa de Playa Privada en Barú — Solo para Tu Grupo</h2>
-      <p class="text-sm sm:text-base text-white/70 mb-12 uppercase tracking-wider">
+      <h2 class="text-xl sm:text-2xl font-light mb-3">Tu playa. Tu grupo. Tu día.</h2>
+      <p class="text-sm sm:text-base text-white/70 mb-2 uppercase tracking-wider">
         Transporte · playa privada · almuerzo fresco · todo incluido
       </p>
+      <p class="text-white/60 text-sm mb-8">Recibimos un grupo a la vez.</p>
 
       <button
         onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'daytrip'}}))"
-        class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-10"
+        class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-4"
       >
-        Planear tu día por WhatsApp →
+        Verificar Disponibilidad →
       </button>
+      <p class="text-white/60 text-sm italic mb-6">Un grupo a la vez — tu playa, en exclusiva.</p>
       <a href="#precio" class="block text-white/45 text-sm hover:text-white/70 transition-colors">
         Ver precios ↓
       </a>
@@ -130,7 +132,7 @@ import WAInlineForm from '../../components/WAInlineForm.tsx';
           onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'daytrip'}}))"
           class="inline-flex items-center gap-2 bg-brown text-white px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition cursor-pointer"
         >
-          Planear tu día por WhatsApp →
+          Verificar Disponibilidad →
         </button>
       </div>
     </div>

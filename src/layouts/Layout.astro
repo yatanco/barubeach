@@ -21,7 +21,7 @@ const {
 
 const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
 const ogImageURL = ogImage.startsWith('http') ? ogImage : new URL(ogImage, Astro.site).href;
-const stickyLabel = lang === 'es' ? 'Planear por WhatsApp →' : 'Plan on WhatsApp →';
+const stickyLabel = lang === 'es' ? 'Verificar Disponibilidad →' : 'Check Availability →';
 ---
 
 <!doctype html>

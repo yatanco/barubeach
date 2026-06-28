@@ -32,17 +32,18 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
       <h1 class="font-serif text-5xl sm:text-6xl md:text-7xl font-semibold leading-tight mb-4">
         Casa Gaviota Baru
       </h1>
-      <h2 class="text-xl sm:text-2xl font-light mb-3">A Private Beach House in Barú</h2>
+      <h2 class="text-xl sm:text-2xl font-light mb-3">Your own beach in Barú.</h2>
       <p class="text-sm sm:text-base text-white/70 mb-12 uppercase tracking-wider">
-        80 meters of private beach · no crowds · just your group
+        Barú without the crowds — one group at a time.
       </p>
 
       <button
         onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
-        class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-10"
+        class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-4"
       >
-        Plan on WhatsApp →
+        Check Availability →
       </button>
+      <p class="text-white/60 text-sm italic mb-6">We only host one group at a time.</p>
       <a href="#experience" class="block text-white/45 text-sm hover:text-white/70 transition-colors">
         Scroll to explore ↓
       </a>
@@ -131,7 +132,8 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
         <div class="bg-white rounded-2xl border border-terracotta/15 p-7 shadow-sm flex flex-col">
           <div class="text-3xl mb-4">☀️</div>
           <h3 class="font-serif text-xl font-semibold text-brown mb-2">Day Trip <span class="font-sans font-normal text-sm text-ink/50">(Pasadía)</span></h3>
-          <p class="text-ink/65 text-sm leading-relaxed mb-6 flex-1">Arrive in the morning, leave by sunset. Private beach, fresh food, and total freedom from crowds.</p>
+          <p class="text-ink/65 text-sm leading-relaxed mb-2">Arrive in the morning, leave by sunset. Private beach, fresh food, and total freedom from crowds.</p>
+          <p class="text-ink/50 text-xs italic mb-6 flex-1">All-in price. One group. No shared tours.</p>
           <a
             href="/daytrip"
             class="inline-flex items-center gap-1.5 bg-sand text-brown font-semibold text-sm px-5 py-3 rounded-full hover:opacity-90 transition-opacity self-start"
@@ -144,7 +146,8 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
         <div class="bg-white rounded-2xl border border-terracotta/15 p-7 shadow-sm flex flex-col">
           <div class="text-3xl mb-4">🌙</div>
           <h3 class="font-serif text-xl font-semibold text-brown mb-2">Overnight Stay <span class="font-sans font-normal text-sm text-ink/50">(Estadía)</span></h3>
-          <p class="text-ink/65 text-sm leading-relaxed mb-6 flex-1">Sleep to the sound of waves. Wake up with the ocean. 3 bedrooms, up to 8 guests, fully private.</p>
+          <p class="text-ink/65 text-sm leading-relaxed mb-2">Sleep to the sound of waves. Wake up with the ocean. 3 bedrooms, up to 8 guests, fully private.</p>
+          <p class="text-ink/50 text-xs italic mb-6 flex-1">The house is yours. Exclusively.</p>
           <div class="flex flex-wrap gap-2">
             <a
               href="http://airbnb.com/h/casagaviotabaru"
@@ -158,7 +161,7 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
               onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
               class="inline-flex items-center gap-1.5 border border-brown text-brown font-semibold text-sm px-5 py-3 rounded-full hover:bg-brown/5 transition cursor-pointer"
             >
-              Plan directly →
+              Check Availability →
             </button>
           </div>
         </div>
@@ -197,14 +200,14 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
             It is a private beach house designed for people who want to slow down, disconnect, and experience nature without distractions.
           </p>
           <ul class="space-y-3 mb-8">
-            {['No beach clubs.', 'No vendors.', 'No crowds.'].map(item => (
+            {['No beach clubs competing for your space.', 'No vendors approaching every 10 minutes.', 'No strangers sharing your beach.'].map(item => (
               <li class="flex items-center gap-3 font-medium text-ink/80">
                 <span class="text-terracotta text-lg">—</span>
                 {item}
               </li>
             ))}
           </ul>
-          <p class="text-ink/70 leading-relaxed">Just your group, the ocean, and time to relax.</p>
+          <p class="text-ink/70 leading-relaxed">Just your group, the ocean, and silence.</p>
         </div>
       </div>
     </div>
@@ -256,9 +259,9 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
       <div class="space-y-5 font-serif">
         {[
           'Wake up with the ocean',
-          'Swim, rest, read, disconnect',
+          'Swim with no strangers in the water',
           'Eat fresh, simple, delicious food',
-          'Watch the sunset',
+          'Watch the sunset with no vendors asking if you want a photo',
           'Fall asleep to the sound of waves',
         ].map((line, i) => (
           <p class={`text-2xl sm:text-3xl md:text-4xl font-medium ${i % 2 === 1 ? 'text-white/60' : 'text-white'}`}>
@@ -266,7 +269,7 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
           </p>
         ))}
       </div>
-      <p class="text-white/40 mt-12 text-lg">No schedule. No pressure.</p>
+      <p class="text-white/40 mt-12 text-lg">No schedule. No strangers. No noise that isn't the ocean.</p>
       <div data-lightbox="day-timeline" class="grid grid-cols-2 gap-3 mt-10 max-w-sm mx-auto">
         <img
           src="/images/beach-3.jpg"
@@ -364,6 +367,7 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
             <div>
               <p class="font-semibold text-sm text-ink">Casa Gaviota food service: $50 USD/person/day</p>
               <p class="text-sm text-ink/55">Fresh Caribbean meals prepared at the house</p>
+              <p class="text-xs text-ink/60 italic mt-1">Your private kitchen, serving only your group.</p>
             </div>
             <div>
               <p class="font-semibold text-sm text-ink">Luxury with lobster: $80 USD/person/day</p>
@@ -408,7 +412,7 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
           onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
           class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md cursor-pointer"
         >
-          Plan your stay on WhatsApp →
+          Check Availability →
         </button>
       </div>
     </div>
@@ -440,8 +444,11 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
         </div>
         <div>
           <h2 class="font-serif text-2xl sm:text-3xl font-semibold mb-5 text-brown">Honest Expectations</h2>
+          <p class="text-ink/70 leading-relaxed mb-4">
+            Barú is a remote, natural island environment. That is exactly what makes it special. Here is what to expect:
+          </p>
           <p class="text-ink/70 leading-relaxed mb-6">
-            Casa Gaviota is a rustic beach house in a remote natural environment. This is part of what makes it special — but it is important to know what to expect:
+            We tell you this because the guests who come with the right expectations have the best experience — and come back.
           </p>
           <ul class="space-y-3 mb-8">
             {[
@@ -492,6 +499,7 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
               </div>
             </div>
           </div>
+          <p class="text-ink/60 text-sm mb-4">We recommend checking availability before making travel plans. Casa Gaviota hosts one group at a time and popular dates fill quickly.</p>
           <p class="text-ink/50 text-sm mb-5">We help coordinate everything.</p>
           <a
             href={MAPS}
@@ -556,7 +564,11 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
           },
           {
             q: 'How do I book and pay?',
-            a: 'Message us on WhatsApp with your dates and group size. Direct bookings require a deposit. Balance paid at the house. Airbnb bookings handled on platform.',
+            a: 'Message us on WhatsApp with your dates. We confirm availability and send a payment link for the 50% deposit. Your dates are only confirmed once the deposit is received. Because we only host one group at a time, we cannot hold dates without a deposit.',
+          },
+          {
+            q: 'Is Casa Gaviota really private?',
+            a: 'Yes. We host one group at a time. When you book Casa Gaviota — whether for a day trip or overnight stay — the house, beach, and team are exclusively yours. No other guests. No shared spaces. No strangers.',
           },
         ].map(({ q, a }) => (
           <details class="group bg-white rounded-xl border border-terracotta/20 overflow-hidden">
