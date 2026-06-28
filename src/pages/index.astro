@@ -49,10 +49,76 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
     </div>
   </section>
 
-  <!-- TRUST BAR -->
-  <section class="py-5 text-white text-center font-semibold" style="background: #57392E;">
-    <p class="text-base sm:text-lg tracking-wide">⭐ 4.8 · 200+ reviews · Airbnb, Booking.com &amp; Google</p>
+  <!-- REVIEWS -->
+  <section id="reviews" class="py-20 bg-rose/20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-12">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">What 200+ guests say</h2>
+        <p class="text-muted text-sm">⭐ 4.8 · Airbnb, Booking.com &amp; Google</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="reviews-initial">
+        {[
+          'Insanely beautiful and peaceful, the ideal place to unwind.',
+          "A slice of heaven… we can't wait to go back.",
+          'Perfect to relax and disconnect from everything.',
+          'The food was better than restaurants.',
+        ].map(quote => (
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
+            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
+          </div>
+        ))}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 hidden" id="reviews-extra">
+        {[
+          'Manuel and his team are incredibly attentive. We felt completely taken care of.',
+          'The most beautiful and peaceful place we have ever stayed in Colombia.',
+          'Perfect for our family trip. Kids loved it, adults finally relaxed.',
+          'Worth every peso. We are already planning our next visit.',
+        ].map(quote => (
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
+            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
+            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
+          </div>
+        ))}
+      </div>
+      <div class="mt-8 text-center">
+        <button
+          id="show-more-reviews"
+          class="border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
+        >
+          Show more reviews
+        </button>
+      </div>
+      <div class="mt-10 text-center">
+        <p class="text-sm text-ink/50 mb-4">200+ verified reviews across platforms</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <a
+            href="http://airbnb.com/h/casagaviotabaru"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
+          >
+            Read all reviews on Airbnb →
+          </a>
+          <a
+            href="https://share.google/SHahHFkk8vXJIW7hH"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
+          >
+            Read all reviews on Google →
+          </a>
+        </div>
+      </div>
+    </div>
   </section>
+  <script is:inline>
+    document.getElementById('show-more-reviews')?.addEventListener('click', function() {
+      document.getElementById('reviews-extra')?.classList.remove('hidden');
+      this.style.display = 'none';
+    });
+  </script>
 
   <!-- EXPERIENCE CARDS -->
   <section id="experience" class="py-16 md:py-20">
@@ -143,77 +209,6 @@ const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
       </div>
     </div>
   </section>
-
-  <!-- REVIEWS -->
-  <section id="reviews" class="py-20 bg-rose/20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-12">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">What 200+ guests say</h2>
-        <p class="text-muted text-sm">⭐ 4.8 average across Airbnb, Booking.com and Google</p>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="reviews-initial">
-        {[
-          'Insanely beautiful and peaceful, the ideal place to unwind.',
-          "A slice of heaven… we can't wait to go back.",
-          'Perfect to relax and disconnect from everything.',
-          'The food was better than restaurants.',
-        ].map(quote => (
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
-            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
-            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
-          </div>
-        ))}
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 hidden" id="reviews-extra">
-        {[
-          'Manuel and his team are incredibly attentive. We felt completely taken care of.',
-          'The most beautiful and peaceful place we have ever stayed in Colombia.',
-          'Perfect for our family trip. Kids loved it, adults finally relaxed.',
-          'Worth every peso. We are already planning our next visit.',
-        ].map(quote => (
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-terracotta/15">
-            <p class="text-terracotta text-3xl leading-none mb-3">"</p>
-            <p class="text-ink/75 text-sm leading-relaxed">{quote}</p>
-          </div>
-        ))}
-      </div>
-      <div class="mt-8 text-center">
-        <button
-          id="show-more-reviews"
-          class="border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
-        >
-          Show more reviews
-        </button>
-      </div>
-      <div class="mt-10 text-center">
-        <p class="text-sm text-ink/50 mb-4">200+ verified reviews across platforms</p>
-        <div class="flex flex-col sm:flex-row gap-3 justify-center">
-          <a
-            href="http://airbnb.com/h/casagaviotabaru"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
-          >
-            Read all reviews on Airbnb →
-          </a>
-          <a
-            href="https://share.google/SHahHFkk8vXJIW7hH"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center justify-center gap-2 border border-brown text-brown font-medium text-sm px-6 py-3 rounded-full hover:bg-brown/5 transition"
-          >
-            Read all reviews on Google →
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
-  <script is:inline>
-    document.getElementById('show-more-reviews')?.addEventListener('click', function() {
-      document.getElementById('reviews-extra')?.classList.remove('hidden');
-      this.style.display = 'none';
-    });
-  </script>
 
   <!-- THE EXPERIENCE -->
   <section class="py-20 md:py-28">
