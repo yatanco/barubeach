@@ -223,12 +223,13 @@ import WAInlineForm from '../../components/WAInlineForm.tsx';
       <p class="text-sand text-xs uppercase tracking-widest mb-12">Un Día Típico</p>
       <div class="space-y-6">
         {[
-          { time: '7:30 AM', label: 'Recogida en Cartagena' },
-          { time: '9:00 AM', label: 'Llegada a la casa' },
+          { time: '7:30 AM', label: '🌅 Recogida en Cartagena' },
+          { time: '9:00 AM', label: '🚤 Llegada a Casa Gaviota' },
           { time: '9:00 – 1:00', label: 'Nadar, explorar, relajarse en la playa' },
-          { time: '1:00 PM', label: 'Almuerzo caribeño fresco' },
-          { time: '1:00 – 5:00', label: 'Más playa, hamacas, siestas' },
-          { time: '5:00 PM', label: 'Regreso a Cartagena' },
+          { time: '1:00 PM', label: '🍽️ Almuerzo caribeño fresco' },
+          { time: '1:00 – 3:00', label: '🌴 Más playa, hamacas, descanso' },
+          { time: '3:00 PM', label: '🌇 Regreso a Cartagena' },
+          { time: '~5:00 PM', label: '🏙️ Llegada a Cartagena' },
         ].map(({ time, label }, i) => (
           <div class={`flex items-center gap-4 ${i % 2 === 1 ? 'opacity-60' : ''}`}>
             <span class="text-sand text-sm w-28 text-right flex-shrink-0">{time}</span>
@@ -401,7 +402,7 @@ import WAInlineForm from '../../components/WAInlineForm.tsx';
           },
           {
             q: '¿A qué hora empieza y termina el día?',
-            a: 'Recogida en Cartagena alrededor de las 7:30 AM. Llegada a la casa alrededor de las 9:00 AM. Regreso a Cartagena alrededor de las 5:00 PM. Los horarios se pueden ajustar según tu grupo.',
+            a: 'Recogida en Cartagena alrededor de las 7:30 AM. Llegada a la casa alrededor de las 9:00 AM. Regreso a Cartagena a las 3:00 PM, con llegada alrededor de las 5:00 PM. Los horarios se pueden ajustar según tu grupo.',
           },
           {
             q: '¿Podemos llevar alcohol o comida extra?',

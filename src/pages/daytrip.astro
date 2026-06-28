@@ -223,12 +223,13 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
       <p class="text-sand text-xs uppercase tracking-widest mb-12">A Typical Day</p>
       <div class="space-y-6">
         {[
-          { time: '7:30 AM', label: 'Pickup in Cartagena' },
-          { time: '9:00 AM', label: 'Arrive at the house' },
-          { time: '9:00 – 1:00', label: 'Swim, explore, relax on the beach' },
-          { time: '1:00 PM', label: 'Fresh Caribbean lunch served' },
-          { time: '1:00 – 5:00', label: 'More beach time, hammocks, naps' },
-          { time: '5:00 PM', label: 'Head back to Cartagena' },
+          { time: '7:30 AM', label: '🌅 Pickup in Cartagena' },
+          { time: '9:00 AM', label: '🚤 Arrive at Casa Gaviota' },
+          { time: '9:00 – 1:00', label: '🏖️ Swim, explore, relax on the beach' },
+          { time: '1:00 PM', label: '🍽️ Fresh Caribbean lunch' },
+          { time: '1:00 – 3:00', label: '🌴 Beach, hammocks, rest' },
+          { time: '3:00 PM', label: '🌇 Return to Cartagena' },
+          { time: '~5:00 PM', label: '🏙️ Arrive back in Cartagena' },
         ].map(({ time, label }, i) => (
           <div class={`flex items-center gap-4 ${i % 2 === 1 ? 'opacity-60' : ''}`}>
             <span class="text-sand text-sm w-28 text-right flex-shrink-0">{time}</span>
@@ -401,7 +402,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
           },
           {
             q: 'What time does the day start and end?',
-            a: 'Pickup in Cartagena around 7:30 AM. Arrive at the house around 9:00 AM. Return to Cartagena around 5:00 PM. Times can be adjusted depending on your group.',
+            a: 'Pickup in Cartagena around 7:30 AM. Arrive at the house around 9:00 AM. Return to Cartagena at 3:00 PM, arriving back around 5:00 PM. Times can be adjusted depending on your group.',
           },
           {
             q: 'Can we bring alcohol or extra food?',
