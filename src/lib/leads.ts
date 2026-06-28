@@ -26,9 +26,10 @@ export function captureLead(data: Partial<LeadData> & Pick<LeadData, 'source' | 
     ...data,
   };
 
+  console.log('[captureLead] firing', payload);
   fetch('/api/capture-lead', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  }).catch(() => {});
+  }).catch((err) => console.warn('[captureLead] fetch error', err));
 }

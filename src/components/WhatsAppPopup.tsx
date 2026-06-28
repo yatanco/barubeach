@@ -24,6 +24,12 @@ const T = {
     notesLabel: 'Anything else?',
     notesOptional: '(optional)',
     notesPh: 'Birthday, dietary needs, questions…',
+    childrenLabel: 'Children',
+    childrenSub: 'under 12',
+    nameLabel: 'Your name',
+    namePh: 'First name',
+    childrenMsg: 'Children',
+    nameMsg: 'Name',
     submitBtn: 'Send on WhatsApp →',
     introDaytrip: "I'd like a private day trip.",
     introStay: "I'd like to plan an overnight stay.",
@@ -53,6 +59,12 @@ const T = {
     notesLabel: '¿Algo más?',
     notesOptional: '(opcional)',
     notesPh: 'Cumpleaños, alergias, preguntas…',
+    childrenLabel: 'Niños',
+    childrenSub: 'menores de 12',
+    nameLabel: 'Tu nombre',
+    namePh: 'Nombre',
+    childrenMsg: 'Niños',
+    nameMsg: 'Nombre',
     submitBtn: 'Enviar por WhatsApp →',
     introDaytrip: 'Quiero un pasadía privado.',
     introStay: 'Quiero información sobre estadía.',
@@ -97,6 +109,8 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
   const [checkin, setCheckin] = useState('');
   const [checkout, setCheckout] = useState('');
   const [adults, setAdults] = useState(2);
+  const [children, setChildren] = useState(0);
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -126,6 +140,8 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       msg += `${t.checkoutMsg}: ${checkout || t.tbd}\n`;
       msg += `${t.adultsMsg}: ${adults}\n`;
     }
+    if (children > 0) msg += `${t.childrenMsg}: ${children}\n`;
+    if (name.trim()) msg += `${t.nameMsg}: ${name.trim()}\n`;
     if (notes.trim()) msg += `${t.noteMsg}: ${notes.trim()}\n`;
     msg += `\n${t.footer}`;
     return msg;
@@ -137,6 +153,8 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     setCheckin('');
     setCheckout('');
     setAdults(2);
+    setChildren(0);
+    setName('');
     setPhone('');
     setNotes('');
     setType(defaultType);
@@ -151,6 +169,8 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       date: type === 'daytrip' ? date : checkin,
       checkOut: type === 'stay' ? checkout : undefined,
       adults,
+      children: children > 0 ? children : undefined,
+      name: name || undefined,
       whatsapp: phone || undefined,
       notes: notes || undefined,
       estimatedPrice: type === 'daytrip'
@@ -248,6 +268,37 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
                     className="w-9 h-9 rounded-full border border-terracotta/30 text-ink/60 hover:border-brown hover:text-ink transition flex items-center justify-center text-lg leading-none"
                   >+</button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">
+                  {t.childrenLabel} <span className="normal-case font-normal text-ink/35">({t.childrenSub})</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setChildren(Math.max(0, children - 1))}
+                    className="w-9 h-9 rounded-full border border-terracotta/30 text-ink/60 hover:border-brown hover:text-ink transition flex items-center justify-center text-lg leading-none"
+                  >−</button>
+                  <span className="text-base font-semibold w-6 text-center text-ink">{children}</span>
+                  <button
+                    type="button"
+                    onClick={() => setChildren(Math.min(20, children + 1))}
+                    className="w-9 h-9 rounded-full border border-terracotta/30 text-ink/60 hover:border-brown hover:text-ink transition flex items-center justify-center text-lg leading-none"
+                  >+</button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.nameLabel}</label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder={t.namePh}
+                  className={inp}
+                />
               </div>
 
               <div>
