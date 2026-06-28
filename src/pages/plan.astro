@@ -8,8 +8,8 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
 ---
 
 <Layout
-  title="Design Your Escape — Casa Gaviota Baru"
-  description="Plan your perfect day trip or overnight stay at Casa Gaviota. Get an instant price estimate and book directly via WhatsApp or email."
+  title="Plan Your Visit — Casa Gaviota Baru"
+  description="Get an instant price estimate for your day trip or overnight stay at Casa Gaviota. Plan your visit and book directly via WhatsApp."
   lang="en"
 >
   <Header lang="en" altHref="/es/plan" />
@@ -18,17 +18,13 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
     <div class="max-w-2xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-10">
         <p class="text-terracotta text-xs uppercase tracking-widest font-medium mb-4">Barú · Colombia</p>
-        <h1 class="font-serif text-4xl sm:text-5xl font-semibold text-brown mb-4">Design Your Escape</h1>
+        <h1 class="font-serif text-4xl sm:text-5xl font-semibold text-brown mb-4">Plan Your Visit</h1>
         <p class="text-ink/60 text-base leading-relaxed">
-          Answer a few questions and we'll show you exactly what your experience looks like — and what it costs.
+          Get an instant price estimate.
         </p>
       </div>
 
       <EscapePlanner accessKey={KEY} lang="en" client:visible />
-
-      <p class="text-center text-xs text-ink/35 mt-8">
-        Prices are estimates only. Final pricing confirmed via WhatsApp.
-      </p>
     </div>
   </section>
 
