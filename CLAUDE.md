@@ -37,7 +37,7 @@ The `PUBLIC_` prefix makes this available to client-side React via `import.meta.
 - `DayTripForm.tsx` — simpler day-trip-only form (used on `/daytrip` and `/es/pasadia`)
 - `BookingForm.tsx` — old form from previous brand, now dead code; do not use
 
-**Layout** (`src/layouts/Layout.astro`) wraps every page with `<html lang>`, SEO meta tags (OG + Twitter), Google Analytics (G-Y3SP3YNDE6), and the Google Fonts async-load pattern.
+**Layout** (`src/layouts/Layout.astro`) wraps every page with `<html lang>`, SEO meta tags (OG + Twitter), Google Analytics (G-YCRQRM6R43), and the Google Fonts async-load pattern.
 
 **Header** (`src/components/Header.astro`) takes `lang` and `altHref` props. `altHref` is the language-toggle destination — caller must set it explicitly (e.g. `/es` on `/`, `/daytrip` on `/es/pasadia`). Contains inline JS for hamburger menu and scroll shadow.
 

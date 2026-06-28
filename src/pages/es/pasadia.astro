@@ -47,55 +47,12 @@ import WAInlineForm from '../../components/WAInlineForm.tsx';
     </div>
   </section>
 
-  <!-- TRUST BAR -->
-  <section class="py-5 text-white text-center font-semibold" style="background: #57392E;">
-    <p class="text-base sm:text-lg tracking-wide">⭐ 4.8 · 200+ reseñas · Airbnb, Booking.com y Google</p>
-  </section>
-
-  <!-- PRECIO TODO INCLUIDO -->
-  <section id="precio" class="py-20 md:py-28" style="background: #E6C497;">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-12">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Precio todo incluido</h2>
-        <p class="text-ink/70">Transporte, casa, playa y almuerzo — todo incluido. Sin sorpresas.</p>
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-        {[
-          { group: 'Pareja', people: '2 personas', price: '$300 USD' },
-          { group: 'Familia', people: '4 personas', price: '$500 USD' },
-          { group: 'Grupo de 6', people: '6 personas', price: '$700 USD' },
-          { group: 'Grupo de 8', people: '8 personas', price: '$900 USD' },
-        ].map(({ group, people, price }) => (
-          <div class="bg-white rounded-2xl p-5 text-center shadow-sm">
-            <p class="font-semibold text-brown text-sm mb-1">{group}</p>
-            <p class="text-xs text-ink/50 mb-3">{people}</p>
-            <p class="text-xl font-bold text-brown">{price}</p>
-          </div>
-        ))}
-      </div>
-
-      <div class="bg-white/60 rounded-2xl p-6 text-center mb-8">
-        <p class="text-sm text-ink/70 font-medium">Precio todo incluido. Incluye transporte desde Cartagena, acceso a playa privada y almuerzo caribeño fresco.</p>
-      </div>
-
-      <div class="text-center">
-        <button
-          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'daytrip'}}))"
-          class="inline-flex items-center gap-2 bg-brown text-white px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition cursor-pointer"
-        >
-          Planear tu día por WhatsApp →
-        </button>
-      </div>
-    </div>
-  </section>
-
   <!-- RESEÑAS -->
   <section id="resenas" class="py-20 bg-rose/20">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
       <div class="text-center mb-12">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Lo que dicen los huéspedes del pasadía</h2>
-        <p class="text-muted text-sm">⭐ 4.8 de promedio en Airbnb, Booking.com y Google</p>
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Lo que dicen nuestros huéspedes</h2>
+        <p class="text-muted text-sm">⭐ 4.8 · Airbnb, Booking.com y Google</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="reviews-initial">
         {[
@@ -140,6 +97,44 @@ import WAInlineForm from '../../components/WAInlineForm.tsx';
       this.style.display = 'none';
     });
   </script>
+
+  <!-- PRECIO TODO INCLUIDO -->
+  <section id="precio" class="py-20 md:py-28" style="background: #E6C497;">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-12">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Precio todo incluido</h2>
+        <p class="text-ink/70">Transporte, casa, playa y almuerzo — todo incluido. Sin sorpresas.</p>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+        {[
+          { group: 'Pareja', people: '2 personas', price: '$300 USD' },
+          { group: 'Familia', people: '4 personas', price: '$500 USD' },
+          { group: 'Grupo de 6', people: '6 personas', price: '$700 USD' },
+          { group: 'Grupo de 8', people: '8 personas', price: '$900 USD' },
+        ].map(({ group, people, price }) => (
+          <div class="bg-white rounded-2xl p-5 text-center shadow-sm">
+            <p class="font-semibold text-brown text-sm mb-1">{group}</p>
+            <p class="text-xs text-ink/50 mb-3">{people}</p>
+            <p class="text-xl font-bold text-brown">{price}</p>
+          </div>
+        ))}
+      </div>
+
+      <div class="bg-white/60 rounded-2xl p-6 text-center mb-8">
+        <p class="text-sm text-ink/70 font-medium">Precio todo incluido. Incluye transporte desde Cartagena, acceso a playa privada y almuerzo caribeño fresco.</p>
+      </div>
+
+      <div class="text-center">
+        <button
+          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'daytrip'}}))"
+          class="inline-flex items-center gap-2 bg-brown text-white px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition cursor-pointer"
+        >
+          Planear tu día por WhatsApp →
+        </button>
+      </div>
+    </div>
+  </section>
 
   <!-- VERSIÓN PRIVADA -->
   <section class="py-20 md:py-28">
