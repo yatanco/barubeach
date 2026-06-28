@@ -5,6 +5,7 @@ export interface Props {
   title: string;
   description: string;
   canonical?: string;
+  altHref?: string;
   ogImage?: string;
   lang?: 'en' | 'es';
   defaultPopupType?: 'daytrip' | 'stay';
@@ -14,6 +15,7 @@ const {
   title,
   description,
   canonical,
+  altHref,
   ogImage = '/images/og-image.jpg',
   lang = 'en',
   defaultPopupType = 'daytrip',
@@ -21,6 +23,8 @@ const {
 
 const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
 const ogImageURL = ogImage.startsWith('http') ? ogImage : new URL(ogImage, Astro.site).href;
+const altURL = altHref ? new URL(altHref, Astro.site).href : null;
+const ogLocale = lang === 'es' ? 'es_CO' : 'en_US';
 const stickyLabel = lang === 'es' ? 'Verificar Disponibilidad →' : 'Check Availability →';
 ---
 
@@ -38,11 +42,17 @@ const stickyLabel = lang === 'es' ? 'Verificar Disponibilidad →' : 'Check Avai
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:image" content={ogImageURL} />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content={ogLocale} />
     <meta property="og:site_name" content="Casa Gaviota Baru" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageURL} />
+    <meta name="robots" content="index, follow" />
+
+    {altURL && <link rel="alternate" hreflang={lang === 'es' ? 'en' : 'es'} href={altURL} />}
+    {altURL && <link rel="alternate" hreflang={lang} href={canonicalURL} />}
+    {altURL && <link rel="alternate" hreflang="x-default" href={lang === 'en' ? canonicalURL : altURL} />}
 
     <link rel="icon" type="image/png" href="/images/logo.png" />
 
@@ -72,7 +82,7 @@ const stickyLabel = lang === 'es' ? 'Verificar Disponibilidad →' : 'Check Avai
   <body class="bg-background text-ink font-sans antialiased">
     <slot />
 
-    <WhatsAppPopup lang={lang} defaultType={defaultPopupType} client:load />
+    <WhatsAppPopup lang={lang} defaultType={defaultPopupType} client:idle />
 
     <!-- Sticky mobile bottom bar -->
     <div

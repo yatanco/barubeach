@@ -9,6 +9,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
   title="Day Trip to Barú — Private Beach House | Casa Gaviota"
   description="A private day trip to a beach house on Isla Barú near Cartagena. Transport, private beach, and fresh Caribbean lunch — all included. No beach clubs, no crowds."
   lang="en"
+  altHref="/es/pasadia"
   defaultPopupType="daytrip"
 >
   <Header lang="en" altHref="/es/pasadia" />
@@ -16,7 +17,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
   <!-- HERO -->
   <section class="relative min-h-screen flex items-center justify-center">
     <img
-      src="/images/daytrip-1.jpg"
+      src="/images/daytrip-1.webp"
       alt="Day trip to Casa Gaviota private beach in Barú"
       class="absolute inset-0 w-full h-full object-cover"
       loading="eager"
@@ -144,7 +145,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
         <div data-lightbox="private" class="grid grid-cols-2 gap-3">
           <img
-            src="/images/beach-1.jpg"
+            src="/images/beach-1.webp"
             alt="Private beach at Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
@@ -152,7 +153,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
             height="225"
           />
           <img
-            src="/images/beach-2.jpg"
+            src="/images/beach-2.webp"
             alt="Exclusive beach access at Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
@@ -241,7 +242,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
       <p class="text-white/40 mt-12 text-base">Times are approximate. The day adjusts to you.</p>
       <div data-lightbox="typical-day" class="grid grid-cols-2 gap-3 mt-10 max-w-sm mx-auto">
         <img
-          src="/images/daytrip-2.jpg"
+          src="/images/daytrip-2.webp"
           alt="Day trip to Casa Gaviota beach"
           class="rounded-xl w-full aspect-square object-cover opacity-80"
           loading="lazy"
@@ -249,7 +250,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
           height="200"
         />
         <img
-          src="/images/beach-3.jpg"
+          src="/images/beach-3.webp"
           alt="Casa Gaviota beach scene"
           class="rounded-xl w-full aspect-square object-cover opacity-80"
           loading="lazy"
@@ -280,7 +281,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
         </div>
         <div data-lightbox="food" class="grid grid-cols-2 gap-3">
           <img
-            src="/images/food-1.jpg"
+            src="/images/food-1.webp"
             alt="Fresh Caribbean lunch at Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
@@ -288,7 +289,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
             height="225"
           />
           <img
-            src="/images/food-2.jpg"
+            src="/images/food-2.webp"
             alt="Prepared food at Casa Gaviota"
             class="rounded-2xl w-full aspect-[4/3] object-cover shadow-md"
             loading="lazy"
@@ -446,7 +447,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
         <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Book your private day trip</h2>
         <p class="text-muted">Choose your date and group size. We will confirm and send details within a few hours.</p>
       </div>
-      <WAInlineForm lang="en" defaultType="daytrip" client:load />
+      <WAInlineForm lang="en" defaultType="daytrip" client:visible />
     </div>
   </section>
 
