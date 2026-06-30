@@ -1,0 +1,58 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+
+const posts = await getCollection('blog');
+const sorted = posts.sort((a, b) => b.data.publishDate.getTime() - a.data.publishDate.getTime());
+
+function formatDate(d: Date) {
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+}
+---
+
+<Layout
+  title="Barú & Cartagena Travel Guide | Casa Gaviota"
+  description="Honest travel advice for Barú and Cartagena — quiet beaches, private stays, day trips, and snorkeling near Isla Barú."
+  lang="en"
+>
+  <Header lang="en" />
+
+  <main class="py-16 md:py-24">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+
+      <div class="mb-14">
+        <p class="text-xs uppercase tracking-widest text-muted mb-4">Travel Guide</p>
+        <h1 class="font-serif text-4xl sm:text-5xl font-semibold text-brown mb-5 leading-tight">
+          Barú &amp; Cartagena<br class="hidden sm:block" /> Travel Guide
+        </h1>
+        <p class="text-ink/60 text-lg max-w-xl leading-relaxed">
+          Honest advice for travelers who want privacy, quiet beaches, and a slower kind of coastal stay.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {sorted.map(post => (
+          <a
+            href={`/blog/${post.id}`}
+            class="group block bg-white rounded-2xl border border-terracotta/15 p-7 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <p class="text-xs text-muted uppercase tracking-wider mb-3">
+              {formatDate(post.data.publishDate)}
+            </p>
+            <h2 class="font-serif text-xl font-semibold text-brown mb-3 leading-snug group-hover:underline decoration-brown/40 underline-offset-2">
+              {post.data.title}
+            </h2>
+            <p class="text-ink/60 text-sm leading-relaxed">
+              {post.data.description}
+            </p>
+          </a>
+        ))}
+      </div>
+
+    </div>
+  </main>
+
+  <Footer lang="en" />
+</Layout>
