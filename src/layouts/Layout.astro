@@ -9,6 +9,7 @@ export interface Props {
   ogImage?: string;
   lang?: 'en' | 'es';
   defaultPopupType?: 'daytrip' | 'stay';
+  jsonLd?: Record<string, unknown>;
 }
 
 const {
@@ -19,6 +20,7 @@ const {
   ogImage = '/images/og-image.jpg',
   lang = 'en',
   defaultPopupType = 'daytrip',
+  jsonLd,
 } = Astro.props;
 
 const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
@@ -49,6 +51,8 @@ const stickyLabel = lang === 'es' ? 'Verificar Disponibilidad →' : 'Check Avai
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageURL} />
     <meta name="robots" content="index, follow" />
+
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
 
     {altURL && <link rel="alternate" hreflang={lang === 'es' ? 'en' : 'es'} href={altURL} />}
     {altURL && <link rel="alternate" hreflang={lang} href={canonicalURL} />}
