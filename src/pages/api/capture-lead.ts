@@ -27,9 +27,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      redirect: 'follow',
     });
 
-    console.log('[capture-lead] webhook status:', res.status);
+    const bodyText = await res.text();
+    console.log('[capture-lead] webhook status:', res.status, 'body:', bodyText);
+
+    // Apps Script web apps return HTTP 200 even when the script itself errors,
+    // so status alone can't be trusted — inspect the body too.
+    if (!res.ok || /error/i.test(bodyText)) {
+      console.error('[capture-lead] webhook did not confirm success:', res.status, bodyText);
+      return new Response(JSON.stringify({ success: false, error: 'webhook rejected' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
