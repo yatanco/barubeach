@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { captureLead } from '../lib/leads';
+import { isDateBlocked, isRangeBlocked, type BlockedRange } from '../lib/availability';
 
 type ExperienceType = 'daytrip' | 'stay';
 
@@ -43,6 +44,12 @@ const T = {
     tbd: 'TBD',
     greeting: 'Hello Casa Gaviota! 👋',
     footer: 'Sent from casagaviota.com',
+    checkingAvailability: 'Checking availability...',
+    dateUnavailableDay: '⚠️ This date is not available. Please choose another date.',
+    dateUnavailableRange: '⚠️ Some dates in this range are not available. Please adjust your dates.',
+    datesAvailable: '✓ Dates look available',
+    availabilityNote: 'Note: availability not verified — please confirm dates.',
+    datesVerifiedMsg: 'Dates verified ✓',
   },
   es: {
     header: 'Planea tu escape 🌴',
@@ -78,6 +85,12 @@ const T = {
     tbd: 'Por confirmar',
     greeting: 'Hola Casa Gaviota! 👋',
     footer: 'Enviado desde casagaviota.com',
+    checkingAvailability: 'Verificando disponibilidad...',
+    dateUnavailableDay: '⚠️ Esta fecha no está disponible. Por favor elige otra fecha.',
+    dateUnavailableRange: '⚠️ Algunas fechas en este rango no están disponibles.',
+    datesAvailable: '✓ Fechas aparentemente disponibles',
+    availabilityNote: 'Nota: disponibilidad pendiente de confirmación.',
+    datesVerifiedMsg: 'Fechas verificadas ✓',
   },
 };
 
@@ -113,6 +126,9 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
+  const [blocked, setBlocked] = useState<BlockedRange[]>([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityStale, setAvailabilityStale] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const t = T[lang];
@@ -127,7 +143,41 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     return () => window.removeEventListener('open-wa-popup', handler);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setAvailabilityLoading(true);
+    setAvailabilityStale(false);
+    fetch('/api/availability')
+      .then(res => res.json())
+      .then((data: { blocked?: BlockedRange[]; stale?: boolean }) => {
+        if (cancelled) return;
+        setBlocked(Array.isArray(data.blocked) ? data.blocked : []);
+        setAvailabilityStale(Boolean(data.stale));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setBlocked([]);
+        setAvailabilityStale(true);
+      })
+      .finally(() => {
+        if (!cancelled) setAvailabilityLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   const today = new Date().toISOString().split('T')[0];
+
+  const hasDateSelected = type === 'daytrip' ? Boolean(date) : Boolean(checkin && checkout);
+  const dateIsBlocked =
+    !availabilityLoading &&
+    !availabilityStale &&
+    (type === 'daytrip'
+      ? Boolean(date) && isDateBlocked(new Date(date), blocked)
+      : Boolean(checkin && checkout) && isRangeBlocked(new Date(checkin), new Date(checkout), blocked));
+  const datesVerifiedAvailable = !availabilityLoading && !availabilityStale && hasDateSelected && !dateIsBlocked;
 
   function buildMessage(): string {
     const intro = type === 'daytrip' ? t.introDaytrip : t.introStay;
@@ -143,6 +193,13 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     if (children > 0) msg += `${t.childrenMsg}: ${children}\n`;
     if (name.trim()) msg += `${t.nameMsg}: ${name.trim()}\n`;
     if (notes.trim()) msg += `${t.noteMsg}: ${notes.trim()}\n`;
+    if (hasDateSelected) {
+      if (availabilityStale) {
+        msg += `${t.availabilityNote}\n`;
+      } else if (datesVerifiedAvailable) {
+        msg += `${t.datesVerifiedMsg}\n`;
+      }
+    }
     msg += `\n${t.footer}`;
     return msg;
   }
@@ -162,6 +219,7 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (dateIsBlocked) return;
     captureLead({
       source: 'popup',
       language: lang,
@@ -239,17 +297,37 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
                 <div>
                   <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.whenLabel}</label>
                   <input type="date" min={today} value={date} onChange={e => setDate(e.target.value)} className={inp} />
+                  {availabilityLoading && (
+                    <p className="mt-1 text-xs text-ink/40">{t.checkingAvailability}</p>
+                  )}
+                  {!availabilityLoading && !availabilityStale && date && dateIsBlocked && (
+                    <p className="mt-1 text-xs text-[#B28471]">{t.dateUnavailableDay}</p>
+                  )}
+                  {datesVerifiedAvailable && (
+                    <p className="mt-1 text-xs text-[#22c55e]">{t.datesAvailable}</p>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.checkinLabel}</label>
-                    <input type="date" min={today} value={checkin} onChange={e => setCheckin(e.target.value)} className={inp} />
+                <div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.checkinLabel}</label>
+                      <input type="date" min={today} value={checkin} onChange={e => setCheckin(e.target.value)} className={inp} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.checkoutLabel}</label>
+                      <input type="date" min={checkin || today} value={checkout} onChange={e => setCheckout(e.target.value)} className={inp} />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.checkoutLabel}</label>
-                    <input type="date" min={checkin || today} value={checkout} onChange={e => setCheckout(e.target.value)} className={inp} />
-                  </div>
+                  {availabilityLoading && (
+                    <p className="mt-1 text-xs text-ink/40">{t.checkingAvailability}</p>
+                  )}
+                  {!availabilityLoading && !availabilityStale && checkin && checkout && dateIsBlocked && (
+                    <p className="mt-1 text-xs text-[#B28471]">{t.dateUnavailableRange}</p>
+                  )}
+                  {datesVerifiedAvailable && (
+                    <p className="mt-1 text-xs text-[#22c55e]">{t.datesAvailable}</p>
+                  )}
                 </div>
               )}
 
@@ -314,7 +392,12 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
 
               <button
                 type="submit"
-                className="w-full bg-whatsapp text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition text-sm flex items-center justify-center gap-2 mt-2"
+                disabled={dateIsBlocked}
+                className={`w-full font-semibold py-3.5 rounded-xl transition text-sm flex items-center justify-center gap-2 mt-2 ${
+                  dateIsBlocked
+                    ? 'bg-ink/15 text-ink/40 cursor-not-allowed'
+                    : 'bg-whatsapp text-white hover:opacity-90'
+                }`}
               >
                 {WA_ICON_SM}
                 {t.submitBtn}

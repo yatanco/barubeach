@@ -4,11 +4,24 @@ export const prerender = false;
 
 const CACHE_KEY = 'hosthub_availability';
 const CACHE_TTL = 15 * 60; // 15 minutes — same as WP transients
+const MEM_CACHE_TTL_MS = 15 * 60 * 1000;
 
 interface BlockedRange {
   start: string;
   end: string;
 }
+
+interface AvailabilityPayload {
+  blocked: BlockedRange[];
+  fetched_at: string;
+  stale: boolean;
+  error?: string;
+}
+
+// Module-level cache — the primary cache path. KV (below) is a secondary
+// layer for when the CACHE binding is actually wired up; until then this is
+// what actually avoids hitting HostHub on every request within a warm isolate.
+let memCache: { payload: AvailabilityPayload; time: number } | null = null;
 
 interface KVNamespace {
   get(key: string): Promise<string | null>;
@@ -44,16 +57,26 @@ export async function GET({ locals, request }: APIContext) {
   const origin = request.headers.get('Origin') ?? '';
   const headers = corsHeaders(origin);
 
+  // Module-level cache first — fastest path, and the only one guaranteed to
+  // work regardless of whether the KV binding is actually provisioned.
+  if (memCache && Date.now() - memCache.time < MEM_CACHE_TTL_MS) {
+    return new Response(JSON.stringify(memCache.payload), {
+      headers: { ...headers, 'Cache-Control': 'public, max-age=300' },
+    });
+  }
+
   const cfEnv = getCFEnv(locals);
   const kv = cfEnv.CACHE;
   const apiKey = cfEnv.HOSTHUB_API_KEY ?? import.meta.env.HOSTHUB_API_KEY;
   const rentalId = cfEnv.HOSTHUB_RENTAL_ID ?? import.meta.env.HOSTHUB_RENTAL_ID;
   const baseUrl = cfEnv.HOSTHUB_BASE_URL ?? import.meta.env.HOSTHUB_BASE_URL ?? 'https://app.hosthubpms.com/api/v1';
 
-  // Serve from KV cache if fresh
+  // Serve from KV cache if fresh (secondary layer, for when CACHE is bound)
   if (kv) {
     const cached = await kv.get(CACHE_KEY);
     if (cached) {
+      const payload = JSON.parse(cached) as AvailabilityPayload;
+      memCache = { payload, time: Date.now() };
       return new Response(cached, {
         headers: { ...headers, 'Cache-Control': 'public, max-age=300' },
       });
@@ -61,10 +84,13 @@ export async function GET({ locals, request }: APIContext) {
   }
 
   if (!apiKey || !rentalId) {
-    return new Response(
-      JSON.stringify({ blocked: [], stale: true, error: 'HostHub credentials not configured' }),
-      { headers }
-    );
+    const payload: AvailabilityPayload = {
+      blocked: [],
+      fetched_at: new Date().toISOString(),
+      stale: true,
+      error: 'unavailable',
+    };
+    return new Response(JSON.stringify(payload), { headers });
   }
 
   try {
@@ -82,30 +108,38 @@ export async function GET({ locals, request }: APIContext) {
 
     const raw = await res.json();
     const blocked = parseBlockedRanges(raw);
-    const payload = JSON.stringify({ blocked, fetched_at: new Date().toISOString() });
+    const payload: AvailabilityPayload = { blocked, fetched_at: new Date().toISOString(), stale: false };
+    const body = JSON.stringify(payload);
 
+    memCache = { payload, time: Date.now() };
     if (kv) {
-      await kv.put(CACHE_KEY, payload, { expirationTtl: CACHE_TTL });
+      await kv.put(CACHE_KEY, body, { expirationTtl: CACHE_TTL });
     }
 
-    return new Response(payload, {
+    return new Response(body, {
       headers: { ...headers, 'Cache-Control': 'public, max-age=300' },
     });
   } catch (err) {
-    // Return stale cache on error rather than failing hard
+    // Return last known-good result on error rather than failing hard
+    if (memCache) {
+      return new Response(JSON.stringify({ ...memCache.payload, stale: true }), { headers });
+    }
     if (kv) {
       const stale = await kv.get(CACHE_KEY);
       if (stale) {
-        const data = JSON.parse(stale);
+        const data = JSON.parse(stale) as AvailabilityPayload;
         return new Response(JSON.stringify({ ...data, stale: true }), { headers });
       }
     }
 
-    console.error('[availability]', err);
-    return new Response(
-      JSON.stringify({ blocked: [], stale: true, error: String(err) }),
-      { headers }
-    );
+    console.warn('[availability]', err instanceof Error ? err.message : String(err));
+    const payload: AvailabilityPayload = {
+      blocked: [],
+      fetched_at: new Date().toISOString(),
+      stale: true,
+      error: 'unavailable',
+    };
+    return new Response(JSON.stringify(payload), { headers });
   }
 }
 
