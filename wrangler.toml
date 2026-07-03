@@ -9,7 +9,7 @@ binding = "CACHE"
 id = "replace_with_real_kv_id"
 
 [vars]
-HOSTHUB_BASE_URL = "https://app.hosthub.com/api/v1"
+HOSTHUB_BASE_URL = "https://app.hosthub.com/api/2019-03-01"
 HOSTHUB_RENTAL_ID = "m4jmlqny2d"
 PUBLIC_BASE_URL = "https://casagaviota.com"
 

@@ -18,6 +18,12 @@ interface AvailabilityPayload {
   error?: string;
 }
 
+interface CalendarEvent {
+  date_from: string;
+  date_to: string;
+  cancelled_at: string | null;
+}
+
 // Module-level cache — the primary cache path. KV (below) is a secondary
 // layer for when the CACHE binding is actually wired up; until then this is
 // what actually avoids hitting HostHub on every request within a warm isolate.
@@ -69,7 +75,7 @@ export async function GET({ locals, request }: APIContext) {
   const kv = cfEnv.CACHE;
   const apiKey = cfEnv.HOSTHUB_API_KEY ?? import.meta.env.HOSTHUB_API_KEY;
   const rentalId = cfEnv.HOSTHUB_RENTAL_ID ?? import.meta.env.HOSTHUB_RENTAL_ID;
-  const baseUrl = cfEnv.HOSTHUB_BASE_URL ?? import.meta.env.HOSTHUB_BASE_URL ?? 'https://app.hosthub.com/api/v1';
+  const baseUrl = cfEnv.HOSTHUB_BASE_URL ?? import.meta.env.HOSTHUB_BASE_URL ?? 'https://app.hosthub.com/api/2019-03-01';
 
   // Serve from KV cache if fresh (secondary layer, for when CACHE is bound)
   if (kv) {
@@ -94,9 +100,9 @@ export async function GET({ locals, request }: APIContext) {
   }
 
   try {
-    const res = await fetch(`${baseUrl}/rentals/${rentalId}/calendar`, {
+    const res = await fetch(`${baseUrl}/rentals/${rentalId}/calendar-events?is_visible=true`, {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: apiKey,
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
@@ -106,7 +112,7 @@ export async function GET({ locals, request }: APIContext) {
       throw new Error(`HostHub ${res.status}: ${await res.text().catch(() => '')}`);
     }
 
-    const raw = await res.json();
+    const raw = (await res.json()) as { data?: CalendarEvent[] };
     const blocked = parseBlockedRanges(raw);
     const payload: AvailabilityPayload = { blocked, fetched_at: new Date().toISOString(), stale: false };
     const body = JSON.stringify(payload);
@@ -143,81 +149,11 @@ export async function GET({ locals, request }: APIContext) {
   }
 }
 
-// ── Parser — handles multiple HostHub API response shapes ────────────────────
+// ── Parser — HostHub calendar-events response shape ───────────────────────────
 
-function parseBlockedRanges(raw: unknown): BlockedRange[] {
-  if (!raw || typeof raw !== 'object') return [];
-
-  // Try array of ranges directly: [{ start, end }] or [{ start_date, end_date }]
-  if (Array.isArray(raw)) {
-    if (raw.length && typeof raw[0] === 'object') {
-      const first = raw[0] as Record<string, unknown>;
-
-      // Range-based: each item has a start/end date
-      if ('start' in first || 'start_date' in first) {
-        return toRanges(raw as Record<string, unknown>[]);
-      }
-
-      // Day-by-day: each item is a single date
-      if ('date' in first) {
-        return groupDaysToDates(raw as Record<string, unknown>[]);
-      }
-    }
-    return [];
-  }
-
-  const obj = raw as Record<string, unknown>;
-
-  // Nested under data.calendar, data.blocked, data.periods, etc.
-  for (const key of ['calendar', 'data', 'blocked', 'blocked_periods', 'periods', 'reservations', 'bookings']) {
-    const nested = obj[key];
-    if (Array.isArray(nested) && nested.length > 0) {
-      return parseBlockedRanges(nested);
-    }
-  }
-
-  return [];
-}
-
-function toRanges(items: Record<string, unknown>[]): BlockedRange[] {
-  return items
-    .map(item => ({
-      start: String(item.start ?? item.start_date ?? item.check_in ?? item.checkin ?? ''),
-      end: String(item.end ?? item.end_date ?? item.check_out ?? item.checkout ?? ''),
-    }))
-    .filter(r => r.start && r.end);
-}
-
-// Convert day-by-day array [{date, available/status}] into merged ranges
-function groupDaysToDates(days: Record<string, unknown>[]): BlockedRange[] {
-  const blocked = days
-    .filter(d => {
-      const avail = d.available ?? d.is_available;
-      const status = String(d.status ?? '').toLowerCase();
-      if (avail !== undefined) return avail === false || avail === 0;
-      return status === 'booked' || status === 'blocked' || status === 'unavailable';
-    })
-    .map(d => String(d.date))
-    .filter(Boolean)
-    .sort();
-
-  if (!blocked.length) return [];
-
-  const ranges: BlockedRange[] = [];
-  let start = blocked[0];
-  let prev = blocked[0];
-
-  for (let i = 1; i < blocked.length; i++) {
-    const curr = blocked[i];
-    const gap = (new Date(curr).getTime() - new Date(prev).getTime()) / 86_400_000;
-    if (gap <= 1) {
-      prev = curr;
-    } else {
-      ranges.push({ start, end: prev });
-      start = curr;
-      prev = curr;
-    }
-  }
-  ranges.push({ start, end: prev });
-  return ranges;
+function parseBlockedRanges(raw: { data?: CalendarEvent[] }): BlockedRange[] {
+  const events = raw.data ?? [];
+  return events
+    .filter(e => !e.cancelled_at)
+    .map(e => ({ start: e.date_from, end: e.date_to }));
 }
