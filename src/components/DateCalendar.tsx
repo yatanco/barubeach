@@ -114,7 +114,7 @@ export default function DateCalendar(props: Props) {
 
   return (
     <div className="select-none">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1">
         <button
           type="button"
           onClick={goPrev}
@@ -142,9 +142,9 @@ export default function DateCalendar(props: Props) {
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-7 gap-1 mb-0.5">
         {WEEKDAYS[lang].map(w => (
-          <div key={w} className="text-center text-[10px] font-semibold text-ink/40 uppercase">
+          <div key={w} className="text-center text-xs font-semibold text-terracotta uppercase">
             {w}
           </div>
         ))}
@@ -166,7 +166,7 @@ export default function DateCalendar(props: Props) {
               Boolean(props.checkin && props.checkout && dateStr > props.checkin && dateStr < props.checkout);
             const isSelected = mode === 'single' ? dateStr === props.value : isEndpoint;
 
-            let classes = 'relative flex items-center justify-center min-h-11 h-11 rounded-lg text-sm font-medium transition ';
+            let classes = 'relative flex items-center justify-center min-h-9 h-9 p-1 rounded-lg text-[13px] font-medium transition ';
 
             if (isDisabled) {
               classes += 'bg-rose text-ink/60 line-through cursor-not-allowed';

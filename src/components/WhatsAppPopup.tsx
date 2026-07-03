@@ -177,6 +177,7 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       ? Boolean(date) && isDateBlocked(new Date(date), blocked)
       : Boolean(checkin && checkout) && isRangeBlocked(new Date(checkin), new Date(checkout), blocked));
   const datesVerifiedAvailable = !availabilityLoading && !availabilityStale && hasDateSelected && !dateIsBlocked;
+  const canSubmit = hasDateSelected && !dateIsBlocked && name.trim().length > 0;
 
   function buildMessage(): string {
     const intro = type === 'daytrip' ? t.introDaytrip : t.introStay;
@@ -218,7 +219,7 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (dateIsBlocked) return;
+    if (!canSubmit) return;
     captureLead({
       source: 'popup',
       language: lang,
@@ -257,41 +258,41 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
         <div
           ref={overlayRef}
           onClick={handleOverlayClick}
-          className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-end sm:items-end sm:justify-end sm:p-6"
+          className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
         >
-          <div className="w-full sm:w-96 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 relative animate-slide-up">
-            <button
-              onClick={closePopup}
-              className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center text-ink/40 hover:text-ink transition-colors text-xl"
-              aria-label="Close"
-            >
-              ×
-            </button>
+          <div className="fixed left-0 right-0 bottom-0 md:left-auto md:right-4 md:bottom-20 w-full md:w-[420px] max-h-[90vh] overflow-y-auto bg-white rounded-t-2xl md:rounded-2xl shadow-2xl animate-slide-up">
+            <div className="sticky top-0 z-10 bg-white px-6 pt-6 pb-4 border-b border-terracotta/10">
+              <button
+                onClick={closePopup}
+                className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center text-ink/40 hover:text-ink transition-colors text-xl"
+                aria-label="Close"
+              >
+                ×
+              </button>
 
-            <h3 className="font-serif text-xl font-semibold text-brown mb-1">{t.header}</h3>
-            <p className="text-sm text-ink/55 mb-5">{t.sub}</p>
+              <h3 className="font-serif text-xl font-semibold text-brown mb-1 pr-8">{t.header}</h3>
+              <p className="text-sm text-ink/55 mb-4">{t.sub}</p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold text-ink/50 uppercase tracking-wide mb-2">{t.typeLabel}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['daytrip', 'stay'] as const).map(opt => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setType(opt)}
-                      className={`py-2.5 px-3 rounded-xl border text-sm font-medium transition-all text-left ${
-                        type === opt
-                          ? 'bg-brown text-white border-brown shadow-sm'
-                          : 'bg-white text-ink border-terracotta/30 hover:border-brown/40'
-                      }`}
-                    >
-                      {opt === 'daytrip' ? t.dayOpt : t.stayOpt}
-                    </button>
-                  ))}
-                </div>
+              <p className="text-xs font-semibold text-ink/50 uppercase tracking-wide mb-2">{t.typeLabel}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(['daytrip', 'stay'] as const).map(opt => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setType(opt)}
+                    className={`py-2.5 px-3 rounded-xl border text-sm font-medium transition-all text-left ${
+                      type === opt
+                        ? 'bg-brown text-white border-brown shadow-sm'
+                        : 'bg-white text-ink border-terracotta/30 hover:border-brown/40'
+                    }`}
+                  >
+                    {opt === 'daytrip' ? t.dayOpt : t.stayOpt}
+                  </button>
+                ))}
               </div>
+            </div>
 
+            <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-4">
               {type === 'daytrip' ? (
                 <div>
                   <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.whenLabel}</label>
@@ -395,11 +396,11 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
 
               <button
                 type="submit"
-                disabled={dateIsBlocked}
+                disabled={!canSubmit}
                 className={`w-full font-semibold py-3.5 rounded-xl transition text-sm flex items-center justify-center gap-2 mt-2 ${
-                  dateIsBlocked
-                    ? 'bg-ink/15 text-ink/40 cursor-not-allowed'
-                    : 'bg-whatsapp text-white hover:opacity-90'
+                  canSubmit
+                    ? 'bg-whatsapp text-white hover:opacity-90'
+                    : 'bg-rose text-ink/60 cursor-not-allowed'
                 }`}
               >
                 {WA_ICON_SM}
