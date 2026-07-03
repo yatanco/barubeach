@@ -20,8 +20,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    console.log('[capture-lead] forwarding:', JSON.stringify(data));
-
     // Must await — CF Workers kill pending async work after the response returns.
     const res = await fetch(webhookUrl, {
       method: 'POST',
@@ -31,12 +29,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     });
 
     const bodyText = await res.text();
-    console.log('[capture-lead] webhook status:', res.status, 'body:', bodyText);
 
     // Apps Script web apps return HTTP 200 even when the script itself errors,
     // so status alone can't be trusted — inspect the body too.
     if (!res.ok || /error/i.test(bodyText)) {
-      console.error('[capture-lead] webhook did not confirm success:', res.status, bodyText);
       return new Response(JSON.stringify({ success: false, error: 'webhook rejected' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -48,7 +44,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('[capture-lead] error:', err);
     return new Response(JSON.stringify({ success: false }), {
       status: 200, // always 200 — never surface errors to the client
       headers: { 'Content-Type': 'application/json' },
