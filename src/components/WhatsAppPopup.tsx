@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { captureLead } from '../lib/leads';
 import { isDateBlocked, isRangeBlocked, type BlockedRange } from '../lib/availability';
+import DateCalendar from './DateCalendar';
 
 type ExperienceType = 'daytrip' | 'stay';
 
@@ -168,8 +169,6 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     };
   }, [open]);
 
-  const today = new Date().toISOString().split('T')[0];
-
   const hasDateSelected = type === 'daytrip' ? Boolean(date) : Boolean(checkin && checkout);
   const dateIsBlocked =
     !availabilityLoading &&
@@ -296,7 +295,7 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
               {type === 'daytrip' ? (
                 <div>
                   <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.whenLabel}</label>
-                  <input type="date" min={today} value={date} onChange={e => setDate(e.target.value)} className={inp} />
+                  <DateCalendar lang={lang} mode="single" blocked={blocked} value={date} onChange={setDate} />
                   {availabilityLoading && (
                     <p className="mt-1 text-xs text-ink/40">{t.checkingAvailability}</p>
                   )}
@@ -309,15 +308,19 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
                 </div>
               ) : (
                 <div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.checkinLabel}</label>
-                      <input type="date" min={today} value={checkin} onChange={e => setCheckin(e.target.value)} className={inp} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.checkoutLabel}</label>
-                      <input type="date" min={checkin || today} value={checkout} onChange={e => setCheckout(e.target.value)} className={inp} />
-                    </div>
+                  <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.whenLabel}</label>
+                  <DateCalendar
+                    lang={lang}
+                    mode="range"
+                    blocked={blocked}
+                    checkin={checkin}
+                    checkout={checkout}
+                    onChangeCheckin={setCheckin}
+                    onChangeCheckout={setCheckout}
+                  />
+                  <div className="flex justify-between text-xs text-ink/60 mt-2">
+                    <span>{t.checkinLabel}: {checkin || '—'}</span>
+                    <span>{t.checkoutLabel}: {checkout || '—'}</span>
                   </div>
                   {availabilityLoading && (
                     <p className="mt-1 text-xs text-ink/40">{t.checkingAvailability}</p>
