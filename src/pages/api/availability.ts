@@ -69,7 +69,7 @@ export async function GET({ locals, request }: APIContext) {
   const kv = cfEnv.CACHE;
   const apiKey = cfEnv.HOSTHUB_API_KEY ?? import.meta.env.HOSTHUB_API_KEY;
   const rentalId = cfEnv.HOSTHUB_RENTAL_ID ?? import.meta.env.HOSTHUB_RENTAL_ID;
-  const baseUrl = cfEnv.HOSTHUB_BASE_URL ?? import.meta.env.HOSTHUB_BASE_URL ?? 'https://app.hosthubpms.com/api/v1';
+  const baseUrl = cfEnv.HOSTHUB_BASE_URL ?? import.meta.env.HOSTHUB_BASE_URL ?? 'https://app.hosthub.com/api/v1';
 
   // Serve from KV cache if fresh (secondary layer, for when CACHE is bound)
   if (kv) {
