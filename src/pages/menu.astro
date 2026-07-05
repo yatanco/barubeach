@@ -1,0 +1,18 @@
+---
+// This page is designed to be accessed via QR code
+// at the property. Print QR pointing to:
+// https://casagaviota.com/menu (EN)
+// https://casagaviota.com/es/menu (ES)
+import Layout from '../layouts/Layout.astro';
+import Menu from '../components/Menu.astro';
+---
+
+<Layout
+  title="Menu — Casa Gaviota Barú"
+  description="Food and drinks menu at Casa Gaviota, private beach house in Barú, Colombia."
+  lang="en"
+  altHref="/es/menu"
+  hideBookingWidgets
+>
+  <Menu lang="en" />
+</Layout>

@@ -46,6 +46,9 @@ The `PUBLIC_` prefix makes this available to client-side React via `import.meta.
 - Day trip pages: `gaviotadaytrip`
 - Footer: `gaviotafooter`
 - Confirm page: `gaviotaconfirm`
+- Menu page: full sentence, not a tracking tag (it's an ordering flow, not a lead) — EN `Hola! Me gustaría pedir algo del menú.`, ES `Hola! Quisiera hacer un pedido del menú.`
+
+**Menu page** (`/menu`, `/es/menu`) — food & drinks menu meant to be reached via a printed QR code at the property, not site navigation. Content lives in `src/data/menu.ts` (never hardcode menu items in components); rendered by `src/components/Menu.astro`, taking a `lang` prop like `Header`/`Footer`. Prices are stored in COP as plain numbers and formatted with `toLocaleString('es-CO')` for the period thousands-separator. Both page files pass `hideBookingWidgets` to `Layout.astro`, which suppresses the inquiry popup, exit-intent timer, and marketing sticky bar — the menu page has its own sticky WhatsApp-order bar instead and shouldn't compete with the booking funnel.
 
 **Design tokens** in `tailwind.config.mjs`:
 - Colors: `background`, `ink`, `muted`, `ocean` (+ `ocean-dark`, `ocean-light`), `sand` (+ variants), `whatsapp`
@@ -63,6 +66,8 @@ The `PUBLIC_` prefix makes this available to client-side React via `import.meta.
 | `/es` | `src/pages/es/index.astro` | `/` |
 | `/es/pasadia` | `src/pages/es/pasadia.astro` | `/daytrip` |
 | `/booking/confirm` | `src/pages/booking/confirm.astro` | `/booking/confirm` |
+| `/menu` | `src/pages/menu.astro` | `/es/menu` |
+| `/es/menu` | `src/pages/es/menu.astro` | `/menu` |
 
 ## Images
 
