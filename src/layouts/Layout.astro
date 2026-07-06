@@ -11,6 +11,7 @@ export interface Props {
   defaultPopupType?: 'daytrip' | 'stay';
   jsonLd?: Record<string, unknown>;
   hideBookingWidgets?: boolean;
+  heroImage?: string;
 }
 
 const {
@@ -23,6 +24,7 @@ const {
   defaultPopupType = 'daytrip',
   jsonLd,
   hideBookingWidgets = false,
+  heroImage,
 } = Astro.props;
 
 const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
@@ -61,6 +63,10 @@ const stickyLabel = lang === 'es' ? 'Verificar Disponibilidad →' : 'Check Avai
     {altURL && <link rel="alternate" hreflang="x-default" href={lang === 'en' ? canonicalURL : altURL} />}
 
     <link rel="icon" type="image/png" href="/images/logo.png" />
+
+    {heroImage && (
+      <link rel="preload" as="image" href={heroImage} fetchpriority="high" type="image/webp" />
+    )}
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
