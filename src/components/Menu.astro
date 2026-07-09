@@ -37,28 +37,54 @@ function formatCOP(price: number | null): string | null {
 
   <!-- FOOD PACKAGE -->
   <section class="mb-12">
-    <h2 class="font-serif text-2xl font-semibold text-brown mb-2 text-center">{food.title}</h2>
-    <p class="text-sm text-ink/60 text-center mb-6">{food.description}</p>
-    <div class="grid grid-cols-1 gap-4">
-      {food.options.map(option => (
-        <div class="bg-white border border-sand rounded-2xl p-5 shadow-sm">
-          <div class="flex items-baseline justify-between gap-3 mb-3">
-            <h3 class="font-serif text-lg font-semibold text-brown">{option.name}</h3>
-            <p class="text-sm font-semibold text-brown whitespace-nowrap">{option.price}</p>
-          </div>
-          <ul class="space-y-1.5">
-            {option.includes.map(item => (
-              <li class="flex items-start gap-2 text-sm text-ink/70">
-                <span class="text-terracotta font-bold flex-shrink-0">✓</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+    <div class="text-center mb-6">
+      <h2 class="font-serif text-2xl font-semibold text-brown mb-2">{food.title}</h2>
+      <p class="text-sm text-ink/60 mb-4">{food.subtitle}</p>
+      <div class="inline-flex flex-col items-center gap-2">
+        <span class="bg-sand text-brown text-sm font-semibold rounded-full px-4 py-1.5">{food.price}</span>
+        <span class="text-xs text-brown/80 font-medium">{food.premiumLabel} · {food.premiumPrice}</span>
+      </div>
     </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="bg-white border border-sand rounded-2xl p-5 shadow-sm">
+        <h3 class="font-serif text-lg font-semibold text-brown mb-3">{food.breakfast.title}</h3>
+        <ul class="space-y-1.5">
+          {food.breakfast.items.map(item => (
+            <li class="flex items-start gap-2 text-sm text-ink/70">
+              <span class="flex-shrink-0">🌿</span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="bg-white border border-sand rounded-2xl p-5 shadow-sm">
+        <h3 class="font-serif text-lg font-semibold text-brown mb-1">{food.lunch.title}</h3>
+        <p class="text-xs text-muted italic mb-3">{food.lunch.subtitle}</p>
+        <ul class="space-y-1.5">
+          {food.lunch.items.map(item => (
+            <li class="flex items-start gap-2 text-sm text-ink/70">
+              <span class="flex-shrink-0">🌿</span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+
+    <ul class="space-y-1.5 mt-5">
+      {food.includes.map(item => (
+        <li class="flex items-start gap-2 text-sm text-ink/70">
+          <span class="text-terracotta font-bold flex-shrink-0">✓</span>
+          {item}
+        </li>
+      ))}
+    </ul>
     <p class="text-xs text-muted italic text-center mt-4">{food.note}</p>
   </section>
+
+  <div class="border-t border-sand/60 mb-10"></div>
 
   <!-- DRINKS -->
   <section>

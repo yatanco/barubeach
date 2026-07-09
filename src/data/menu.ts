@@ -13,16 +13,28 @@ export interface MenuCategory {
   items: MenuItem[];
 }
 
-export interface FoodPackageOption {
-  name: string;
+export interface FoodPackageMeal {
+  title: string;
+  subtitle?: string;
+  items: string[];
+}
+
+export interface FoodPackageContent {
+  title: string;
+  subtitle: string;
   price: string;
+  premiumPrice: string;
+  premiumLabel: string;
   includes: string[];
+  note: string;
+  breakfast: FoodPackageMeal;
+  lunch: FoodPackageMeal;
 }
 
 export const menuData = {
   drinks: {
-    en: { title: 'Drinks Menu', subtitle: 'Isla Barú · Colombia' },
-    es: { title: 'Menú de Bebidas', subtitle: 'Isla Barú · Colombia' },
+    en: { title: 'Food & Drinks', subtitle: 'Isla Barú · Colombia' },
+    es: { title: 'Comida y Bebidas', subtitle: 'Isla Barú · Colombia' },
     note: {
       en: 'Additional payments: bank transfer or card.',
       es: 'Pagos adicionales: transferencia o tarjeta.',
@@ -88,48 +100,84 @@ export const menuData = {
   foodPackage: {
     en: {
       title: 'Food Package',
-      description: 'Fresh Caribbean meals prepared at the house by our team.',
-      options: [
-        {
-          name: 'Standard',
-          price: '$50 USD per person per day',
-          includes: [
-            'Breakfast, lunch and dinner',
-            'Fresh Caribbean cooking',
-            'Natural juices included',
-            'Non-alcoholic drinks included',
-          ],
-        },
-        {
-          name: 'Premium (with lobster)',
-          price: '$80 USD per person per day',
-          includes: ['Everything in Standard', 'Lobster included', 'Upgraded menu'],
-        },
-      ] as FoodPackageOption[],
+      subtitle: 'Fresh Caribbean meals prepared at the house',
+      price: '$50 USD per person per day',
+      premiumPrice: '$80 USD per person per day',
+      premiumLabel: 'Premium (with lobster)',
+      includes: [
+        'Breakfast, lunch and dinner',
+        'Fresh Caribbean cooking',
+        'Natural juices included',
+        'Non-alcoholic drinks included',
+      ],
       note: 'Food package arranged in advance. Ask us when booking.',
-    },
+      breakfast: {
+        title: 'Breakfast',
+        items: [
+          'Grilled Arepa',
+          'Scrambled Eggs',
+          'Perico Eggs (scrambled with tomato and onion)',
+          'Arepa with Egg',
+          'Toasted Bread',
+          'Coffee',
+          'Milk',
+          'Tropical Fruits',
+        ],
+      },
+      lunch: {
+        title: 'Lunch & Dinner',
+        subtitle: 'Rotating menu — prepared fresh daily',
+        items: [
+          'Fried fish · coconut rice · fried plantains · salad',
+          'Grilled chicken breast · boiled potatoes',
+          'Pasta with shrimp',
+          'Garlic shrimp',
+          'Seafood paella',
+          'Seafood casserole',
+          'Grilled fish fillet · fried plantains',
+        ],
+      },
+    } as FoodPackageContent,
     es: {
       title: 'Paquete de Alimentación',
-      description: 'Comida caribeña fresca preparada en la casa por nuestro equipo.',
-      options: [
-        {
-          name: 'Estándar',
-          price: '$50 USD por persona por día',
-          includes: [
-            'Desayuno, almuerzo y cena',
-            'Cocina caribeña fresca',
-            'Jugos naturales incluidos',
-            'Bebidas no alcohólicas incluidas',
-          ],
-        },
-        {
-          name: 'Premium (con langosta)',
-          price: '$80 USD por persona por día',
-          includes: ['Todo lo del estándar', 'Langosta incluida', 'Menú premium'],
-        },
-      ] as FoodPackageOption[],
+      subtitle: 'Comida caribeña fresca preparada en la casa',
+      price: '$50 USD por persona por día',
+      premiumPrice: '$80 USD por persona por día',
+      premiumLabel: 'Premium (con langosta)',
+      includes: [
+        'Desayuno, almuerzo y cena',
+        'Cocina caribeña fresca',
+        'Jugos naturales incluidos',
+        'Bebidas no alcohólicas incluidas',
+      ],
       note: 'Paquete de alimentación se coordina con anticipación. Pregúntanos al reservar.',
-    },
+      breakfast: {
+        title: 'Desayuno',
+        items: [
+          'Arepa a la plancha',
+          'Huevos revueltos',
+          'Huevos perico (revueltos con tomate y cebolla)',
+          'Arepa con huevo',
+          'Pan tostado',
+          'Café',
+          'Leche',
+          'Frutas tropicales',
+        ],
+      },
+      lunch: {
+        title: 'Almuerzo y Cena',
+        subtitle: 'Menú rotativo — preparado fresco cada día',
+        items: [
+          'Pescado frito · arroz de coco · patacones · ensalada',
+          'Pechuga de pollo a la plancha · papas cocidas',
+          'Pasta con camarones',
+          'Camarones al ajillo',
+          'Paella de mariscos',
+          'Cazuela de mariscos',
+          'Filete de pescado a la plancha · patacones',
+        ],
+      },
+    } as FoodPackageContent,
   },
 };
 
