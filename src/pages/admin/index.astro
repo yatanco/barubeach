@@ -84,7 +84,7 @@ const leadError = Astro.url.searchParams.get('leadError');
             <div class="stack">
               <div class="actions"><h3>{booking.guest_name}</h3><span class={`badge ${booking.status}`}>{booking.status}</span></div>
               <span class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · Hosthub {booking.hosthub_event_id || 'not linked'}</span>
-              <span class="amount">Outstanding: {new Intl.NumberFormat('es-CO').format((booking.total_cents - booking.paid_cents) / 100)} COP</span>
+              <span class="amount">Outstanding: {money(Math.max(0, booking.total_cents - booking.paid_cents))}</span>
             </div>
             <a class="button secondary" href={`/admin/bookings/${booking.id}`}>Open</a>
           </div>

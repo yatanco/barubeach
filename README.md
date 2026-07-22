@@ -20,14 +20,11 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and add your [Web3Forms](https://web3forms.com) access key:
+Edit `.env` and set:
 
 ```
-PUBLIC_WEB3FORMS_KEY=your_actual_key_here
 PUBLIC_META_PIXEL_ID=1039533654806987
 ```
-
-Get a free key at [web3forms.com](https://web3forms.com). Leads will be emailed to `me@yatan.co`.
 
 ### 3. Start dev server
 
@@ -61,7 +58,6 @@ Output goes to `dist/`.
      - Build command: `npm run build`
      - Build output directory: `dist`
    - **Environment variables** → Add:
-     - `PUBLIC_WEB3FORMS_KEY` = your Web3Forms key
      - `PUBLIC_META_PIXEL_ID` = `1039533654806987` (optional; this is also the built-in default)
 
 3. Click **Save and Deploy**.

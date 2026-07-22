@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { captureLead } from '../lib/leads';
+import { waLink } from '../lib/whatsapp';
 
 interface Props {
-  accessKey: string;
   lang?: 'en' | 'es';
 }
 
 type Flow = 'daytrip' | 'stay' | null;
 type Transport = 'boat' | 'car_boat' | 'own';
 type Food = 'service' | 'lobster' | 'own';
-
-const WA_NUMBER = '573163946401';
 
 function calcDtPrice(adults: number): number | null {
   return adults >= 1 && adults <= 10 ? (adults + 1) * 100 : null;
@@ -64,7 +62,7 @@ function buildDtWA(date: string, adults: number, children: number, price: number
   if (price !== null) msg += `\nPrecio estimado: $${price} USD`;
   else msg += `\nGrupo grande — solicito cotización personalizada`;
   msg += `\n\nMi nombre: (completar)`;
-  return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
+  return waLink(msg);
 }
 
 function buildStWA(checkin: string, checkout: string, nights: number, adults: number, children: number, tr: Transport, fo: Food, price: number): string {
@@ -73,7 +71,7 @@ function buildStWA(checkin: string, checkout: string, nights: number, adults: nu
   let msg = `Hola Casa Gaviota! 👋\n\nQuiero verificar disponibilidad para una estadía.\nCheck-in: ${fmtDate(checkin)}\nCheck-out: ${fmtDate(checkout)}\nNoches: ${nights}\nAdultos: ${adults}`;
   if (children > 0) msg += `\nNiños: ${children}`;
   msg += `\nTransporte: ${trLabel}\nAlimentación: ${foLabel}\nPrecio estimado: ~$${price} USD\n\nMi nombre: (completar)`;
-  return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
+  return waLink(msg);
 }
 
 // ── Translations ───────────────────────────────────────────────────────────────
@@ -115,11 +113,11 @@ const T = {
     largeWA: '💬 Request a Custom Quote',
     toggleCOP: 'See in Colombian pesos (COP)',
     toggleUSD: 'See in USD',
-    emailH: 'Get this estimate by email',
+    emailH: 'Want a copy? Leave your email and we\'ll follow up',
     nameLabel: 'Your name',
     emailLabel: 'Your email',
     emailBtn: 'Send Estimate',
-    emailOk: '✓ Check your inbox!',
+    emailOk: '✓ Got it — we\'ll be in touch soon.',
     back: '← Back',
     next: 'Continue →',
     stepOf: (s: number, t: number) => `Step ${s} of ${t}`,
@@ -164,11 +162,11 @@ const T = {
     largeWA: '💬 Solicitar Cotización Personalizada',
     toggleCOP: 'Ver en pesos colombianos (COP)',
     toggleUSD: 'Ver en dólares (USD)',
-    emailH: 'Recibir este estimado por email',
+    emailH: '¿Querés una copia? Dejá tu email y te contactamos',
     nameLabel: 'Tu nombre',
     emailLabel: 'Tu email',
     emailBtn: 'Enviar Estimado',
-    emailOk: '✓ ¡Revisá tu bandeja!',
+    emailOk: '✓ Listo — te contactaremos pronto.',
     back: '← Volver',
     next: 'Continuar →',
     stepOf: (s: number, t: number) => `Paso ${s} de ${t}`,
@@ -360,7 +358,7 @@ export default function EscapePlanner({ lang = 'en' }: Props) {
     try {
       await fetch('/api/capture-lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     } catch { /* fire and forget */ }
-    window.location.href = '/booking/confirm';
+    setEmailSent(true);
   }
 
   // ── Type selection screen ──────────────────────────────────────────────────

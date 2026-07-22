@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Marketing site for **Casa Gaviota Baru** at casagaviota.com — a private beach house in Barú, Colombia. Built with Astro 5 + React + Tailwind CSS, deployed on Cloudflare Pages. Phase 1: static marketing pages + inquiry forms via Web3Forms.
+Marketing site for **Casa Gaviota Baru** at casagaviota.com — a private beach house in Barú, Colombia. Built with Astro 5 + React + Tailwind CSS, deployed on Cloudflare Pages. Lead capture is WhatsApp-first: pages drive visitors to a WhatsApp deep link (popup, inline form, or planner), and every submission is also saved to D1 for follow-up in the `/admin` CRM.
 
 ## Commands
 
@@ -19,27 +19,27 @@ No test suite or linter is configured.
 
 ## Environment
 
-Copy `.env.example` to `.env` and fill in:
+Copy `.env.example` to `.env`. Nothing is required for local dev of the marketing pages — all env vars are optional:
 
-```
-PUBLIC_WEB3FORMS_KEY=your_key_here
-```
+- `PUBLIC_META_PIXEL_ID` — Meta Pixel ID (has a working hardcoded fallback in `Layout.astro`, so this is rarely needed).
+- `HOSTHUB_API_KEY`, `HOSTHUB_RENTAL_ID`, `HOSTHUB_BASE_URL` — HostHub PMS credentials for `/api/availability`. Without these the endpoint returns `stale: true` and the calendar shows nothing blocked.
+- `LEADS_WEBHOOK_URL` — legacy Google Sheets mirror for `/api/capture-lead`. D1 is the primary store; this is a fallback that can be retired once it's no longer needed.
+- `DB` — the D1 binding used by `/admin` (see **Admin CRM** below). Bound via `wrangler.toml`, not `.env`.
 
-The `PUBLIC_` prefix makes this available to client-side React via `import.meta.env.PUBLIC_WEB3FORMS_KEY`. Get a free key at web3forms.com. Forms submit to me@yatan.co.
+There is no Web3Forms (or any other) key to configure — that integration was removed; forms capture straight to D1/WhatsApp.
 
 ## Architecture
 
-**Pages** (`src/pages/`) are pure Astro — no server-side logic in Phase 1. Each page passes the Web3Forms key from `import.meta.env` down to interactive form components as a prop. Forms submit to Web3Forms and redirect to `/booking/confirm` on success.
+**Pages** (`src/pages/`) are pure Astro — no server-side rendering logic on the marketing pages themselves (the `/admin` CRM pages are the exception; see below). `Layout.astro` mounts a global `WhatsAppPopup` (see **Lead capture** below) unless the page passes `hideBookingWidgets`.
 
-**Forms** (`InquiryForm.tsx`, `DayTripForm.tsx`) are React islands (`client:load`). Both support EN/ES via a `lang` prop with translations co-located in a `T = { en: {…}, es: {…} }` object at the top of each file.
+**Lead capture** — three surfaces, all writing through `captureLead()` (`src/lib/leads.ts`) to `/api/capture-lead`, which stores to D1 and optionally mirrors to `LEADS_WEBHOOK_URL`:
+- `WhatsAppPopup.tsx` — the global floating popup mounted by `Layout.astro` on every page (unless `hideBookingWidgets`). Opens on a floating button, an exit-intent, a 40-second timer, or a `window.dispatchEvent(new CustomEvent('open-wa-popup'))` call from any page.
+- `WAInlineForm.tsx` — embedded day-trip/stay inquiry form, used inline on `/daytrip` and `/es/pasadia`.
+- `EscapePlanner.tsx` — the multi-step price-estimate flow on `/plan` and `/es/plan`. Its final step also offers to leave an email for follow-up (captured as a lead — there's no automated email sender wired up, so don't imply one in the copy).
 
-- `InquiryForm.tsx` — combined form with a Day Trip / Overnight Stay toggle (used on `/` and `/es`)
-- `DayTripForm.tsx` — simpler day-trip-only form (used on `/daytrip` and `/es/pasadia`)
-- `BookingForm.tsx` — old form from previous brand, now dead code; do not use
+All three build a `wa.me` link via `waLink()` (`src/lib/whatsapp.ts`, which also exports `WHATSAPP_NUMBER`) and render the WhatsApp glyph via the shared `WhatsAppIcon` component (`src/components/icons/WhatsAppIcon.astro` for `.astro` files, `WhatsAppIcon.tsx` for React) — reuse these rather than re-inlining the SVG path or the phone number.
 
-**Layout** (`src/layouts/Layout.astro`) wraps every page with `<html lang>`, SEO meta tags (OG + Twitter), Google Analytics (G-YCRQRM6R43), and the Google Fonts async-load pattern.
-
-**Header** (`src/components/Header.astro`) takes `lang` and `altHref` props. `altHref` is the language-toggle destination — caller must set it explicitly (e.g. `/es` on `/`, `/daytrip` on `/es/pasadia`). Contains inline JS for hamburger menu and scroll shadow.
+`InquiryForm.tsx`, `DayTripForm.tsx`, `BookingForm.tsx`, and `WhatsAppButton.astro` have all been removed — they were superseded by the three components above and were unused.
 
 **WhatsApp prefill texts** — use exactly as specified (these feed analytics):
 - Stay pages: `gaviotastay`
@@ -47,6 +47,10 @@ The `PUBLIC_` prefix makes this available to client-side React via `import.meta.
 - Footer: `gaviotafooter`
 - Confirm page: `gaviotaconfirm`
 - Menu page: full sentence, not a tracking tag (it's an ordering flow, not a lead) — EN `Hola! Me gustaría pedir algo del menú.`, ES `Hola! Quisiera hacer un pedido del menú.`
+
+**Layout** (`src/layouts/Layout.astro`) wraps every page with `<html lang>`, SEO meta tags (OG + Twitter), Google Analytics (G-YCRQRM6R43), Meta Pixel, and the Google Fonts async-load pattern.
+
+**Header** (`src/components/Header.astro`) takes `lang` and `altHref` props. `altHref` is the language-toggle destination — caller must set it explicitly (e.g. `/es` on `/`, `/daytrip` on `/es/pasadia`). Contains inline JS for hamburger menu and scroll shadow.
 
 **Menu page** (`/menu`, `/es/menu`) — food & drinks menu meant to be reached via a printed QR code at the property, not site navigation. Content lives in `src/data/menu.ts` (never hardcode menu items in components); rendered by `src/components/Menu.astro`, taking a `lang` prop like `Header`/`Footer`. Prices are stored in COP as plain numbers and formatted with `toLocaleString('es-CO')` for the period thousands-separator. Both page files pass `hideBookingWidgets` to `Layout.astro`, which suppresses the inquiry popup, exit-intent timer, and marketing sticky bar — the menu page has its own sticky WhatsApp-order bar instead and shouldn't compete with the booking funnel.
 
@@ -56,29 +60,49 @@ The `PUBLIC_` prefix makes this available to client-side React via `import.meta.
 
 **FAQ accordion** uses native `<details>/<summary>` HTML — no JS needed. The `group-open:rotate-45` Tailwind class animates the `+` icon.
 
+## Admin CRM
+
+`/admin` is a real, shipped feature (not just a Phase 2 idea) — a lightweight CRM backed by Cloudflare D1.
+
+- **Schema**: `migrations/0001_crm.sql` defines `leads`, `bookings`, `charges`, `payments`. Treat this schema as fixed unless explicitly asked to migrate it — the `status`/`category`/`operational_status` columns are `CHECK`-constrained, so any new status value needs a migration, not just a code change.
+- **DB access**: `src/lib/db.ts` (`getDb`/`requireDb`, form-parsing helpers, `redirectBack`). `src/lib/crm.ts` has shared formatting (`money`, `shortDate`) and the status/category enums.
+- **Dashboard** (`src/pages/admin/index.astro`): a summary line (new leads / this week / outstanding balance, all computed in SQL), a bookings list, and a leads table (Name/Type/Date/Guests/status badge/WhatsApp link) — click a row to go to `/admin/leads/[id]`.
+- **Export**: `GET /admin/api/export` streams all leads as CSV.
+- **Manual entry**: the "Add Lead" modal on the dashboard posts to `POST /admin/api/leads/create` for backfilling leads collected outside the site (e.g. WhatsApp history). These are stored as `status='new'`, `source='whatsapp_history'` — there is no `'cold'` status in the schema's `CHECK` constraint.
+- **Bookings**: `/admin/bookings/[id]` tracks charges and payments per booking; `/admin/leads/[id]` converts a lead into a linked booking.
+- Auth is via Cloudflare Access, not app code — `/admin/*` must be locked down in **Cloudflare Zero Trust → Access** before this is ever deployed publicly. See README.md for setup steps.
+
+Hosthub remains the source of truth for reservation dates/availability; D1 is the source of truth for inquiry follow-up, charges, payments, and fulfilment. Automatic Hosthub↔D1 booking sync is still not built (see Phase 2/3 below).
+
 ## Routes
 
 | Route | File | Language toggle destination |
 |---|---|---|
 | `/` | `src/pages/index.astro` | `/es` |
 | `/daytrip` | `src/pages/daytrip.astro` | `/es/pasadia` |
+| `/plan` | `src/pages/plan.astro` | `/es/plan` |
 | `/gallery` | `src/pages/gallery.astro` | `/gallery` |
+| `/blog` | `src/pages/blog/index.astro` | n/a — Spanish-only content, no EN equivalent |
 | `/es` | `src/pages/es/index.astro` | `/` |
 | `/es/pasadia` | `src/pages/es/pasadia.astro` | `/daytrip` |
+| `/es/plan` | `src/pages/es/plan.astro` | `/plan` |
 | `/booking/confirm` | `src/pages/booking/confirm.astro` | `/booking/confirm` |
 | `/menu` | `src/pages/menu.astro` | `/es/menu` |
 | `/es/menu` | `src/pages/es/menu.astro` | `/menu` |
+| `/admin` | `src/pages/admin/index.astro` | n/a — internal CRM, not localized |
 
 ## Images
 
 All images served from `/public/images/`. Reference them with regular `<img>` tags (not Astro's `<Image>` component — that requires images in `src/assets/`, not `public/`). Hero images: `loading="eager" fetchpriority="high"`. All others: `loading="lazy"`.
 
-Expected filenames: `hero-1.jpg`, `hero-2.jpg`, `hero-3.jpg`, `house-1.jpg` through `house-4.jpg`, `beach-1.jpg` through `beach-3.jpg`, `food-1.jpg`, `food-2.jpg`, `daytrip-1.jpg`, `daytrip-2.jpg`, `logo.png`, `og-image.jpg`.
+Most photos exist in both `.jpg` and a much smaller `.webp` export (e.g. `food-2.jpg` is 2.7MB vs `food-2.webp` at 228KB) — **use the `.webp` version** in any new page. `/`, `/es`, `/daytrip`, `/es/pasadia`, and `/gallery` all reference `.webp`.
+
+Expected basenames: `hero-1`, `hero-2`, `hero-3`, `house-1` through `house-4`, `beach-1` through `beach-3`, `food-1`, `food-2`, `daytrip-1`, `daytrip-2`, plus `logo.png` and `og-image.jpg` (OG image is kept as `.jpg` for social-crawler compatibility).
 
 ## Deployment
 
-Pushes to `main` auto-deploy via Cloudflare Pages CI. The adapter is `@astrojs/cloudflare`. No `wrangler.toml` yet (Phase 2 will add D1, KV, Scheduled Workers).
+Pushes to `main` auto-deploy via Cloudflare Pages CI. The adapter is `@astrojs/cloudflare`. `wrangler.toml` has a `CACHE` KV namespace (availability cache) and a commented-out `[[d1_databases]]` block for the CRM `DB` binding — uncomment and fill in once the D1 database is created (see README.md).
 
-## Phase 2 (planned)
+## Phase 2 / 3 (remaining)
 
-See `TODO.md`. Key additions: HostHub availability sync, Cloudflare D1 database, Stripe/MercadoPago payments, Resend transactional emails, Supabase/Notion CRM, and a `/admin` panel.
+Basic CRM (D1 schema, `/admin` dashboard, leads/bookings/charges/payments, CSV export) is already shipped — see **Admin CRM** above. See `TODO.md` for the fuller roadmap, though it predates the CRM work above and is not fully current. Still outstanding: automatic HostHub↔D1 booking sync, Stripe/MercadoPago payments, Resend transactional emails, and a Supabase/Notion-backed CRM view beyond `/admin`.

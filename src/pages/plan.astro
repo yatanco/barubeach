@@ -3,8 +3,6 @@ import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import EscapePlanner from '../components/EscapePlanner.tsx';
-
-const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
 ---
 
 <Layout
@@ -24,7 +22,7 @@ const KEY = import.meta.env.PUBLIC_WEB3FORMS_KEY ?? '';
         </p>
       </div>
 
-      <EscapePlanner accessKey={KEY} lang="en" client:visible />
+      <EscapePlanner lang="en" client:visible />
     </div>
   </section>
 

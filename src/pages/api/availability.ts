@@ -1,15 +1,11 @@
 import type { APIContext } from 'astro';
+import type { BlockedRange } from '../../lib/availability';
 
 export const prerender = false;
 
 const CACHE_KEY = 'hosthub_availability';
 const CACHE_TTL = 15 * 60; // 15 minutes — same as WP transients
 const MEM_CACHE_TTL_MS = 15 * 60 * 1000;
-
-interface BlockedRange {
-  start: string;
-  end: string;
-}
 
 interface AvailabilityPayload {
   blocked: BlockedRange[];
