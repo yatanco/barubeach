@@ -37,6 +37,10 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       .actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
       .badge { display:inline-flex; width:max-content; border-radius:999px; padding:3px 9px; background:#eee8e5; color:var(--brown); font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
       .badge.new,.badge.active { background:#dff8f1; color:#116149; }
+      .badge.contacted { background:#e0f2fe; color:#075985; }
+      .badge.qualified { background:#fef3c7; color:#92400e; }
+      .badge.booked { background:#dcfce7; color:#166534; }
+      .badge.spam { background:#f3f4f6; color:#6b7280; }
       .badge.lost,.badge.cancelled,.badge.overdue { background:#fee4e2; color:var(--red); }
       .button,button { appearance:none; border:0; border-radius:8px; background:var(--brown); color:#fff; padding:9px 12px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; }
       .button.secondary,button.secondary { background:#eee8e5; color:var(--brown); }
