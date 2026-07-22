@@ -1,0 +1,68 @@
+---
+interface Props { title: string; }
+const { title } = Astro.props;
+const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email');
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>{title} · Casa Gaviota CRM</title>
+    <style is:global>
+      :root { color-scheme: light; --ink:#261d1a; --brown:#684336; --mint:#2fc9a2; --line:#e8ded9; --bg:#f6f3f1; --red:#b42318; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 Inter,ui-sans-serif,system-ui,sans-serif; }
+      a { color:var(--brown); }
+      header { background:#fff; border-bottom:1px solid var(--line); }
+      .nav,.shell { width:min(1180px,calc(100% - 32px)); margin:auto; }
+      .nav { min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+      .brand { color:var(--ink); font-size:18px; font-weight:800; text-decoration:none; }
+      .user { color:#756b67; font-size:12px; }
+      .shell { padding:28px 0 64px; }
+      h1 { margin:0 0 6px; font-size:28px; }
+      h2 { margin:0 0 16px; font-size:19px; }
+      h3 { margin:0; font-size:16px; }
+      p { margin-top:0; }
+      .muted { color:#756b67; }
+      .grid { display:grid; gap:20px; }
+      .grid-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px; box-shadow:0 1px 2px rgb(38 29 26 / 4%); }
+      .list { display:grid; gap:10px; }
+      .row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 0; border-top:1px solid var(--line); }
+      .row:first-child { border-top:0; padding-top:0; }
+      .row:last-child { padding-bottom:0; }
+      .stack { display:grid; gap:5px; min-width:0; }
+      .actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+      .badge { display:inline-flex; width:max-content; border-radius:999px; padding:3px 9px; background:#eee8e5; color:var(--brown); font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
+      .badge.new,.badge.active { background:#dff8f1; color:#116149; }
+      .badge.lost,.badge.cancelled,.badge.overdue { background:#fee4e2; color:var(--red); }
+      .button,button { appearance:none; border:0; border-radius:8px; background:var(--brown); color:#fff; padding:9px 12px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; }
+      .button.secondary,button.secondary { background:#eee8e5; color:var(--brown); }
+      input,select,textarea { width:100%; border:1px solid #d8cbc5; border-radius:8px; padding:9px 10px; background:#fff; color:var(--ink); font:inherit; }
+      textarea { min-height:72px; resize:vertical; }
+      label { display:grid; gap:5px; color:#615854; font-size:12px; font-weight:700; }
+      form.inline { display:flex; align-items:end; gap:8px; flex-wrap:wrap; }
+      form.inline label { min-width:130px; flex:1; }
+      .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+      .span-2 { grid-column:1/-1; }
+      .amount { font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:750; }
+      .alert { border-radius:10px; padding:12px 14px; margin-bottom:18px; background:#fff4e5; color:#7a4b00; }
+      table { border-collapse:collapse; width:100%; }
+      th,td { padding:10px 8px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+      th { color:#756b67; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+      @media(max-width:760px) { .grid-2,.form-grid { grid-template-columns:1fr; } .span-2 { grid-column:auto; } .row { align-items:flex-start; flex-direction:column; } table { display:block; overflow-x:auto; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav class="nav">
+        <a class="brand" href="/admin">Casa Gaviota CRM</a>
+        {userEmail && <span class="user">{userEmail}</span>}
+      </nav>
+    </header>
+    <main class="shell"><slot /></main>
+  </body>
+</html>
+

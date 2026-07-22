@@ -16,3 +16,9 @@ PUBLIC_BASE_URL = "https://casagaviota.com"
 # Secrets — never committed, set via:
 #   wrangler secret put HOSTHUB_API_KEY
 #   wrangler secret put LEADS_WEBHOOK_URL
+
+# CRM database — add this binding after creating the database in Cloudflare:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "barubeach-crm"
+# database_id = "paste-cloudflare-database-id-here"

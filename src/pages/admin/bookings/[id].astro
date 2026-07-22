@@ -1,0 +1,89 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireDb } from '../../../lib/db';
+import { money, shortDate } from '../../../lib/crm';
+
+export const prerender = false;
+interface ChargeRow {
+  id:string; category:string; description:string; amount_cents:number; currency:string; due_date:string|null;
+  operational_status:string; notes:string|null; paid_cents:number;
+}
+const db = requireDb(Astro.locals);
+const booking = await db.prepare('SELECT * FROM bookings WHERE id = ?1').bind(Astro.params.id).first<any>();
+if (!booking) return Astro.redirect('/admin');
+const charges = (await db.prepare(`SELECT c.*,
+  COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.charge_id = c.id), 0) AS paid_cents
+  FROM charges c WHERE c.booking_id = ?1 ORDER BY c.created_at`).bind(booking.id).all<ChargeRow>()).results;
+const total = charges.reduce((sum, item) => sum + item.amount_cents, 0);
+const paid = charges.reduce((sum, item) => sum + item.paid_cents, 0);
+const chargeViews = charges.map((charge) => {
+  const balance = charge.amount_cents - charge.paid_cents;
+  return {
+    ...charge,
+    balance,
+    paymentStatus: charge.paid_cents <= 0 ? 'unpaid' : balance <= 0 ? 'paid' : 'partial',
+  };
+});
+const notice = Astro.url.searchParams.get('saved');
+---
+<AdminLayout title={booking.guest_name}>
+  <p><a href="/admin">← Dashboard</a></p>
+  {notice && <div class="alert">Saved successfully.</div>}
+  <div class="actions" style="justify-content:space-between;margin-bottom:22px">
+    <div>
+      <h1>{booking.guest_name}</h1>
+      <p class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · {booking.adults} adults · {booking.children} children · Hosthub {booking.hosthub_event_id}</p>
+    </div>
+    {booking.guest_phone && <a class="button" href={`https://wa.me/${booking.guest_phone.replace(/\D/g,'')}`} target="_blank">Open WhatsApp</a>}
+  </div>
+
+  <div class="grid grid-2">
+    <section class="card">
+      <h2>Financial summary</h2>
+      <div class="row"><span>Total charges</span><span class="amount">{money(total)}</span></div>
+      <div class="row"><span>Received</span><span class="amount">{money(paid)}</span></div>
+      <div class="row"><strong>Outstanding</strong><strong class="amount">{money(total - paid)}</strong></div>
+    </section>
+    <section class="card">
+      <h2>Add charge</h2>
+      <form class="form-grid" method="POST" action={`/admin/api/bookings/${booking.id}/charges`}>
+        <label>Category<select name="category"><option value="accommodation">Accommodation</option><option value="transport">Transport</option><option value="food">Food</option><option value="extra">Extra</option></select></label>
+        <label>Description<input name="description" required placeholder="Airport transport" /></label>
+        <label>Amount (COP)<input name="amount" inputmode="numeric" required placeholder="750.000" /></label>
+        <label>Due date<input type="date" name="due_date" /></label>
+        <label>Operations<select name="operational_status"><option value="not_required">Not required</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option></select></label>
+        <label>Notes<input name="notes" /></label>
+        <div class="span-2"><button type="submit">Add charge</button></div>
+      </form>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:20px">
+    <h2>Charges & payments</h2>
+    {charges.length === 0 && <p class="muted">Add accommodation, transport, food or another charge to begin tracking payments.</p>}
+    {chargeViews.map((charge) => (
+      <div class="row">
+        <div class="stack">
+          <div class="actions"><h3>{charge.description}</h3><span class="badge">{charge.category}</span><span class="badge">{charge.paymentStatus}</span></div>
+          <span>{money(charge.paid_cents, charge.currency)} received of {money(charge.amount_cents, charge.currency)}</span>
+          <span class="muted">Due {shortDate(charge.due_date)} · Operations: {charge.operational_status.replace('_',' ')}</span>
+          {charge.notes && <span class="muted">{charge.notes}</span>}
+        </div>
+        <div class="stack" style="min-width:min(100%,330px)">
+          {charge.balance > 0 && <form class="inline" method="POST" action={`/admin/api/charges/${charge.id}/payments`}>
+            <label>Payment (COP)<input name="amount" inputmode="numeric" required value={Math.max(0,charge.balance/100)} /></label>
+            <label>Method<input name="method" placeholder="Transfer / cash" /></label>
+            <label>Reference<input name="reference" /></label>
+            <button type="submit">Record</button>
+          </form>}
+          <form class="inline" method="POST" action={`/admin/api/charges/${charge.id}/operations`}>
+            <label>Operational status<select name="operational_status">
+              {['not_required','pending','confirmed','completed'].map(status => <option value={status} selected={status === charge.operational_status}>{status.replace('_',' ')}</option>)}
+            </select></label>
+            <button class="secondary" type="submit">Update</button>
+          </form>
+        </div>
+      </div>
+    ))}
+  </section>
+</AdminLayout>

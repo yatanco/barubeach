@@ -1,0 +1,28 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireDb } from '../../../lib/db';
+
+export const prerender = false;
+const db = requireDb(Astro.locals);
+const lead = await db.prepare('SELECT * FROM leads WHERE id = ?1').bind(Astro.params.id).first<any>();
+if (!lead) return Astro.redirect('/admin');
+---
+<AdminLayout title="Convert lead">
+  <p><a href="/admin">← Dashboard</a></p>
+  <h1>Convert {lead.guest_name || 'lead'} to booking</h1>
+  <p class="muted">Create the reservation in Hosthub first, then paste its booking ID here.</p>
+  <section class="card" style="max-width:760px">
+    <form class="form-grid" method="POST" action="/admin/api/bookings/create">
+      <input type="hidden" name="lead_id" value={lead.id} />
+      <label>Hosthub booking ID<input name="hosthub_event_id" required placeholder="c1zshdhyycnzc1" /></label>
+      <label>Guest name<input name="guest_name" required value={lead.guest_name || ''} /></label>
+      <label>Phone<input name="guest_phone" value={lead.whatsapp || ''} /></label>
+      <label>Check-in<input type="date" name="date_from" required value={lead.date_from?.slice(0,10) || ''} /></label>
+      <label>Checkout<input type="date" name="date_to" required value={lead.date_to?.slice(0,10) || ''} /></label>
+      <label>Adults<input type="number" min="1" name="adults" required value={lead.adults || 1} /></label>
+      <label>Children<input type="number" min="0" name="children" value={lead.children || 0} /></label>
+      <label class="span-2">Internal notes<textarea name="notes">{lead.notes || ''}</textarea></label>
+      <div class="span-2"><button type="submit">Create linked booking</button></div>
+    </form>
+  </section>
+</AdminLayout>

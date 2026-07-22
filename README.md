@@ -79,6 +79,56 @@ Output goes to `dist/`.
 
 Every push to `main` triggers an automatic deployment via Cloudflare Pages CI.
 
+## Minimal CRM
+
+The private CRM is served at `/admin`. It stores inquiries, Hosthub-linked
+bookings, charges, payments, and operational statuses in Cloudflare D1.
+
+### 1. Create and bind D1
+
+Create a D1 database named `barubeach-crm` in **Cloudflare Dashboard → Storage &
+Databases → D1**, then bind it to this Pages/Workers project with the variable
+name `DB`. Add the binding returned by Cloudflare to `wrangler.toml` using the
+commented example at the bottom of that file.
+
+Apply the schema from `migrations/0001_crm.sql` in the D1 dashboard console, or
+with an authenticated Wrangler installation:
+
+```bash
+npx wrangler d1 migrations apply barubeach-crm --remote
+```
+
+During migration, `/api/capture-lead` writes to D1 and continues mirroring to
+`LEADS_WEBHOOK_URL`. Remove that Cloudflare secret once the Sheet is no longer
+needed.
+
+### 2. Protect the admin
+
+Never expose `/admin` publicly. In **Cloudflare Zero Trust → Access →
+Applications**, create a self-hosted application for:
+
+```text
+casagaviota.com/admin/*
+```
+
+Create an Allow policy containing only the email addresses that should manage
+the CRM. All CRM mutations live below `/admin/api`, so the same rule protects
+the pages and their actions.
+
+### 3. Workflow
+
+1. New website inquiries appear under Leads.
+2. Create the confirmed reservation in Hosthub.
+3. Open the lead, choose **Convert**, and paste the Hosthub booking ID.
+4. Add accommodation, transport, food, or extra charges.
+5. Record payments separately and update the operational status (for example,
+   transport paid but driver still pending).
+
+Hosthub remains the source of truth for reservation dates and availability.
+D1 is the source of truth for inquiry follow-up, charges, payments, and service
+fulfilment. Automatic Hosthub booking synchronization is intentionally deferred
+from this minimal version.
+
 ---
 
 ## Site structure

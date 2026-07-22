@@ -1,0 +1,92 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getDb } from '../../lib/db';
+import { shortDate } from '../../lib/crm';
+
+export const prerender = false;
+
+interface LeadRow {
+  id: string; created_at: string; status: string; source: string; experience_type: string;
+  guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
+  adults: number; children: number;
+}
+interface BookingRow {
+  id: string; hosthub_event_id: string | null; guest_name: string; guest_phone: string | null;
+  date_from: string; date_to: string; status: string; total_cents: number; paid_cents: number;
+}
+
+const db = getDb(Astro.locals);
+let leads: LeadRow[] = [];
+let bookings: BookingRow[] = [];
+let error = '';
+
+if (!db) {
+  error = 'D1 is not configured yet. Bind the database as DB and run the migration.';
+} else {
+  try {
+    const [leadResult, bookingResult] = await Promise.all([
+      db.prepare(`SELECT id, created_at, status, source, experience_type, guest_name, whatsapp,
+        date_from, date_to, adults, children FROM leads ORDER BY created_at DESC LIMIT 100`).all<LeadRow>(),
+      db.prepare(`SELECT b.id, b.hosthub_event_id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.status,
+        COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
+        COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
+        FROM bookings b ORDER BY CASE WHEN b.status = 'active' THEN 0 ELSE 1 END, b.date_from`).all<BookingRow>(),
+    ]);
+    leads = leadResult.results;
+    bookings = bookingResult.results;
+  } catch (cause) {
+    console.error('[admin] failed to load CRM', cause);
+    error = 'The CRM database could not be read. Confirm that migration 0001_crm.sql has run.';
+  }
+}
+const notice = Astro.url.searchParams.get('saved');
+---
+<AdminLayout title="Dashboard">
+  <h1>Bookings & inquiries</h1>
+  <p class="muted">Hosthub owns reservations. This dashboard owns follow-up, charges and payments.</p>
+  {error && <div class="alert">{error}</div>}
+  {notice && <div class="alert">Saved successfully.</div>}
+
+  <div class="grid grid-2">
+    <section class="card">
+      <h2>Bookings</h2>
+      <div class="list">
+        {bookings.length === 0 && <p class="muted">No bookings have been linked yet.</p>}
+        {bookings.map((booking) => (
+          <div class="row">
+            <div class="stack">
+              <div class="actions"><h3>{booking.guest_name}</h3><span class={`badge ${booking.status}`}>{booking.status}</span></div>
+              <span class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · Hosthub {booking.hosthub_event_id || 'not linked'}</span>
+              <span class="amount">Outstanding: {new Intl.NumberFormat('es-CO').format((booking.total_cents - booking.paid_cents) / 100)} COP</span>
+            </div>
+            <a class="button secondary" href={`/admin/bookings/${booking.id}`}>Open</a>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Leads</h2>
+      <div class="list">
+        {leads.length === 0 && <p class="muted">No leads captured yet.</p>}
+        {leads.map((lead) => (
+          <div class="row">
+            <div class="stack">
+              <div class="actions"><h3>{lead.guest_name || 'Unnamed inquiry'}</h3><span class={`badge ${lead.status}`}>{lead.status}</span></div>
+              <span class="muted">{lead.experience_type} · {shortDate(lead.date_from)} · {lead.adults + lead.children} guests</span>
+              {lead.whatsapp && <a href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '')}`} target="_blank">{lead.whatsapp}</a>}
+            </div>
+            <div class="actions">
+              <form method="POST" action={`/admin/api/leads/${lead.id}/status`}>
+                <select name="status" aria-label="Lead status" onchange="this.form?.requestSubmit()">
+                  {['new','contacted','qualified','booked','lost','spam'].map(status => <option value={status} selected={status === lead.status}>{status}</option>)}
+                </select>
+              </form>
+              {lead.status !== 'booked' && <a class="button" href={`/admin/leads/${lead.id}`}>Convert</a>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  </div>
+</AdminLayout>
