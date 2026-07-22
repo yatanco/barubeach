@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { captureLead } from '../lib/leads';
 import { isDateBlocked, isRangeBlocked, type BlockedRange } from '../lib/availability';
+import { trackMetaEvent } from '../lib/metaPixel';
 import DateCalendar from './DateCalendar';
 
 type ExperienceType = 'daytrip' | 'stay';
@@ -146,6 +147,12 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
 
   useEffect(() => {
     if (!open) return;
+    trackMetaEvent('WhatsAppPopupOpen', {
+      source: 'popup',
+      language: lang,
+      experience_type: type,
+    }, true);
+
     let cancelled = false;
     setAvailabilityLoading(true);
     setAvailabilityStale(false);
@@ -234,6 +241,12 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       estimatedPrice: type === 'daytrip'
         ? daytripEstimate(adults)
         : 'From $350 USD/night + transport + food',
+    });
+    trackMetaEvent('Contact', {
+      content_name: 'WhatsApp Inquiry',
+      source: 'popup',
+      language: lang,
+      experience_type: type,
     });
     sessionStorage.setItem('popup_shown', '1');
     window.open(`https://wa.me/573163946401?text=${encodeURIComponent(buildMessage())}`, '_blank');
