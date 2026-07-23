@@ -83,16 +83,30 @@ bookings, charges, payments, and operational statuses in Cloudflare D1.
 ### 1. Create and bind D1
 
 Create a D1 database named `barubeach-crm` in **Cloudflare Dashboard → Storage &
-Databases → D1**, then bind it to this Pages/Workers project with the variable
-name `DB`. Add the binding returned by Cloudflare to `wrangler.toml` using the
-commented example at the bottom of that file.
+Databases → D1**, then bind it to the `casagaviota-astro` Pages project with the
+variable name `DB` in **Pages project → Settings → Functions → Bindings**.
 
-Apply the schema from `migrations/0001_crm.sql` in the D1 dashboard console, or
-with an authenticated Wrangler installation:
+Note: this project's Pages deployment currently has no `pages_build_output_dir`
+set in `wrangler.toml`, so Cloudflare Pages ignores that file entirely for
+production — the `[[d1_databases]]`/`[[kv_namespaces]]` blocks in it only
+matter for local `wrangler d1 execute --local` / `wrangler pages dev` testing.
+Production bindings (`DB`, `CACHE`) and secrets must be set via the dashboard
+(or `wrangler pages secret put` for secrets), independently of this file.
+
+Apply each schema file in order with an authenticated Wrangler installation —
+run these once each, not via `wrangler d1 migrations apply` (this repo doesn't
+use Wrangler's migrations-bookkeeping table, and `migrations/0003...sql` isn't
+safe to re-run once real `guest_intent` data exists, since it rebuilds `leads`
+from a fixed column list):
 
 ```bash
-npx wrangler d1 migrations apply barubeach-crm --remote
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0001_crm.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0002_sync_log.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0003_lead_pipeline_and_hosthub_columns.sql
 ```
+
+(As of this writing, all three have already been applied to the production
+`barubeach-crm` database.)
 
 During migration, `/api/capture-lead` writes to D1 and continues mirroring to
 `LEADS_WEBHOOK_URL`. Remove that Cloudflare secret once the Sheet is no longer
@@ -130,20 +144,24 @@ Bookings can be pulled automatically from HostHub's iCal export instead of
 pasting each reservation in by hand. This only touches the `bookings` table —
 leads and lead capture are untouched.
 
-**Setup:**
+**Setup** (already done for production as of this writing — kept here for any
+future environment, e.g. a staging D1 database):
 
-1. Apply the sync-log migration (adds the `sync_log` table used to show "last
-   synced" in the admin UI):
+1. Apply `migrations/0002_sync_log.sql` and `migrations/0003_lead_pipeline_and_hosthub_columns.sql`
+   (the latter adds `reservation_id`/`channel`/`nights`/`source`/`hosthub_notes` to `bookings`
+   — the sync can't upsert against a database that's only run `0001`):
    ```bash
    npx wrangler d1 execute barubeach-crm --remote --file=migrations/0002_sync_log.sql
+   npx wrangler d1 execute barubeach-crm --remote --file=migrations/0003_lead_pipeline_and_hosthub_columns.sql
    ```
-2. Set the iCal feed URL as a secret — never hardcode it in a file:
+2. Set the iCal feed URL as a **Pages** secret (not `wrangler secret put`, which targets a
+   Workers script, not this Pages project) — never hardcode it in a file:
    ```bash
-   npx wrangler secret put HOSTHUB_ICAL_URL
+   npx wrangler pages secret put HOSTHUB_ICAL_URL --project-name casagaviota-astro
    ```
    (paste the `https://app.hosthub.com/rentals/.../icalendar/...` URL from the
    HostHub dashboard when prompted).
-3. Deploy (`git push` to `main`, or `wrangler pages deploy`).
+3. Deploy (`git push` to `main`).
 4. Trigger the first sync by clicking **🔄 Sync HostHub** in `/admin`, or by
    visiting `GET /admin/api/sync-hosthub` directly.
 
