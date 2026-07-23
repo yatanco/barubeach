@@ -122,8 +122,48 @@ the pages and their actions.
 
 Hosthub remains the source of truth for reservation dates and availability.
 D1 is the source of truth for inquiry follow-up, charges, payments, and service
-fulfilment. Automatic Hosthub booking synchronization is intentionally deferred
-from this minimal version.
+fulfilment.
+
+### 4. HostHub iCal sync
+
+Bookings can be pulled automatically from HostHub's iCal export instead of
+pasting each reservation in by hand. This only touches the `bookings` table —
+leads and lead capture are untouched.
+
+**Setup:**
+
+1. Apply the sync-log migration (adds the `sync_log` table used to show "last
+   synced" in the admin UI):
+   ```bash
+   npx wrangler d1 execute barubeach-crm --remote --file=migrations/0002_sync_log.sql
+   ```
+2. Set the iCal feed URL as a secret — never hardcode it in a file:
+   ```bash
+   npx wrangler secret put HOSTHUB_ICAL_URL
+   ```
+   (paste the `https://app.hosthub.com/rentals/.../icalendar/...` URL from the
+   HostHub dashboard when prompted).
+3. Deploy (`git push` to `main`, or `wrangler pages deploy`).
+4. Trigger the first sync by clicking **🔄 Sync HostHub** in `/admin`, or by
+   visiting `GET /admin/api/sync-hosthub` directly.
+
+**What it does:** fetches the iCal feed, matches each event's `UID` against
+`bookings.reservation_id`, and inserts new bookings / updates HostHub-owned
+fields (`guest_name`, `date_from`, `date_to`, `nights`, `status`, `channel`,
+`hosthub_notes`) on existing ones. It never touches charges, payments, or any
+manually-entered booking field. Reservations that ended more than 30 days ago
+and aren't already in D1 are skipped; blocked/unavailable calendar entries are
+never inserted (only used to mark an existing booking `cancelled`).
+
+**Automatic scheduling — not wired up yet.** `wrangler.toml` has a
+`[triggers] crons` block, but this project deploys via Cloudflare Pages' git
+CI, and Astro's Cloudflare adapter doesn't emit a `scheduled()` handler for
+Pages Functions — so that block alone won't make the sync run on its own. To
+get truly automatic hourly syncs, either point an external scheduler (a GitHub
+Actions cron workflow, cron-job.org, etc. — behind a Cloudflare Access service
+token) at `GET /admin/api/sync-hosthub`, or move this project's deploy to
+`wrangler deploy` with a Worker entrypoint exporting both `fetch` and
+`scheduled`. Until then, use the manual **Sync HostHub** button.
 
 ---
 

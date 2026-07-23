@@ -1,20 +1,44 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireDb } from '../../../lib/db';
+import { PIPELINE_STATUSES, PIPELINE_LABELS, GUEST_INTENTS } from '../../../lib/crm';
 
 export const prerender = false;
 const db = requireDb(Astro.locals);
 const lead = await db.prepare('SELECT * FROM leads WHERE id = ?1').bind(Astro.params.id).first<any>();
 if (!lead) return Astro.redirect('/admin');
+const intentLabel = GUEST_INTENTS.find((i) => i.value === lead.guest_intent)?.label;
+const notice = Astro.url.searchParams.get('saved');
 ---
 <AdminLayout title="Convert lead">
   <p><a href="/admin">← Dashboard</a></p>
-  <h1>Convert {lead.guest_name || 'lead'} to booking</h1>
+  <h1>{lead.guest_name || 'Unnamed lead'}</h1>
+  {notice && <div class="alert">Saved successfully.</div>}
+  <section class="card" style="max-width:760px;margin-bottom:20px">
+    <h2>Status</h2>
+    <div class="actions" style="justify-content:space-between">
+      <div class="stack">
+        <span class={`badge ${lead.status}`}>{lead.status}</span>
+        {intentLabel && <span class="muted">Guest intent: {intentLabel}</span>}
+      </div>
+      <form class="inline" method="POST" action={`/admin/api/leads/${lead.id}/status`}>
+        <label style="min-width:160px">Move to
+          <select name="status">
+            {PIPELINE_STATUSES.map((status) => <option value={status} selected={status === lead.status}>{PIPELINE_LABELS[status]}</option>)}
+            <option value="lost" selected={lead.status === 'lost'}>Lost</option>
+            <option value="spam" selected={lead.status === 'spam'}>Spam</option>
+          </select>
+        </label>
+        <button type="submit" class="secondary">Update</button>
+      </form>
+    </div>
+  </section>
+  <h2 style="margin-bottom:6px">Convert to booking</h2>
   <p class="muted">Create the reservation in Hosthub first, then paste its booking ID here.</p>
   <section class="card" style="max-width:760px">
     <form class="form-grid" method="POST" action="/admin/api/bookings/create">
       <input type="hidden" name="lead_id" value={lead.id} />
-      <label>Hosthub booking ID<input name="hosthub_event_id" required placeholder="c1zshdhyycnzc1" /></label>
+      <label>Hosthub booking ID<input name="reservation_id" required placeholder="c1zshdhyycnzc1" /></label>
       <label>Guest name<input name="guest_name" required value={lead.guest_name || ''} /></label>
       <label>Phone<input name="guest_phone" value={lead.whatsapp || ''} /></label>
       <label>Check-in<input type="date" name="date_from" required value={lead.date_from?.slice(0,10) || ''} /></label>

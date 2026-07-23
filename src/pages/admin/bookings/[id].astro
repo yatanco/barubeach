@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireDb } from '../../../lib/db';
-import { money, shortDate } from '../../../lib/crm';
+import { money, shortDate, timeAgo, channelBadgeClass } from '../../../lib/crm';
 
 export const prerender = false;
 interface ChargeRow {
@@ -14,6 +14,9 @@ if (!booking) return Astro.redirect('/admin');
 const charges = (await db.prepare(`SELECT c.*,
   COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.charge_id = c.id), 0) AS paid_cents
   FROM charges c WHERE c.booking_id = ?1 ORDER BY c.created_at`).bind(booking.id).all<ChargeRow>()).results;
+const lastSync = booking.source === 'hosthub_ical'
+  ? await db.prepare(`SELECT synced_at FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<{ synced_at: string }>()
+  : null;
 const total = charges.reduce((sum, item) => sum + item.amount_cents, 0);
 const paid = charges.reduce((sum, item) => sum + item.paid_cents, 0);
 const chargeViews = charges.map((charge) => {
@@ -31,11 +34,28 @@ const notice = Astro.url.searchParams.get('saved');
   {notice && <div class="alert">Saved successfully.</div>}
   <div class="actions" style="justify-content:space-between;margin-bottom:22px">
     <div>
-      <h1>{booking.guest_name}</h1>
-      <p class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · {booking.adults} adults · {booking.children} children · Hosthub {booking.hosthub_event_id}</p>
+      <div class="actions"><h1 style="margin:0">{booking.guest_name}</h1><span class={`badge ${channelBadgeClass(booking.channel)}`}>{booking.channel}</span>{booking.source === 'hosthub_ical' && <span class="badge hh">HH</span>}</div>
+      <p class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · {booking.nights} nights · {booking.adults} adults · {booking.children} children</p>
     </div>
     {booking.guest_phone && <a class="button" href={`https://wa.me/${booking.guest_phone.replace(/\D/g,'')}`} target="_blank">Open WhatsApp</a>}
   </div>
+
+  <section class="card" style="margin-bottom:20px">
+    <h2>HostHub reservation</h2>
+    <div class="grid grid-2">
+      <div class="stack">
+        <span><strong>Channel:</strong> <span class={`badge ${channelBadgeClass(booking.channel)}`}>{booking.channel}</span></span>
+        <span><strong>Reservation ID:</strong> {booking.reservation_id || 'not linked'}</span>
+        <span><strong>Source:</strong> {booking.source === 'hosthub_ical' ? 'HostHub iCal sync' : 'Manual entry'}</span>
+        <span><strong>Last synced:</strong> {lastSync ? timeAgo(lastSync.synced_at) : 'never'}</span>
+        {booking.hosthub_notes && <span class="muted">{booking.hosthub_notes}</span>}
+      </div>
+      <div class="stack" style="justify-content:center">
+        <a class="button secondary" href="https://app.hosthub.com" target="_blank" rel="noopener">Open in HostHub →</a>
+        <span class="muted" style="font-size:12px">HostHub owns availability and channel sync. This CRM owns extras, payments and operations.</span>
+      </div>
+    </div>
+  </section>
 
   <div class="grid grid-2">
     <section class="card">
@@ -47,7 +67,7 @@ const notice = Astro.url.searchParams.get('saved');
     <section class="card">
       <h2>Add charge</h2>
       <form class="form-grid" method="POST" action={`/admin/api/bookings/${booking.id}/charges`}>
-        <label>Category<select name="category"><option value="accommodation">Accommodation</option><option value="transport">Transport</option><option value="food">Food</option><option value="extra">Extra</option></select></label>
+        <label>Category<select name="category"><option value="accommodation">Accommodation</option><option value="transport">Transport</option><option value="food">Food</option><option value="boat">Boat</option><option value="extra">Extra</option></select></label>
         <label>Description<input name="description" required placeholder="Airport transport" /></label>
         <label>Amount (COP)<input name="amount" inputmode="numeric" required placeholder="750.000" /></label>
         <label>Due date<input type="date" name="due_date" /></label>

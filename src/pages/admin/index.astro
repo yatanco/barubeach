@@ -1,18 +1,21 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../lib/db';
-import { money, shortDate } from '../../lib/crm';
+import { money, shortDate, timeAgo, isOneOf, PIPELINE_STATUSES, PIPELINE_LABELS, GUEST_INTENTS } from '../../lib/crm';
 
 export const prerender = false;
 
 interface LeadRow {
   id: string; created_at: string; status: string; source: string; experience_type: string;
   guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
-  adults: number; children: number;
+  adults: number; children: number; estimated_price: string | null;
 }
 interface BookingRow {
-  id: string; hosthub_event_id: string | null; guest_name: string; guest_phone: string | null;
+  id: string; reservation_id: string | null; channel: string; source: string; guest_name: string; guest_phone: string | null;
   date_from: string; date_to: string; status: string; total_cents: number; paid_cents: number;
+}
+interface SyncLogRow {
+  synced_at: string; processed: number; inserted: number; updated: number; skipped: number; error: string | null;
 }
 
 const db = getDb(Astro.locals);
@@ -21,19 +24,31 @@ let bookings: BookingRow[] = [];
 let newLeadsCount = 0;
 let weekLeadsCount = 0;
 let outstandingCents = 0;
+let arrivalsThisWeek = 0;
+let inHouseCount = 0;
+let statusCounts: Record<string, number> = {};
+let lastSync: SyncLogRow | null = null;
 let error = '';
+
+const stageParam = Astro.url.searchParams.get('stage');
+const activeStage = stageParam && isOneOf(stageParam, PIPELINE_STATUSES) ? stageParam : null;
 
 if (!db) {
   error = 'D1 is not configured yet. Bind the database as DB and run the migration.';
 } else {
   try {
-    const [leadResult, bookingResult, newCountResult, weekCountResult, outstandingResult] = await Promise.all([
-      db.prepare(`SELECT id, created_at, status, source, experience_type, guest_name, whatsapp,
-        date_from, date_to, adults, children FROM leads ORDER BY created_at DESC LIMIT 100`).all<LeadRow>(),
-      db.prepare(`SELECT b.id, b.hosthub_event_id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.status,
+    const leadsQuery = activeStage
+      ? db.prepare(`SELECT id, created_at, status, source, experience_type, guest_name, whatsapp,
+          date_from, date_to, adults, children, estimated_price FROM leads WHERE status = ?1 ORDER BY created_at DESC LIMIT 100`).bind(activeStage)
+      : db.prepare(`SELECT id, created_at, status, source, experience_type, guest_name, whatsapp,
+          date_from, date_to, adults, children, estimated_price FROM leads ORDER BY created_at DESC LIMIT 100`);
+
+    const [leadResult, bookingResult, newCountResult, weekCountResult, outstandingResult, statusCountResult, arrivalsResult, inHouseResult, lastSyncResult] = await Promise.all([
+      leadsQuery.all<LeadRow>(),
+      db.prepare(`SELECT b.id, b.reservation_id, b.channel, b.source, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.status,
         COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
         COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
-        FROM bookings b ORDER BY CASE WHEN b.status = 'active' THEN 0 ELSE 1 END, b.date_from`).all<BookingRow>(),
+        FROM bookings b ORDER BY b.date_from ASC`).all<BookingRow>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE status = 'new'`).first<{ count: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE created_at >= datetime('now', '-7 days')`).first<{ count: number }>(),
       db.prepare(`WITH booking_totals AS (
@@ -42,15 +57,23 @@ if (!db) {
           COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
         FROM bookings b
       ) SELECT COALESCE(SUM(MAX(total_cents - paid_cents, 0)), 0) AS outstanding FROM booking_totals`).first<{ outstanding: number }>(),
+      db.prepare(`SELECT status, COUNT(*) AS count FROM leads GROUP BY status`).all<{ status: string; count: number }>(),
+      db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from BETWEEN date('now') AND date('now', '+7 days') AND status != 'cancelled'`).first<{ count: number }>(),
+      db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from <= date('now') AND date_to >= date('now') AND status = 'checked_in'`).first<{ count: number }>(),
+      db.prepare(`SELECT synced_at, processed, inserted, updated, skipped, error FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<SyncLogRow>(),
     ]);
     leads = leadResult.results;
     bookings = bookingResult.results;
     newLeadsCount = newCountResult?.count ?? 0;
     weekLeadsCount = weekCountResult?.count ?? 0;
     outstandingCents = outstandingResult?.outstanding ?? 0;
+    arrivalsThisWeek = arrivalsResult?.count ?? 0;
+    inHouseCount = inHouseResult?.count ?? 0;
+    statusCounts = Object.fromEntries(statusCountResult.results.map((r) => [r.status, r.count]));
+    lastSync = lastSyncResult ?? null;
   } catch (cause) {
     console.error('[admin] failed to load CRM', cause);
-    error = 'The CRM database could not be read. Confirm that migration 0001_crm.sql has run.';
+    error = 'The CRM database could not be read. Confirm that migrations 0001_crm.sql and 0002_sync_log.sql have run.';
   }
 }
 const notice = Astro.url.searchParams.get('saved');
@@ -63,15 +86,31 @@ const leadError = Astro.url.searchParams.get('leadError');
     <div class="actions">
       <button type="button" class="secondary" id="open-add-lead">Add Lead</button>
       <a class="button secondary" href="/admin/api/export">Export CSV</a>
+      <button type="button" class="secondary" id="sync-hosthub-btn">🔄 Sync HostHub</button>
     </div>
   </div>
   <p class="muted">Hosthub owns reservations. This dashboard owns follow-up, charges and payments.</p>
+  <p class="muted" style="margin-top:-8px;font-size:12px">
+    <span id="last-sync-info">Last sync: {lastSync ? `${timeAgo(lastSync.synced_at)} · ${lastSync.processed} reservations` : 'never'}</span>
+    <span id="sync-feedback"></span>
+  </p>
   {error && <div class="alert">{error}</div>}
   {notice && <div class="alert">Saved successfully.</div>}
   {leadAdded && <div class="alert">Lead added.</div>}
   {leadError && <div class="alert">{leadError}</div>}
   {!error && (
-    <p class="summary-line">{newLeadsCount} new leads · {weekLeadsCount} this week · {money(outstandingCents)} outstanding</p>
+    <p class="summary-line">{newLeadsCount} new leads · {weekLeadsCount} this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding</p>
+  )}
+
+  {!error && (
+    <div class="pipeline">
+      <a href="/admin" class={!activeStage ? 'active' : ''}>All<span class="count">{leads.length}</span></a>
+      {PIPELINE_STATUSES.map((status) => (
+        <a href={`/admin?stage=${status}`} class={activeStage === status ? 'active' : ''}>
+          {PIPELINE_LABELS[status]}<span class="count">{statusCounts[status] ?? 0}</span>
+        </a>
+      ))}
+    </div>
   )}
 
   <div class="grid grid-2">
@@ -82,8 +121,13 @@ const leadError = Astro.url.searchParams.get('leadError');
         {bookings.map((booking) => (
           <div class="row">
             <div class="stack">
-              <div class="actions"><h3>{booking.guest_name}</h3><span class={`badge ${booking.status}`}>{booking.status}</span></div>
-              <span class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · Hosthub {booking.hosthub_event_id || 'not linked'}</span>
+              <div class="actions">
+                <h3>{booking.guest_name}</h3>
+                <span class={`badge ${booking.status}`}>{booking.status.replace('_', ' ')}</span>
+                <span class={`badge ${booking.channel.replace(/[^a-z0-9]/gi, '')}`}>{booking.channel}</span>
+                {booking.source === 'hosthub_ical' && <span class="badge hh" title="Synced from HostHub">HH</span>}
+              </div>
+              <span class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · Reservation {booking.reservation_id || 'not linked'}</span>
               <span class="amount">Outstanding: {money(Math.max(0, booking.total_cents - booking.paid_cents))}</span>
             </div>
             <a class="button secondary" href={`/admin/bookings/${booking.id}`}>Open</a>
@@ -98,15 +142,16 @@ const leadError = Astro.url.searchParams.get('leadError');
       {leads.length > 0 && (
         <table>
           <thead>
-            <tr><th>Name</th><th>Type</th><th>Date</th><th>Guests</th><th>Status</th><th>WhatsApp</th></tr>
+            <tr><th>Name</th><th>Type</th><th>Dates</th><th>Guests</th><th>Est. Value</th><th>Status</th><th>WhatsApp</th></tr>
           </thead>
           <tbody>
             {leads.map((lead) => (
               <tr class="lead-row" data-href={`/admin/leads/${lead.id}`}>
                 <td>{lead.guest_name || 'Unnamed inquiry'}</td>
                 <td>{lead.experience_type}</td>
-                <td>{shortDate(lead.date_from)}</td>
+                <td>{shortDate(lead.date_from)}{lead.date_to ? ` → ${shortDate(lead.date_to)}` : ''}</td>
                 <td>{lead.adults + lead.children}</td>
+                <td>{lead.estimated_price || '—'}</td>
                 <td><span class={`badge ${lead.status}`}>{lead.status}</span></td>
                 <td>
                   {lead.whatsapp
@@ -135,6 +180,12 @@ const leadError = Astro.url.searchParams.get('leadError');
           <select name="experience_type" id="lead-type-select">
             <option value="daytrip">Day Trip</option>
             <option value="stay">Stay</option>
+          </select>
+        </label>
+        <label>Guest intent
+          <select name="guest_intent">
+            <option value="">—</option>
+            {GUEST_INTENTS.map((intent) => <option value={intent.value}>{intent.label}</option>)}
           </select>
         </label>
         <label>Check-in<input name="date_from" type="date" /></label>
@@ -181,6 +232,31 @@ const leadError = Astro.url.searchParams.get('leadError');
   if (new URLSearchParams(window.location.search).get('leadError') && dialog instanceof HTMLDialogElement) {
     dialog.showModal();
   }
+
+  const syncBtn = document.getElementById('sync-hosthub-btn');
+  const syncFeedback = document.getElementById('sync-feedback');
+  syncBtn?.addEventListener('click', async () => {
+    if (!(syncBtn instanceof HTMLButtonElement)) return;
+    syncBtn.disabled = true;
+    const original = syncBtn.textContent;
+    syncBtn.textContent = '⏳ Syncing…';
+    if (syncFeedback) syncFeedback.textContent = '';
+    try {
+      const res = await fetch('/admin/api/sync-hosthub');
+      const data = await res.json();
+      if (syncFeedback) {
+        syncFeedback.textContent = data.success
+          ? ` · Synced — ${data.result.inserted} new, ${data.result.updated} updated`
+          : ' · Sync failed';
+      }
+      if (data.success) setTimeout(() => window.location.reload(), 1200);
+    } catch {
+      if (syncFeedback) syncFeedback.textContent = ' · Sync failed';
+    } finally {
+      syncBtn.disabled = false;
+      syncBtn.textContent = original;
+    }
+  });
 </script>
 
 <style>

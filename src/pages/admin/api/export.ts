@@ -7,13 +7,13 @@ interface LeadRow {
   id: string; created_at: string; updated_at: string; status: string; source: string; language: string;
   experience_type: string; guest_name: string | null; whatsapp: string | null; email: string | null;
   date_from: string | null; date_to: string | null; adults: number; children: number;
-  estimated_price: string | null; notes: string | null; page_url: string | null;
+  estimated_price: string | null; guest_intent: string | null; notes: string | null; page_url: string | null;
 }
 
 const COLUMNS: (keyof LeadRow)[] = [
   'id', 'created_at', 'updated_at', 'status', 'source', 'language', 'experience_type',
   'guest_name', 'whatsapp', 'email', 'date_from', 'date_to', 'adults', 'children',
-  'estimated_price', 'notes', 'page_url',
+  'estimated_price', 'guest_intent', 'notes', 'page_url',
 ];
 
 function csvField(value: unknown): string {

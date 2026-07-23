@@ -23,6 +23,7 @@ Copy `.env.example` to `.env`. Nothing is required for local dev of the marketin
 
 - `PUBLIC_META_PIXEL_ID` — Meta Pixel ID (has a working hardcoded fallback in `Layout.astro`, so this is rarely needed).
 - `HOSTHUB_API_KEY`, `HOSTHUB_RENTAL_ID`, `HOSTHUB_BASE_URL` — HostHub PMS credentials for `/api/availability`. Without these the endpoint returns `stale: true` and the calendar shows nothing blocked.
+- `HOSTHUB_ICAL_URL` — HostHub iCal feed URL used by the `/admin` booking sync (see **Admin CRM** below). Without it, `syncHostHub()` returns an error result and logs it to `sync_log` instead of throwing.
 - `LEADS_WEBHOOK_URL` — legacy Google Sheets mirror for `/api/capture-lead`. D1 is the primary store; this is a fallback that can be retired once it's no longer needed.
 - `DB` — the D1 binding used by `/admin` (see **Admin CRM** below). Bound via `wrangler.toml`, not `.env`.
 
@@ -64,15 +65,21 @@ All three build a `wa.me` link via `waLink()` (`src/lib/whatsapp.ts`, which also
 
 `/admin` is a real, shipped feature (not just a Phase 2 idea) — a lightweight CRM backed by Cloudflare D1.
 
-- **Schema**: `migrations/0001_crm.sql` defines `leads`, `bookings`, `charges`, `payments`. Treat this schema as fixed unless explicitly asked to migrate it — the `status`/`category`/`operational_status` columns are `CHECK`-constrained, so any new status value needs a migration, not just a code change.
-- **DB access**: `src/lib/db.ts` (`getDb`/`requireDb`, form-parsing helpers, `redirectBack`). `src/lib/crm.ts` has shared formatting (`money`, `shortDate`) and the status/category enums.
-- **Dashboard** (`src/pages/admin/index.astro`): a summary line (new leads / this week / outstanding balance, all computed in SQL), a bookings list, and a leads table (Name/Type/Date/Guests/status badge/WhatsApp link) — click a row to go to `/admin/leads/[id]`.
+- **Schema**: `migrations/0001_crm.sql` defines `leads`, `bookings`, `charges`, `payments`; `migrations/0002_sync_log.sql` adds `sync_log`. Treat this schema as fixed unless explicitly asked to migrate it — the `status`/`category`/`operational_status`/`channel`/`source`/`guest_intent` columns are `CHECK`-constrained, so any new value needs a migration, not just a code change.
+  - `leads.status`: `new`, `quoted`, `deposit`, `booked`, `completed`, `lost`, `spam` — the first five form the pipeline shown on the dashboard (`PIPELINE_STATUSES` in `src/lib/crm.ts`); a lead is auto-moved to `booked` when converted to a booking, everything else is set manually from `/admin/leads/[id]`.
+  - `leads.guest_intent` (nullable): the trip-occasion dropdown (`GUEST_INTENTS` in `src/lib/crm.ts`) shown on the manual "Add Lead" form.
+  - `bookings.status`: `confirmed`, `checked_in`, `completed`, `cancelled` — derived from dates by the HostHub sync, or set to `confirmed` on manual creation.
+  - `bookings.channel`: `direct`, `airbnb`, `booking.com`. `bookings.source`: `manual` or `hosthub_ical`. `bookings.reservation_id` is the shared identifier for both a manually-pasted HostHub booking ID and a synced iCal `UID` (unique, used as the sync's upsert key).
+  - `charges.category` includes `boat` alongside `accommodation`/`transport`/`food`/`extra`.
+- **DB access**: `src/lib/db.ts` (`getDb`/`requireDb`, form-parsing helpers, `redirectBack`). `src/lib/crm.ts` has shared formatting (`money`, `shortDate`, `timeAgo`, `channelBadgeClass`) and the status/category/channel enums.
+- **Dashboard** (`src/pages/admin/index.astro`): a summary line (new leads / this week / arrivals this week / in-house / outstanding balance, all computed in SQL), a clickable pipeline filter bar, a bookings list (sorted by check-in, with channel + "HH" sync badges), and a leads table (Name/Type/Dates/Guests/Est. Value/status badge/WhatsApp link) — click a row to go to `/admin/leads/[id]`.
 - **Export**: `GET /admin/api/export` streams all leads as CSV.
-- **Manual entry**: the "Add Lead" modal on the dashboard posts to `POST /admin/api/leads/create` for backfilling leads collected outside the site (e.g. WhatsApp history). These are stored as `status='new'`, `source='whatsapp_history'` — there is no `'cold'` status in the schema's `CHECK` constraint.
-- **Bookings**: `/admin/bookings/[id]` tracks charges and payments per booking; `/admin/leads/[id]` converts a lead into a linked booking.
+- **Manual entry**: the "Add Lead" modal on the dashboard posts to `POST /admin/api/leads/create` for backfilling leads collected outside the site (e.g. WhatsApp history). These are stored as `status='new'`, `source='whatsapp_history'`.
+- **Bookings**: `/admin/bookings/[id]` tracks charges and payments per booking (money always goes through `charges`/`payments` — there are no flat revenue columns on `bookings`, even for HostHub-synced rows) and shows a HostHub reservation panel (channel, reservation ID, last sync time, link to the HostHub dashboard); `/admin/leads/[id]` converts a lead into a linked booking and lets you move it through the status pipeline.
+- **HostHub iCal sync**: `src/lib/hosthub-sync.ts` (`syncHostHub`) fetches the `HOSTHUB_ICAL_URL` secret, parses `VEVENT` blocks, and upserts into `bookings` keyed on `reservation_id`. It only ever writes HostHub-owned columns (guest name, dates, nights, status, channel, hosthub_notes) — charges, payments, and any manually-entered field are never touched on re-sync. `GET /admin/api/sync-hosthub` triggers it manually (also wired to the "🔄 Sync HostHub" button on the dashboard); each run logs a row to `sync_log`. There is **no automatic schedule wired up** — see README's "HostHub iCal sync" section for why the `wrangler.toml` cron block alone doesn't run it under this project's Cloudflare Pages git-CI deploy path.
 - Auth is via Cloudflare Access, not app code — `/admin/*` must be locked down in **Cloudflare Zero Trust → Access** before this is ever deployed publicly. See README.md for setup steps.
 
-Hosthub remains the source of truth for reservation dates/availability; D1 is the source of truth for inquiry follow-up, charges, payments, and fulfilment. Automatic Hosthub↔D1 booking sync is still not built (see Phase 2/3 below).
+Hosthub remains the source of truth for reservation dates/availability; D1 is the source of truth for inquiry follow-up, charges, payments, and fulfilment.
 
 ## Routes
 
@@ -105,4 +112,4 @@ Pushes to `main` auto-deploy via Cloudflare Pages CI. The adapter is `@astrojs/c
 
 ## Phase 2 / 3 (remaining)
 
-Basic CRM (D1 schema, `/admin` dashboard, leads/bookings/charges/payments, CSV export) is already shipped — see **Admin CRM** above. See `TODO.md` for the fuller roadmap, though it predates the CRM work above and is not fully current. Still outstanding: automatic HostHub↔D1 booking sync, Stripe/MercadoPago payments, Resend transactional emails, and a Supabase/Notion-backed CRM view beyond `/admin`.
+Basic CRM (D1 schema, `/admin` dashboard, leads/bookings/charges/payments, CSV export, lead status pipeline, HostHub iCal booking sync) is already shipped — see **Admin CRM** above. See `TODO.md` for the fuller roadmap, though it predates the CRM work above and is not fully current. Still outstanding: a truly automatic (cron-driven) HostHub sync — today it's a manual button, see README — plus Stripe/MercadoPago payments, Resend transactional emails, and a Supabase/Notion-backed CRM view beyond `/admin`.

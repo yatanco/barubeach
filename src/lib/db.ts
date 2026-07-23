@@ -22,6 +22,7 @@ interface RuntimeEnv {
   DB?: D1Database;
   LEADS_WEBHOOK_URL?: string;
   HOSTHUB_API_KEY?: string;
+  HOSTHUB_ICAL_URL?: string;
 }
 
 export function getRuntimeEnv(locals: APIContext['locals']): RuntimeEnv {

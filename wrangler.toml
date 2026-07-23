@@ -16,9 +16,24 @@ PUBLIC_BASE_URL = "https://casagaviota.com"
 # Secrets — never committed, set via:
 #   wrangler secret put HOSTHUB_API_KEY
 #   wrangler secret put LEADS_WEBHOOK_URL
+#   wrangler secret put HOSTHUB_ICAL_URL
 
 # CRM database — add this binding after creating the database in Cloudflare:
 # [[d1_databases]]
 # binding = "DB"
 # database_name = "barubeach-crm"
 # database_id = "paste-cloudflare-database-id-here"
+
+# HostHub iCal sync (hourly). NOTE: this project deploys via Cloudflare Pages'
+# git-integration CI (see README "Deployment"), and Pages does not run a Workers
+# `scheduled()` handler off this [triggers] block the way a plain Workers project
+# would — Astro's Cloudflare adapter only emits a `fetch` handler. Configuring this
+# alone will NOT make the sync run automatically. To actually run it hourly, either:
+#   (a) point an external scheduler (cron-job.org, a GitHub Actions schedule, etc.)
+#       at GET /admin/api/sync-hosthub (behind Cloudflare Access, so it needs a
+#       service token), or
+#   (b) migrate this project's deploy path to `wrangler deploy` with a Worker
+#       entrypoint that exports both `fetch` and `scheduled`.
+# Until one of those is set up, use the "Sync HostHub" button in /admin.
+[triggers]
+crons = ["0 * * * *"]
