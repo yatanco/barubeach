@@ -54,6 +54,8 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       .pipeline a.active .count { background:rgb(255 255 255 / 20%); color:#fff; }
       .button,button { appearance:none; border:0; border-radius:8px; background:var(--brown); color:#fff; padding:9px 12px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; }
       .button.secondary,button.secondary { background:#eee8e5; color:var(--brown); }
+      .button.whatsapp { background:#25d366; }
+      .button.whatsapp[disabled] { background:#d8ded9; color:#8a938d; cursor:not-allowed; }
       input,select,textarea { width:100%; border:1px solid #d8cbc5; border-radius:8px; padding:9px 10px; background:#fff; color:var(--ink); font:inherit; }
       textarea { min-height:72px; resize:vertical; }
       label { display:grid; gap:5px; color:#615854; font-size:12px; font-weight:700; }
