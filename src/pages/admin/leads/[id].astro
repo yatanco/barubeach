@@ -3,7 +3,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireDb } from '../../../lib/db';
 import {
   PIPELINE_STATUSES, PIPELINE_LABELS, GUEST_INTENTS, shortDate,
-  nightsBetween, formatUsd, QUOTE_RATES, waLinkTo, buildQuoteWhatsAppMessage,
+  nightsBetween, formatUsd, formatMoneyAmount, QUOTE_RATES, QUOTE_CURRENCIES, waLinkTo, buildQuoteWhatsAppMessage,
 } from '../../../lib/crm';
 
 export const prerender = false;
@@ -14,15 +14,20 @@ const notice = Astro.url.searchParams.get('saved');
 const leadError = Astro.url.searchParams.get('leadError');
 
 const nights = nightsBetween(lead.date_from, lead.date_to);
-const accommodationSuggestion = nights * QUOTE_RATES.accommodationPerNight;
-const foodSuggestion = (lead.adults || 0) * QUOTE_RATES.foodPerAdultPerNight * nights;
+const currency = lead.quote_currency || 'USD';
+// The $350/$250/$50 suggestion rates are USD baselines — don't auto-suggest a
+// converted number in COP (no reliable exchange rate to hand), leave blank for manual entry.
+const accommodationSuggestion = currency === 'USD' ? nights * QUOTE_RATES.accommodationPerNight : 0;
+const transportSuggestion = currency === 'USD' ? QUOTE_RATES.transportDefault : 0;
+const foodSuggestion = currency === 'USD' ? (lead.adults || 0) * QUOTE_RATES.foodPerAdultPerNight * nights : 0;
 const transportIncluded = !!lead.transport_included;
 const foodIncluded = !!lead.food_included;
-const accommodationValue = lead.quote_accommodation ?? accommodationSuggestion;
-const transportValue = lead.quote_transport ?? QUOTE_RATES.transportDefault;
-const foodValue = lead.quote_food ?? foodSuggestion;
-const totalValue = lead.quote_total ?? (accommodationValue + (transportIncluded ? transportValue : 0) + (foodIncluded ? foodValue : 0));
-const depositValue = lead.quote_deposit ?? Math.round(totalValue * 0.5);
+const accommodationValue = lead.quote_accommodation ?? (accommodationSuggestion || '');
+const transportValue = lead.quote_transport ?? (transportSuggestion || '');
+const foodValue = lead.quote_food ?? (foodSuggestion || '');
+const totalSuggestion = (Number(accommodationValue) || 0) + (transportIncluded ? (Number(transportValue) || 0) : 0) + (foodIncluded ? (Number(foodValue) || 0) : 0);
+const totalValue = lead.quote_total ?? (totalSuggestion || '');
+const depositValue = lead.quote_deposit ?? (totalSuggestion ? Math.round(totalSuggestion * 0.5) : '');
 
 const quoteMessage = lead.quote_saved_at ? buildQuoteWhatsAppMessage(lead) : undefined;
 const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
@@ -85,6 +90,12 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
     <form method="POST" action={`/admin/api/leads/${lead.id}/quote`} id="quote-form">
       <div class="actions" style="gap:20px;margin-bottom:16px;flex-wrap:wrap">
         <fieldset class="toggle-group">
+          <legend>Currency</legend>
+          {QUOTE_CURRENCIES.map((c) => (
+            <label class="radio-inline"><input type="radio" name="quote_currency" value={c} checked={c === currency} /> {c}</label>
+          ))}
+        </fieldset>
+        <fieldset class="toggle-group">
           <legend>Transport</legend>
           <label class="radio-inline"><input type="radio" name="transport_included" value="1" checked={transportIncluded} /> Yes</label>
           <label class="radio-inline"><input type="radio" name="transport_included" value="0" checked={!transportIncluded} /> No</label>
@@ -97,16 +108,18 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
       </div>
 
       <div class="form-grid">
-        <label>Accommodation (USD)<input type="number" min="0" step="1" name="quote_accommodation" id="quote-accommodation" value={accommodationValue} /></label>
+        <label>Accommodation (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_accommodation" id="quote-accommodation" value={accommodationValue} /></label>
         <div class="muted" id="accommodation-hint" style="align-self:end;font-size:12px;padding-bottom:9px">
-          {nights} nights × $350 = {formatUsd(accommodationSuggestion)} USD
+          {currency === 'USD'
+            ? `${nights} nights × $350 = ${formatUsd(accommodationSuggestion)} USD`
+            : 'Enter amount manually in COP'}
         </div>
 
-        <label id="transport-field" style={transportIncluded ? '' : 'display:none'}>Transport (USD)<input type="number" min="0" step="1" name="quote_transport" id="quote-transport" value={transportValue} /></label>
-        <label id="food-field" style={foodIncluded ? '' : 'display:none'}>Food (USD)<input type="number" min="0" step="1" name="quote_food" id="quote-food" value={foodValue} /></label>
+        <label id="transport-field" style={transportIncluded ? '' : 'display:none'}>Transport (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_transport" id="quote-transport" value={transportValue} /></label>
+        <label id="food-field" style={foodIncluded ? '' : 'display:none'}>Food (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_food" id="quote-food" value={foodValue} /></label>
 
-        <label>Total (USD)<input type="number" min="0" step="1" name="quote_total" id="quote-total" value={totalValue} /></label>
-        <label>Deposit — 50% (USD)<input type="number" min="0" step="1" name="quote_deposit" id="quote-deposit" value={depositValue} /></label>
+        <label>Total (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_total" id="quote-total" value={totalValue} /></label>
+        <label>Deposit — 50% (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_deposit" id="quote-deposit" value={depositValue} /></label>
 
         <div class="span-2"><button type="submit">Save Quote</button></div>
       </div>
@@ -195,10 +208,20 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
   const foodInput = document.getElementById('quote-food');
   const totalInput = document.getElementById('quote-total');
   const depositInput = document.getElementById('quote-deposit');
+  const accommodationHint = document.getElementById('accommodation-hint');
 
   let totalDirty = false;
   let depositDirty = false;
+  // Track fields the admin has actually typed into (vs. values this script wrote itself as a
+  // suggestion) so a currency switch can safely clear stale suggestions without ever touching
+  // something the admin deliberately entered. Anything already saved on the lead counts as "edited".
+  let accommodationEdited = !!accommodationInput.value && accommodationInput.value !== String(nights * RATES.accommodation);
+  let transportEdited = !!transportInput.value && transportInput.value !== String(RATES.transport);
+  let foodEdited = !!foodInput.value && foodInput.value !== String(Math.round(adults * RATES.foodPerAdultNight * nights));
 
+  function currency() {
+    return document.querySelector('input[name="quote_currency"]:checked')?.value || 'USD';
+  }
   function transportIncluded() {
     return document.querySelector('input[name="transport_included"]:checked')?.value === '1';
   }
@@ -213,8 +236,29 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
     foodField.style.display = fIncluded ? '' : 'none';
     transportInput.required = tIncluded;
     foodInput.required = fIncluded;
-    if (tIncluded && !transportInput.value) transportInput.value = String(RATES.transport);
-    if (fIncluded && !foodInput.value) foodInput.value = String(Math.round(adults * RATES.foodPerAdultNight * nights));
+    if (currency() === 'USD') {
+      if (tIncluded && !transportEdited && !transportInput.value) transportInput.value = String(RATES.transport);
+      if (fIncluded && !foodEdited && !foodInput.value) foodInput.value = String(Math.round(adults * RATES.foodPerAdultNight * nights));
+    }
+  }
+
+  function syncCurrencyLabels() {
+    const cur = currency();
+    document.querySelectorAll('.qty-currency').forEach((el) => { el.textContent = cur; });
+    if (accommodationHint) {
+      accommodationHint.textContent = cur === 'USD'
+        ? `${nights} nights × $350 = $${nights * RATES.accommodation} USD`
+        : 'Enter amount manually in COP';
+    }
+    if (cur === 'USD') {
+      if (!accommodationEdited) accommodationInput.value = String(nights * RATES.accommodation);
+      if (transportIncluded() && !transportEdited) transportInput.value = String(RATES.transport);
+      if (foodIncluded() && !foodEdited) foodInput.value = String(Math.round(adults * RATES.foodPerAdultNight * nights));
+    } else {
+      if (!accommodationEdited) accommodationInput.value = '';
+      if (!transportEdited) transportInput.value = '';
+      if (!foodEdited) foodInput.value = '';
+    }
   }
 
   function recalcTotal() {
@@ -230,13 +274,14 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
     depositInput.value = String(Math.round((Number(totalInput.value) || 0) * 0.5));
   }
 
-  accommodationInput.addEventListener('input', recalcTotal);
-  transportInput.addEventListener('input', recalcTotal);
-  foodInput.addEventListener('input', recalcTotal);
+  accommodationInput.addEventListener('input', () => { accommodationEdited = true; recalcTotal(); });
+  transportInput.addEventListener('input', () => { transportEdited = true; recalcTotal(); });
+  foodInput.addEventListener('input', () => { foodEdited = true; recalcTotal(); });
   totalInput.addEventListener('input', () => { totalDirty = true; recalcDeposit(); });
   depositInput.addEventListener('input', () => { depositDirty = true; });
   document.querySelectorAll('input[name="transport_included"]').forEach((el) => el.addEventListener('change', () => { syncToggleVisibility(); recalcTotal(); }));
   document.querySelectorAll('input[name="food_included"]').forEach((el) => el.addEventListener('change', () => { syncToggleVisibility(); recalcTotal(); }));
+  document.querySelectorAll('input[name="quote_currency"]').forEach((el) => el.addEventListener('change', () => { syncCurrencyLabels(); recalcTotal(); }));
 
   syncToggleVisibility();
 </script>

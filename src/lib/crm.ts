@@ -75,6 +75,9 @@ export const QUOTE_RATES = {
   foodPerAdultPerNight: 50,
 } as const;
 
+export const QUOTE_CURRENCIES = ['USD', 'COP'] as const;
+export type QuoteCurrency = typeof QUOTE_CURRENCIES[number];
+
 export function nightsBetween(dateFrom: string | null | undefined, dateTo: string | null | undefined): number {
   if (!dateFrom || !dateTo) return 0;
   const inMs = Date.parse(`${dateFrom.slice(0, 10)}T00:00:00Z`);
@@ -87,8 +90,14 @@ export function formatUsd(amount: number): string {
   return `$${Math.round(amount).toLocaleString('en-US')}`;
 }
 
+export function formatMoneyAmount(amount: number, currency: string): string {
+  const locale = currency === 'COP' ? 'es-CO' : 'en-US';
+  return `$${Math.round(amount).toLocaleString(locale)}`;
+}
+
 interface EstimateLead {
   quote_total?: number | string | null;
+  quote_currency?: string | null;
   date_from?: string | null;
   date_to?: string | null;
   adults?: number | null;
@@ -97,7 +106,10 @@ interface EstimateLead {
 export function estimateLeadValue(lead: EstimateLead): string {
   if (lead.quote_total !== null && lead.quote_total !== undefined && lead.quote_total !== ('' as unknown)) {
     const total = Number(lead.quote_total);
-    if (Number.isFinite(total) && total > 0) return `${formatUsd(total)} USD`;
+    if (Number.isFinite(total) && total > 0) {
+      const currency = lead.quote_currency || 'USD';
+      return `${formatMoneyAmount(total, currency)} ${currency}`;
+    }
   }
   const nights = nightsBetween(lead.date_from, lead.date_to);
   if (nights > 0 && lead.adults) {
@@ -119,6 +131,7 @@ interface QuoteLead {
   quote_food: number | null;
   quote_total: number | null;
   quote_deposit: number | null;
+  quote_currency: string | null;
 }
 
 function spanishDate(value: string | null | undefined): string {
@@ -129,6 +142,8 @@ function spanishDate(value: string | null | undefined): string {
 
 export function buildQuoteWhatsAppMessage(lead: QuoteLead): string {
   const nights = nightsBetween(lead.date_from, lead.date_to);
+  const currency = lead.quote_currency || 'USD';
+  const fmt = (amount: number | null) => `${formatMoneyAmount(amount || 0, currency)} ${currency}`;
   const guestLine = `👥 ${lead.adults} adultos${lead.children > 0 ? ` + ${lead.children} niños` : ''}`;
   const lines = [
     `Hola ${lead.guest_name || ''}! 🌴`,
@@ -139,14 +154,14 @@ export function buildQuoteWhatsAppMessage(lead: QuoteLead): string {
     guestLine,
     '',
     '💰 Desglose:',
-    `🏠 Alojamiento: ${formatUsd(lead.quote_accommodation || 0)} USD`,
+    `🏠 Alojamiento: ${fmt(lead.quote_accommodation)}`,
   ];
-  if (lead.transport_included) lines.push(`🚤 Transporte: ${formatUsd(lead.quote_transport || 0)} USD`);
-  if (lead.food_included) lines.push(`🍽️ Alimentación: ${formatUsd(lead.quote_food || 0)} USD`);
+  if (lead.transport_included) lines.push(`🚤 Transporte: ${fmt(lead.quote_transport)}`);
+  if (lead.food_included) lines.push(`🍽️ Alimentación: ${fmt(lead.quote_food)}`);
   lines.push(
     '',
-    `Total: ${formatUsd(lead.quote_total || 0)} USD`,
-    `Depósito (50%): ${formatUsd(lead.quote_deposit || 0)} USD`,
+    `Total: ${fmt(lead.quote_total)}`,
+    `Depósito (50%): ${fmt(lead.quote_deposit)}`,
     '',
     '¿Te parece bien? 🙏',
   );

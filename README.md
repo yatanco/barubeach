@@ -104,12 +104,13 @@ npx wrangler d1 execute barubeach-crm --remote --file=migrations/0001_crm.sql
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0002_sync_log.sql
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0003_lead_pipeline_and_hosthub_columns.sql
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0004_lead_quote.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0005_lead_quote_currency.sql
 ```
 
-(As of this writing, all four have already been applied to the production
-`barubeach-crm` database. `0004` is a set of plain `ALTER TABLE ... ADD COLUMN`
-statements — safe to run once; re-running it will fail with "duplicate column
-name" since SQLite has no `ADD COLUMN IF NOT EXISTS`.)
+(As of this writing, all five have already been applied to the production
+`barubeach-crm` database. `0004` and `0005` are plain `ALTER TABLE ... ADD COLUMN`
+statements — safe to run once; re-running either will fail with "duplicate
+column name" since SQLite has no `ADD COLUMN IF NOT EXISTS`.)
 
 During migration, `/api/capture-lead` writes to D1 and continues mirroring to
 `LEADS_WEBHOOK_URL`. Remove that Cloudflare secret once the Sheet is no longer
