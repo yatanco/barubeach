@@ -64,3 +64,92 @@ export function timeAgo(value: string | null | undefined): string {
   return `${days}d ago`;
 }
 
+export function waLinkTo(phone: string, text?: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return text ? `https://wa.me/${digits}?text=${encodeURIComponent(text)}` : `https://wa.me/${digits}`;
+}
+
+export const QUOTE_RATES = {
+  accommodationPerNight: 350,
+  transportDefault: 250,
+  foodPerAdultPerNight: 50,
+} as const;
+
+export function nightsBetween(dateFrom: string | null | undefined, dateTo: string | null | undefined): number {
+  if (!dateFrom || !dateTo) return 0;
+  const inMs = Date.parse(`${dateFrom.slice(0, 10)}T00:00:00Z`);
+  const outMs = Date.parse(`${dateTo.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(inMs) || !Number.isFinite(outMs)) return 0;
+  return Math.max(0, Math.round((outMs - inMs) / 86_400_000));
+}
+
+export function formatUsd(amount: number): string {
+  return `$${Math.round(amount).toLocaleString('en-US')}`;
+}
+
+interface EstimateLead {
+  quote_total?: number | string | null;
+  date_from?: string | null;
+  date_to?: string | null;
+  adults?: number | null;
+}
+
+export function estimateLeadValue(lead: EstimateLead): string {
+  if (lead.quote_total !== null && lead.quote_total !== undefined && lead.quote_total !== ('' as unknown)) {
+    const total = Number(lead.quote_total);
+    if (Number.isFinite(total) && total > 0) return `${formatUsd(total)} USD`;
+  }
+  const nights = nightsBetween(lead.date_from, lead.date_to);
+  if (nights > 0 && lead.adults) {
+    return `~${formatUsd(nights * QUOTE_RATES.accommodationPerNight)} USD`;
+  }
+  return '—';
+}
+
+interface QuoteLead {
+  guest_name: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  adults: number;
+  children: number;
+  transport_included: number | null;
+  food_included: number | null;
+  quote_accommodation: number | null;
+  quote_transport: number | null;
+  quote_food: number | null;
+  quote_total: number | null;
+  quote_deposit: number | null;
+}
+
+function spanishDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
+}
+
+export function buildQuoteWhatsAppMessage(lead: QuoteLead): string {
+  const nights = nightsBetween(lead.date_from, lead.date_to);
+  const guestLine = `👥 ${lead.adults} adultos${lead.children > 0 ? ` + ${lead.children} niños` : ''}`;
+  const lines = [
+    `Hola ${lead.guest_name || ''}! 🌴`,
+    '',
+    'Aquí está tu cotización para Casa Gaviota:',
+    '',
+    `📅 ${spanishDate(lead.date_from)} → ${spanishDate(lead.date_to)} (${nights} noches)`,
+    guestLine,
+    '',
+    '💰 Desglose:',
+    `🏠 Alojamiento: ${formatUsd(lead.quote_accommodation || 0)} USD`,
+  ];
+  if (lead.transport_included) lines.push(`🚤 Transporte: ${formatUsd(lead.quote_transport || 0)} USD`);
+  if (lead.food_included) lines.push(`🍽️ Alimentación: ${formatUsd(lead.quote_food || 0)} USD`);
+  lines.push(
+    '',
+    `Total: ${formatUsd(lead.quote_total || 0)} USD`,
+    `Depósito (50%): ${formatUsd(lead.quote_deposit || 0)} USD`,
+    '',
+    '¿Te parece bien? 🙏',
+  );
+  return lines.join('\n');
+}
+

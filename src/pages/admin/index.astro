@@ -1,14 +1,14 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../lib/db';
-import { money, shortDate, timeAgo, isOneOf, PIPELINE_STATUSES, PIPELINE_LABELS, GUEST_INTENTS } from '../../lib/crm';
+import { money, shortDate, timeAgo, isOneOf, PIPELINE_STATUSES, PIPELINE_LABELS, GUEST_INTENTS, estimateLeadValue } from '../../lib/crm';
 
 export const prerender = false;
 
 interface LeadRow {
   id: string; created_at: string; status: string; source: string; experience_type: string;
   guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
-  adults: number; children: number; estimated_price: string | null;
+  adults: number; children: number; estimated_price: string | null; quote_total: number | null;
 }
 interface BookingRow {
   id: string; reservation_id: string | null; channel: string; source: string; guest_name: string; guest_phone: string | null;
@@ -39,9 +39,9 @@ if (!db) {
   try {
     const leadsQuery = activeStage
       ? db.prepare(`SELECT id, created_at, status, source, experience_type, guest_name, whatsapp,
-          date_from, date_to, adults, children, estimated_price FROM leads WHERE status = ?1 ORDER BY created_at DESC LIMIT 100`).bind(activeStage)
+          date_from, date_to, adults, children, estimated_price, quote_total FROM leads WHERE status = ?1 ORDER BY created_at DESC LIMIT 100`).bind(activeStage)
       : db.prepare(`SELECT id, created_at, status, source, experience_type, guest_name, whatsapp,
-          date_from, date_to, adults, children, estimated_price FROM leads ORDER BY created_at DESC LIMIT 100`);
+          date_from, date_to, adults, children, estimated_price, quote_total FROM leads ORDER BY created_at DESC LIMIT 100`);
 
     const [leadResult, bookingResult, newCountResult, weekCountResult, outstandingResult, statusCountResult, arrivalsResult, inHouseResult, lastSyncResult] = await Promise.all([
       leadsQuery.all<LeadRow>(),
@@ -151,7 +151,7 @@ const leadError = Astro.url.searchParams.get('leadError');
                 <td>{lead.experience_type}</td>
                 <td>{shortDate(lead.date_from)}{lead.date_to ? ` → ${shortDate(lead.date_to)}` : ''}</td>
                 <td>{lead.adults + lead.children}</td>
-                <td>{lead.estimated_price || '—'}</td>
+                <td>{estimateLeadValue(lead)}</td>
                 <td><span class={`badge ${lead.status}`}>{lead.status}</span></td>
                 <td>
                   {lead.whatsapp
@@ -188,15 +188,16 @@ const leadError = Astro.url.searchParams.get('leadError');
             {GUEST_INTENTS.map((intent) => <option value={intent.value}>{intent.label}</option>)}
           </select>
         </label>
-        <label>Check-in<input name="date_from" type="date" /></label>
-        <label id="checkout-label">Checkout<input name="date_to" type="date" /></label>
+        <label>Check-in<input name="date_from" type="date" id="lead-date-from" /></label>
+        <label id="checkout-label">Checkout<input name="date_to" type="date" id="lead-date-to" /></label>
+        <div class="span-2 field-error" id="lead-date-error" style="display:none">Check-out must be after check-in</div>
         <label>Adults<input name="adults" type="number" min="1" value="2" /></label>
         <label>Children<input name="children" type="number" min="0" value="0" /></label>
         <label class="span-2">Notes<textarea name="notes" placeholder="What were they asking about?"></textarea></label>
       </div>
       <div class="actions" style="justify-content:flex-end;margin-top:16px">
         <button type="button" class="secondary" data-close-dialog>Cancel</button>
-        <button type="submit">Add lead</button>
+        <button type="submit" id="add-lead-save-btn">Add lead</button>
       </div>
     </form>
   </dialog>
@@ -233,6 +234,40 @@ const leadError = Astro.url.searchParams.get('leadError');
     dialog.showModal();
   }
 
+  function wireDateValidation(checkinId: string, checkoutId: string, errorId: string, submitId: string) {
+    const checkin = document.getElementById(checkinId) as HTMLInputElement | null;
+    const checkout = document.getElementById(checkoutId) as HTMLInputElement | null;
+    const error = document.getElementById(errorId);
+    const submit = document.getElementById(submitId) as HTMLButtonElement | null;
+    if (!checkin || !checkout) return;
+
+    function addDay(dateStr: string): string {
+      const d = new Date(`${dateStr}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      return d.toISOString().slice(0, 10);
+    }
+    function isInvalid(): boolean {
+      return !!(checkin!.value && checkout!.value && checkout!.value <= checkin!.value);
+    }
+    function refresh() {
+      const invalid = isInvalid();
+      if (error) (error as HTMLElement).style.display = invalid ? '' : 'none';
+      if (submit) submit.disabled = invalid;
+    }
+
+    checkin.addEventListener('change', () => {
+      checkout!.min = checkin!.value ? addDay(checkin!.value) : '';
+      if (isInvalid()) checkout!.value = '';
+      refresh();
+    });
+    checkout.addEventListener('change', refresh);
+
+    if (checkin.value) checkout.min = addDay(checkin.value);
+    refresh();
+  }
+
+  wireDateValidation('lead-date-from', 'lead-date-to', 'lead-date-error', 'add-lead-save-btn');
+
   const syncBtn = document.getElementById('sync-hosthub-btn');
   const syncFeedback = document.getElementById('sync-feedback');
   syncBtn?.addEventListener('click', async () => {
@@ -265,4 +300,5 @@ const leadError = Astro.url.searchParams.get('leadError');
   tr.lead-row:hover { background: #faf7f6; }
   dialog#add-lead-dialog { border: 1px solid var(--line); border-radius: 14px; padding: 22px; max-width: 560px; width: calc(100% - 40px); box-shadow: 0 10px 40px rgb(38 29 26 / 18%); }
   dialog#add-lead-dialog::backdrop { background: rgb(38 29 26 / 35%); }
+  .field-error { color: var(--red); font-size: 12px; margin-top: -8px; }
 </style>
