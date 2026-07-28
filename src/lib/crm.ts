@@ -30,6 +30,14 @@ export const BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed', 'cancel
 export const BOOKING_CHANNELS = ['direct', 'airbnb', 'booking.com'] as const;
 export const BOOKING_SOURCES = ['manual', 'hosthub_ical'] as const;
 
+export const PAYMENT_LINK_PROVIDERS = ['bold', 'wompi'] as const;
+export const PROVIDER_PAYMENT_METHODS = ['nequi', 'transferencia', 'efectivo'] as const;
+export const PROVIDER_PAYMENT_METHOD_LABELS: Record<typeof PROVIDER_PAYMENT_METHODS[number], string> = {
+  nequi: 'Nequi',
+  transferencia: 'Transferencia',
+  efectivo: 'Efectivo',
+};
+
 export function isOneOf<T extends readonly string[]>(value: string, values: T): value is T[number] {
   return values.includes(value as T[number]);
 }

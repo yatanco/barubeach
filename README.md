@@ -105,12 +105,26 @@ npx wrangler d1 execute barubeach-crm --remote --file=migrations/0002_sync_log.s
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0003_lead_pipeline_and_hosthub_columns.sql
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0004_lead_quote.sql
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0005_lead_quote_currency.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0006_profitability.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0007_payment_links.sql
 ```
 
-(As of this writing, all five have already been applied to the production
-`barubeach-crm` database. `0004` and `0005` are plain `ALTER TABLE ... ADD COLUMN`
-statements — safe to run once; re-running either will fail with "duplicate
-column name" since SQLite has no `ADD COLUMN IF NOT EXISTS`.)
+(As of this writing, `0001`–`0005` have already been applied to the production
+`barubeach-crm` database. `0004`–`0006` are plain `ALTER TABLE ... ADD COLUMN`
+statements — safe to run once; re-running any of them will fail with
+"duplicate column name" since SQLite has no `ADD COLUMN IF NOT EXISTS`. `0007`
+uses `CREATE TABLE IF NOT EXISTS`, so it's safe to re-run.)
+
+`0006_profitability.sql` adds `ota_commission_cents`, `cost_staff_cents`,
+`cost_food_cents`, `cost_transport_cents` to `bookings`, all in cents like
+every other money column in this schema — used to compute contribution margin
+on `/admin/bookings/[id]`. Revenue is still derived from `SUM(charges.amount_cents)`
+(there's no flat `revenue` column, consistent with the rest of this schema).
+
+`0007_payment_links.sql` adds `payment_links` (Bold/Wompi links generated per
+booking) and `provider_payments` (what you pay out to suppliers — boat
+captain, staff, etc, which also feeds into the contribution-margin
+calculation).
 
 During migration, `/api/capture-lead` writes to D1 and continues mirroring to
 `LEADS_WEBHOOK_URL`. Remove that Cloudflare secret once the Sheet is no longer
@@ -186,6 +200,30 @@ Actions cron workflow, cron-job.org, etc. — behind a Cloudflare Access service
 token) at `GET /admin/api/sync-hosthub`, or move this project's deploy to
 `wrangler deploy` with a Worker entrypoint exporting both `fetch` and
 `scheduled`. Until then, use the manual **Sync HostHub** button.
+
+### 5. Payment links (Bold + Wompi)
+
+`/admin/bookings/[id]` can generate a one-off payment link through **Bold** or
+**Wompi** and record it in `payment_links` (see `0007_payment_links.sql`
+above). Set these as **Pages** secrets — never hardcode them:
+
+```bash
+npx wrangler pages secret put BOLD_API_KEY --project-name casagaviota-astro
+npx wrangler pages secret put WOMPI_PUBLIC_KEY --project-name casagaviota-astro
+npx wrangler pages secret put WOMPI_PRIVATE_KEY --project-name casagaviota-astro
+```
+
+`WOMPI_PUBLIC_KEY` isn't currently used by the `POST /admin/api/bookings/[id]/payment-links`
+endpoint (link creation only needs the private key) — it's set aside for a future
+embedded Wompi checkout widget, which does need the public key client-side.
+
+Without these secrets configured, generating a link for that provider fails
+with a generic "Could not generate payment link" message (the endpoint never
+surfaces the missing-key detail or the key itself to the client).
+
+The same booking page also tracks **Provider payments** — money paid out to
+suppliers (boat captain, staff, etc, stored in `provider_payments`) — which is
+subtracted from Net Contribution alongside OTA commission and variable costs.
 
 ---
 

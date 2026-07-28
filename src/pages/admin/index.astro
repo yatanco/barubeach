@@ -13,9 +13,13 @@ interface LeadRow {
 interface BookingRow {
   id: string; reservation_id: string | null; channel: string; source: string; guest_name: string; guest_phone: string | null;
   date_from: string; date_to: string; status: string; total_cents: number; paid_cents: number;
+  ota_commission_cents: number; cost_staff_cents: number; cost_food_cents: number; cost_transport_cents: number;
 }
 interface SyncLogRow {
   synced_at: string; processed: number; inserted: number; updated: number; skipped: number; error: string | null;
+}
+interface MonthSummaryRow {
+  occupied_nights: number; revenue_cents: number; contribution_cents: number;
 }
 
 const db = getDb(Astro.locals);
@@ -28,7 +32,15 @@ let arrivalsThisWeek = 0;
 let inHouseCount = 0;
 let statusCounts: Record<string, number> = {};
 let lastSync: SyncLogRow | null = null;
+let monthSummary: MonthSummaryRow = { occupied_nights: 0, revenue_cents: 0, contribution_cents: 0 };
 let error = '';
+
+const now = new Date();
+const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+const monthStartStr = monthStart.toISOString().slice(0, 10);
+const monthEndStr = monthEnd.toISOString().slice(0, 10);
+const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86_400_000);
 
 const stageParam = Astro.url.searchParams.get('stage');
 const activeStage = stageParam && isOneOf(stageParam, PIPELINE_STATUSES) ? stageParam : null;
@@ -43,9 +55,10 @@ if (!db) {
       : db.prepare(`SELECT id, created_at, status, source, experience_type, guest_name, whatsapp,
           date_from, date_to, adults, children, estimated_price, quote_total, quote_currency FROM leads ORDER BY created_at DESC LIMIT 100`);
 
-    const [leadResult, bookingResult, newCountResult, weekCountResult, outstandingResult, statusCountResult, arrivalsResult, inHouseResult, lastSyncResult] = await Promise.all([
+    const [leadResult, bookingResult, newCountResult, weekCountResult, outstandingResult, statusCountResult, arrivalsResult, inHouseResult, lastSyncResult, monthSummaryResult] = await Promise.all([
       leadsQuery.all<LeadRow>(),
       db.prepare(`SELECT b.id, b.reservation_id, b.channel, b.source, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.status,
+        b.ota_commission_cents, b.cost_staff_cents, b.cost_food_cents, b.cost_transport_cents,
         COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
         COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
         FROM bookings b ORDER BY b.date_from ASC`).all<BookingRow>(),
@@ -61,6 +74,14 @@ if (!db) {
       db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from BETWEEN date('now') AND date('now', '+7 days') AND status != 'cancelled'`).first<{ count: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from <= date('now') AND date_to >= date('now') AND status = 'checked_in'`).first<{ count: number }>(),
       db.prepare(`SELECT synced_at, processed, inserted, updated, skipped, error FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<SyncLogRow>(),
+      db.prepare(`SELECT
+          COALESCE(SUM(MAX(0, CAST(JULIANDAY(MIN(SUBSTR(b.date_to,1,10), ?2)) - JULIANDAY(MAX(SUBSTR(b.date_from,1,10), ?1)) AS INTEGER))), 0) AS occupied_nights,
+          COALESCE(SUM(COALESCE(rev.total_cents, 0)), 0) AS revenue_cents,
+          COALESCE(SUM(COALESCE(rev.total_cents, 0) - b.ota_commission_cents - b.cost_staff_cents - b.cost_food_cents - b.cost_transport_cents), 0) AS contribution_cents
+        FROM bookings b
+        LEFT JOIN (SELECT booking_id, SUM(amount_cents) AS total_cents FROM charges GROUP BY booking_id) rev ON rev.booking_id = b.id
+        WHERE b.status != 'cancelled' AND SUBSTR(b.date_from,1,10) < ?2 AND SUBSTR(b.date_to,1,10) > ?1`)
+        .bind(monthStartStr, monthEndStr).first<MonthSummaryRow>(),
     ]);
     leads = leadResult.results;
     bookings = bookingResult.results;
@@ -71,11 +92,17 @@ if (!db) {
     inHouseCount = inHouseResult?.count ?? 0;
     statusCounts = Object.fromEntries(statusCountResult.results.map((r) => [r.status, r.count]));
     lastSync = lastSyncResult ?? null;
+    monthSummary = monthSummaryResult ?? { occupied_nights: 0, revenue_cents: 0, contribution_cents: 0 };
   } catch (cause) {
     console.error('[admin] failed to load CRM', cause);
     error = 'The CRM database could not be read. Confirm that migrations 0001_crm.sql and 0002_sync_log.sql have run.';
   }
 }
+const cpanCents = daysInMonth > 0 ? Math.round(monthSummary.contribution_cents / daysInMonth) : 0;
+const bookingViews = bookings.map((booking) => ({
+  ...booking,
+  contributionCents: booking.total_cents - booking.ota_commission_cents - booking.cost_staff_cents - booking.cost_food_cents - booking.cost_transport_cents,
+}));
 const notice = Astro.url.searchParams.get('saved');
 const leadAdded = Astro.url.searchParams.get('leadAdded');
 const leadError = Astro.url.searchParams.get('leadError');
@@ -101,6 +128,12 @@ const leadError = Astro.url.searchParams.get('leadError');
   {!error && (
     <p class="summary-line">{newLeadsCount} new leads · {weekLeadsCount} this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding</p>
   )}
+  {!error && (
+    <p class="summary-line month-summary">
+      This month: {monthSummary.occupied_nights} nights occupied · {money(monthSummary.revenue_cents)} revenue · {money(monthSummary.contribution_cents)} contribution · {money(cpanCents)} CPAN
+      <span class="info-tip" tabindex="0" title="Contribution per Available Night. Your north-star KPI — how much profit each available night generates on average.">ⓘ</span>
+    </p>
+  )}
 
   {!error && (
     <div class="pipeline">
@@ -117,8 +150,8 @@ const leadError = Astro.url.searchParams.get('leadError');
     <section class="card">
       <h2>Bookings</h2>
       <div class="list">
-        {bookings.length === 0 && <p class="muted">No bookings have been linked yet.</p>}
-        {bookings.map((booking) => (
+        {bookingViews.length === 0 && <p class="muted">No bookings have been linked yet.</p>}
+        {bookingViews.map((booking) => (
           <div class="row">
             <div class="stack">
               <div class="actions">
@@ -129,6 +162,9 @@ const leadError = Astro.url.searchParams.get('leadError');
               </div>
               <span class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · Reservation {booking.reservation_id || 'not linked'}</span>
               <span class="amount">Outstanding: {money(Math.max(0, booking.total_cents - booking.paid_cents))}</span>
+              {booking.total_cents > 0
+                ? <span class={`amount ${booking.contributionCents >= 0 ? 'positive' : 'negative'}`}>Contribution: {money(booking.contributionCents)}</span>
+                : <span class="muted">Contribution: —</span>}
             </div>
             <a class="button secondary" href={`/admin/bookings/${booking.id}`}>Open</a>
           </div>
@@ -296,6 +332,10 @@ const leadError = Astro.url.searchParams.get('leadError');
 
 <style>
   .summary-line { font-weight: 750; margin: 0 0 20px; }
+  .month-summary { margin-top: -14px; color: #615854; font-weight: 700; }
+  .info-tip { display:inline-flex; cursor:help; border-radius:999px; background:#eee8e5; color:var(--brown); width:16px; height:16px; align-items:center; justify-content:center; font-size:11px; font-weight:700; margin-left:4px; }
+  .amount.positive { color:#166534; }
+  .amount.negative { color:var(--red); }
   tr.lead-row { cursor: pointer; }
   tr.lead-row:hover { background: #faf7f6; }
   dialog#add-lead-dialog { border: 1px solid var(--line); border-radius: 14px; padding: 22px; max-width: 560px; width: calc(100% - 40px); box-shadow: 0 10px 40px rgb(38 29 26 / 18%); }

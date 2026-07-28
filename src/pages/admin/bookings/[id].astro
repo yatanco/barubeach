@@ -1,12 +1,18 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireDb } from '../../../lib/db';
-import { money, shortDate, timeAgo, channelBadgeClass } from '../../../lib/crm';
+import { money, shortDate, timeAgo, channelBadgeClass, PAYMENT_LINK_PROVIDERS, PROVIDER_PAYMENT_METHODS, PROVIDER_PAYMENT_METHOD_LABELS } from '../../../lib/crm';
 
 export const prerender = false;
 interface ChargeRow {
   id:string; category:string; description:string; amount_cents:number; currency:string; due_date:string|null;
   operational_status:string; notes:string|null; paid_cents:number;
+}
+interface PaymentLinkRow {
+  id:string; charge_description:string; amount_cents:number; provider:string; url:string; status:string; created_at:string; expires_at:string|null;
+}
+interface ProviderPaymentRow {
+  id:string; provider_name:string; service:string; amount_cents:number; method:string; paid_at:string; notes:string|null;
 }
 const db = requireDb(Astro.locals);
 const booking = await db.prepare('SELECT * FROM bookings WHERE id = ?1').bind(Astro.params.id).first<any>();
@@ -27,6 +33,21 @@ const chargeViews = charges.map((charge) => {
     paymentStatus: charge.paid_cents <= 0 ? 'unpaid' : balance <= 0 ? 'paid' : 'partial',
   };
 });
+
+const costStaff = booking.cost_staff_cents ?? 0;
+const costFood = booking.cost_food_cents ?? 0;
+const costTransport = booking.cost_transport_cents ?? 0;
+const otaCommission = booking.ota_commission_cents ?? 0;
+const totalCosts = costStaff + costFood + costTransport;
+
+const paymentLinks = (await db.prepare(`SELECT * FROM payment_links WHERE booking_id = ?1 ORDER BY created_at DESC`).bind(booking.id).all<PaymentLinkRow>()).results;
+const providerPayments = (await db.prepare(`SELECT * FROM provider_payments WHERE booking_id = ?1 ORDER BY paid_at DESC`).bind(booking.id).all<ProviderPaymentRow>()).results;
+const providerPaymentsTotal = providerPayments.reduce((sum, item) => sum + item.amount_cents, 0);
+
+const netContribution = total - otaCommission - totalCosts - providerPaymentsTotal;
+const perNight = booking.nights > 0 ? Math.round(netContribution / booking.nights) : 0;
+const perGuest = booking.adults > 0 ? Math.round(netContribution / booking.adults) : 0;
+
 const notice = Astro.url.searchParams.get('saved');
 ---
 <AdminLayout title={booking.guest_name}>
@@ -79,6 +100,28 @@ const notice = Astro.url.searchParams.get('saved');
   </div>
 
   <section class="card" style="margin-top:20px">
+    <h2>Variable costs</h2>
+    <form class="form-grid" method="POST" action={`/admin/api/bookings/${booking.id}/costs`}>
+      <label>OTA commission (COP)<input name="ota_commission" inputmode="numeric" value={otaCommission / 100} /></label>
+      <div class="muted" style="align-self:end;font-size:12px;padding-bottom:9px">Airbnb / Booking.com commission — 0 for direct bookings</div>
+      <label>Staff (COP)<input name="cost_staff" inputmode="numeric" value={costStaff / 100} /></label>
+      <div class="span-2" />
+      <label>Food (COP)<input name="cost_food" inputmode="numeric" value={costFood / 100} /></label>
+      <div class="muted" style="align-self:end;font-size:12px;padding-bottom:9px">Groceries — what you spend at the market</div>
+      <label>Transport (COP)<input name="cost_transport" inputmode="numeric" value={costTransport / 100} /></label>
+      <div class="muted" style="align-self:end;font-size:12px;padding-bottom:9px">Boat captain, fuel, van</div>
+      <div class="span-2"><button type="submit">Save costs</button></div>
+    </form>
+    <div class="row" style="margin-top:16px"><strong>Total costs</strong><strong class="amount">{money(totalCosts)}</strong></div>
+
+    <div class="contribution-box">
+      <div class="row" style="border-top:0;padding-top:0"><strong>Net contribution</strong><strong class="amount">{money(netContribution)}</strong></div>
+      <div class="row"><span>Per night</span><span class="amount">{money(perNight)}</span></div>
+      <div class="row"><span>Per guest</span><span class="amount">{money(perGuest)}</span></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:20px">
     <h2>Charges & payments</h2>
     {charges.length === 0 && <p class="muted">Add accommodation, transport, food or another charge to begin tracking payments.</p>}
     {chargeViews.map((charge) => (
@@ -106,4 +149,196 @@ const notice = Astro.url.searchParams.get('saved');
       </div>
     ))}
   </section>
+
+  <section class="card" style="margin-top:20px">
+    <h2>Payment links</h2>
+    <div class="alert" id="link-error" style="display:none"></div>
+    <form class="form-grid" id="payment-link-form">
+      <label class="span-2">Description<input name="description" required placeholder="Depósito 50%" id="link-description" /></label>
+      <label>Amount (COP)<input name="amount" inputmode="numeric" required placeholder="750.000" id="link-amount" /></label>
+      <div class="span-2 actions">
+        <button type="submit" data-provider="wompi" style="background:#3369ff">🔵 Generate Wompi link</button>
+        <button type="submit" data-provider="bold" style="background:#ffc93c;color:#261d1a">🟡 Generate Bold link</button>
+      </div>
+    </form>
+
+    {paymentLinks.length === 0 && <p class="muted" style="margin-top:14px">No payment links generated yet.</p>}
+    {paymentLinks.length > 0 && (
+      <table style="margin-top:14px">
+        <thead><tr><th>Provider</th><th>Description</th><th>Amount</th><th>Status</th><th>Link</th></tr></thead>
+        <tbody>
+          {paymentLinks.map((link) => (
+            <tr>
+              <td><span class="badge">{link.provider}</span></td>
+              <td>{link.charge_description}</td>
+              <td class="amount">{money(link.amount_cents)}</td>
+              <td><span class={`badge ${link.status === 'active' ? 'confirmed' : 'lost'}`}>{link.status}</span></td>
+              <td class="actions">
+                <button type="button" class="secondary copy-link-btn" data-url={link.url}>Copy</button>
+                <a class="button secondary" href={link.url} target="_blank" rel="noopener">Open</a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+
+    {paymentLinks.length > 0 && booking.guest_name && (
+      <div class="stack" style="margin-top:16px">
+        <button type="button" class="secondary" id="copy-wa-message-btn">📋 Copy WhatsApp message</button>
+      </div>
+    )}
+  </section>
+
+  <section class="card" style="margin-top:20px">
+    <div class="actions" style="justify-content:space-between">
+      <h2>Provider payments</h2>
+      <button type="button" class="secondary" id="open-add-provider-payment">+ Add provider payment</button>
+    </div>
+    {providerPayments.length === 0 && <p class="muted">No supplier payments recorded yet.</p>}
+    {providerPayments.length > 0 && (
+      <>
+        <table>
+          <thead><tr><th>Provider</th><th>Service</th><th>Amount</th><th>Method</th><th>Paid</th><th>Notes</th></tr></thead>
+          <tbody>
+            {providerPayments.map((payment) => (
+              <tr>
+                <td>{payment.provider_name}</td>
+                <td>{payment.service}</td>
+                <td class="amount">{money(payment.amount_cents)}</td>
+                <td>{PROVIDER_PAYMENT_METHOD_LABELS[payment.method as typeof PROVIDER_PAYMENT_METHODS[number]] || payment.method}</td>
+                <td>{shortDate(payment.paid_at)}</td>
+                <td class="muted">{payment.notes || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div class="row"><strong>Total provider payments</strong><strong class="amount">{money(providerPaymentsTotal)}</strong></div>
+      </>
+    )}
+  </section>
+
+  <dialog id="add-provider-payment-dialog">
+    <form method="POST" action={`/admin/api/bookings/${booking.id}/provider-payments`}>
+      <div class="actions" style="justify-content:space-between;margin-bottom:14px">
+        <h2 style="margin:0">Add provider payment</h2>
+        <button type="button" class="secondary" data-close-dialog>Close</button>
+      </div>
+      <div class="form-grid">
+        <label>Provider name<input name="provider_name" required placeholder="Capitán Andrés" /></label>
+        <label>Service<input name="service" required placeholder="Boat transfer" /></label>
+        <label>Amount (COP)<input name="amount" inputmode="numeric" required placeholder="300.000" /></label>
+        <label>Method
+          <select name="method">
+            {PROVIDER_PAYMENT_METHODS.map((m) => <option value={m}>{PROVIDER_PAYMENT_METHOD_LABELS[m]}</option>)}
+          </select>
+        </label>
+        <label>Date paid<input type="date" name="paid_at" required value={new Date().toISOString().slice(0,10)} /></label>
+        <label class="span-2">Notes<textarea name="notes"></textarea></label>
+      </div>
+      <div class="actions" style="justify-content:flex-end;margin-top:16px">
+        <button type="button" class="secondary" data-close-dialog>Cancel</button>
+        <button type="submit">Save payment</button>
+      </div>
+    </form>
+  </dialog>
 </AdminLayout>
+
+<style>
+  .contribution-box { background:#E6C497; color:#57392E; border-radius:10px; padding:6px 16px; margin-top:14px; }
+  .contribution-box .row { border-top:1px solid rgb(87 57 46 / 15%); }
+  .contribution-box .row:first-child { border-top:0; }
+  .contribution-box .amount { color:#57392E; }
+  dialog#add-provider-payment-dialog { border:1px solid var(--line); border-radius:14px; padding:22px; max-width:520px; width:calc(100% - 40px); box-shadow:0 10px 40px rgb(38 29 26 / 18%); }
+  dialog#add-provider-payment-dialog::backdrop { background:rgb(38 29 26 / 35%); }
+</style>
+
+<script define:vars={{ guestName: booking.guest_name, bookingId: booking.id, waLinks: paymentLinks.map((l: any) => ({ provider: l.provider, description: l.charge_description, amount: l.amount_cents / 100, url: l.url })) }}>
+  const linkForm = document.getElementById('payment-link-form');
+  const linkErrorBox = document.getElementById('link-error');
+  linkForm?.querySelectorAll('button[data-provider]').forEach((btn) => {
+    btn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      if (!(btn instanceof HTMLButtonElement) || !(linkForm instanceof HTMLFormElement)) return;
+      const description = (document.getElementById('link-description')).value.trim();
+      const amount = Number((document.getElementById('link-amount')).value.replace(/[^0-9]/g, ''));
+      if (!description || !amount) return;
+      if (linkErrorBox) linkErrorBox.style.display = 'none';
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Generating…';
+      try {
+        const res = await fetch(`/admin/api/bookings/${bookingId}/payment-links`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: btn.dataset.provider, amount, description }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else if (linkErrorBox) {
+          linkErrorBox.textContent = data.error || 'Could not generate payment link.';
+          linkErrorBox.style.display = '';
+        }
+      } catch {
+        if (linkErrorBox) {
+          linkErrorBox.textContent = 'Network error — could not reach the server.';
+          linkErrorBox.style.display = '';
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
+  });
+
+  document.querySelectorAll('.copy-link-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.getAttribute('data-url');
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      } catch {
+        // clipboard API unavailable — nothing else to do here
+      }
+    });
+  });
+
+  document.getElementById('copy-wa-message-btn')?.addEventListener('click', async () => {
+    if (!waLinks.length) return;
+    const latest = waLinks[0];
+    const wompi = waLinks.find((l) => l.provider === 'wompi');
+    const bold = waLinks.find((l) => l.provider === 'bold');
+    const lines = [
+      `Hola ${guestName || ''}! 🌴`,
+      '',
+      `Link de pago para ${latest.description}:`,
+      `💳 $${latest.amount.toLocaleString('es-CO')} COP`,
+      '',
+    ];
+    if (wompi) lines.push(`Wompi: ${wompi.url}`);
+    if (bold) lines.push(`Bold: ${bold.url}`);
+    lines.push('', 'Válido por 72 horas.');
+    const message = lines.join('\n');
+    const btn = document.getElementById('copy-wa-message-btn');
+    try {
+      await navigator.clipboard.writeText(message);
+      if (btn) { const original = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => { if (btn) btn.textContent = original; }, 1500); }
+    } catch {
+      // clipboard API unavailable — nothing else to do here
+    }
+  });
+
+  const providerDialog = document.getElementById('add-provider-payment-dialog');
+  document.getElementById('open-add-provider-payment')?.addEventListener('click', () => {
+    if (providerDialog instanceof HTMLDialogElement) providerDialog.showModal();
+  });
+  providerDialog?.querySelectorAll('[data-close-dialog]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (providerDialog instanceof HTMLDialogElement) providerDialog.close();
+    });
+  });
+</script>

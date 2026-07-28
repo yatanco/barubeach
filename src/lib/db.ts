@@ -23,6 +23,9 @@ interface RuntimeEnv {
   LEADS_WEBHOOK_URL?: string;
   HOSTHUB_API_KEY?: string;
   HOSTHUB_ICAL_URL?: string;
+  BOLD_API_KEY?: string;
+  WOMPI_PUBLIC_KEY?: string;
+  WOMPI_PRIVATE_KEY?: string;
 }
 
 export function getRuntimeEnv(locals: APIContext['locals']): RuntimeEnv {
