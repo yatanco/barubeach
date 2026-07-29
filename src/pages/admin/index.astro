@@ -1,29 +1,19 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../lib/db';
-import {
-  money, shortDate, timeAgo, isOneOf, PIPELINE_LABELS, GUEST_INTENTS, estimateLeadValue,
-  LEAD_ACTION_LABELS, channelBadgeClass, BOOKING_CHANNEL_LABELS, BOOKING_CHANNELS, PIPELINE_STATUSES,
-} from '../../lib/crm';
+import { money, shortDate, timeAgo, PIPELINE_LABELS, GUEST_INTENTS, estimateLeadValue } from '../../lib/crm';
 
 export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'no-store');
 
-interface AttentionLeadRow {
-  id: string; guest_name: string | null; experience_type: string; date_from: string | null; date_to: string | null;
-  adults: number; children: number; estimated_price: string | null; quote_total: number | null; quote_currency: string | null;
-  status: string; whatsapp: string | null;
-}
-interface AttentionBookingRow {
-  id: string; guest_name: string; date_from: string; date_to: string; outstanding_cents: number;
-}
-interface StayRow {
-  id: string; guest_name: string; guest_phone: string | null; date_from: string; date_to: string; nights: number;
-  channel: string; status: string; total_cents: number; paid_cents: number; has_food: number; has_transport: number;
+interface BookingRow {
+  id: string; guest_name: string; guest_phone: string | null; date_from: string; date_to: string;
+  adults: number; children: number; status: string; total_cents: number; paid_cents: number;
 }
 interface LeadRow {
-  id: string; created_at: string; status: string; experience_type: string;
-  guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
-  adults: number; children: number; estimated_price: string | null; quote_total: number | null; quote_currency: string | null;
+  id: string; guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
+  adults: number; children: number; status: string; quote_total: number | null; quote_currency: string | null;
+  estimated_price: string | null; created_at: string;
 }
 interface SyncLogRow {
   synced_at: string; processed: number; inserted: number; updated: number; skipped: number; error: string | null;
@@ -31,13 +21,29 @@ interface SyncLogRow {
 interface MonthSummaryRow {
   occupied_nights: number; revenue_cents: number; contribution_cents: number;
 }
+interface ListItem {
+  kind: 'booking' | 'lead';
+  id: string;
+  name: string;
+  dateFrom: string | null;
+  dateTo: string | null;
+  guests: number;
+  status: string;
+  phone: string | null;
+  valueLabel: string;
+  valueClass: string;
+  isUpcoming: boolean;
+}
+
+const BOOKING_HIDDEN_STATUSES = ['cancelled', 'completed'];
+const LEAD_HIDDEN_STATUSES = ['lost', 'spam', 'completed'];
 
 const db = getDb(Astro.locals);
-let attentionLeads: AttentionLeadRow[] = [];
-let attentionBookings: AttentionBookingRow[] = [];
-let upcomingStays: StayRow[] = [];
-let completedBookings: StayRow[] = [];
-let leads: LeadRow[] = [];
+let upcomingBookings: BookingRow[] = [];
+let leadsWithDates: LeadRow[] = [];
+let leadsWithoutDates: LeadRow[] = [];
+let hiddenBookings: BookingRow[] = [];
+let hiddenLeads: LeadRow[] = [];
 let newLeadsCount = 0;
 let weekLeadsCount = 0;
 let outstandingCents = 0;
@@ -53,55 +59,37 @@ const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 
 const monthStartStr = monthStart.toISOString().slice(0, 10);
 const monthEndStr = monthEnd.toISOString().slice(0, 10);
 const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86_400_000);
-
-const LEADS_FILTERS = ['all', 'new', 'quoted', 'deposit', 'lost'] as const;
-const filterParam = Astro.url.searchParams.get('leads');
-const activeFilter = filterParam && isOneOf(filterParam, LEADS_FILTERS) ? filterParam : 'all';
+const todayStr = now.toISOString().slice(0, 10);
+const upcomingBoundStr = new Date(now.getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
 
 if (!db) {
   error = 'D1 is not configured yet. Bind the database as DB and run the migration.';
 } else {
   try {
-    const leadsQuery = activeFilter === 'all'
-      ? db.prepare(`SELECT id, created_at, status, experience_type, guest_name, whatsapp,
-          date_from, date_to, adults, children, estimated_price, quote_total, quote_currency FROM leads ORDER BY created_at DESC LIMIT 200`)
-      : db.prepare(`SELECT id, created_at, status, experience_type, guest_name, whatsapp,
-          date_from, date_to, adults, children, estimated_price, quote_total, quote_currency FROM leads WHERE status = ?1 ORDER BY created_at DESC LIMIT 200`).bind(activeFilter);
-
     const [
-      leadResult, attentionLeadResult, attentionBookingResult, upcomingResult, completedResult,
+      upcomingBookingResult, leadsWithDatesResult, leadsWithoutDatesResult, hiddenBookingResult, hiddenLeadResult,
       newCountResult, weekCountResult, outstandingResult, arrivalsResult, inHouseResult, lastSyncResult, monthSummaryResult,
     ] = await Promise.all([
-      leadsQuery.all<LeadRow>(),
-      db.prepare(`SELECT id, guest_name, experience_type, date_from, date_to, adults, children,
-          estimated_price, quote_total, quote_currency, status, whatsapp
-        FROM leads WHERE status IN ('new','quoted','deposit_pending')
-        ORDER BY CASE status WHEN 'deposit_pending' THEN 0 WHEN 'quoted' THEN 1 ELSE 2 END, created_at DESC`).all<AttentionLeadRow>(),
-      db.prepare(`WITH booking_totals AS (
-          SELECT b.id, b.guest_name, b.date_from, b.date_to,
-            COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
-            COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
-          FROM bookings b
-          WHERE b.date_from BETWEEN date('now') AND date('now', '+7 days') AND b.status != 'cancelled'
-        )
-        SELECT id, guest_name, date_from, date_to, (total_cents - paid_cents) AS outstanding_cents
-        FROM booking_totals WHERE (total_cents - paid_cents) > 0 ORDER BY date_from ASC`).all<AttentionBookingRow>(),
-      db.prepare(`SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.nights, b.channel, b.status,
+      db.prepare(`SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status,
           COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
-          COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents,
-          EXISTS(SELECT 1 FROM charges c WHERE c.booking_id = b.id AND c.category = 'food' AND c.amount_cents > 0) AS has_food,
-          EXISTS(SELECT 1 FROM charges c WHERE c.booking_id = b.id AND c.category = 'transport' AND c.amount_cents > 0) AS has_transport
+          COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
         FROM bookings b
-        WHERE b.date_from BETWEEN date('now') AND date('now', '+30 days') AND b.status NOT IN ('cancelled','completed')
-        ORDER BY b.date_from ASC`).all<StayRow>(),
-      db.prepare(`SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.nights, b.channel, b.status,
+        WHERE b.status NOT IN ('cancelled','completed') AND b.date_from BETWEEN date('now') AND date('now', '+14 days')
+        ORDER BY b.date_from ASC`).all<BookingRow>(),
+      db.prepare(`SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, quote_total, quote_currency, estimated_price, created_at
+        FROM leads WHERE status NOT IN ('lost','spam','completed') AND date_from IS NOT NULL
+        ORDER BY date_from ASC`).all<LeadRow>(),
+      db.prepare(`SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, quote_total, quote_currency, estimated_price, created_at
+        FROM leads WHERE status NOT IN ('lost','spam','completed') AND date_from IS NULL
+        ORDER BY created_at DESC`).all<LeadRow>(),
+      db.prepare(`SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status,
           COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
-          COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents,
-          EXISTS(SELECT 1 FROM charges c WHERE c.booking_id = b.id AND c.category = 'food' AND c.amount_cents > 0) AS has_food,
-          EXISTS(SELECT 1 FROM charges c WHERE c.booking_id = b.id AND c.category = 'transport' AND c.amount_cents > 0) AS has_transport
-        FROM bookings b
-        WHERE b.status = 'completed'
-        ORDER BY b.date_to DESC LIMIT 100`).all<StayRow>(),
+          COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
+        FROM bookings b WHERE b.status IN ('cancelled','completed')
+        ORDER BY b.date_to DESC LIMIT 100`).all<BookingRow>(),
+      db.prepare(`SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, quote_total, quote_currency, estimated_price, created_at
+        FROM leads WHERE status IN ('lost','spam','completed')
+        ORDER BY created_at DESC LIMIT 100`).all<LeadRow>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE status = 'new'`).first<{ count: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE created_at >= datetime('now', '-7 days')`).first<{ count: number }>(),
       db.prepare(`WITH booking_totals AS (
@@ -122,11 +110,11 @@ if (!db) {
         WHERE b.status != 'cancelled' AND SUBSTR(b.date_from,1,10) < ?2 AND SUBSTR(b.date_to,1,10) > ?1`)
         .bind(monthStartStr, monthEndStr).first<MonthSummaryRow>(),
     ]);
-    leads = leadResult.results;
-    attentionLeads = attentionLeadResult.results;
-    attentionBookings = attentionBookingResult.results;
-    upcomingStays = upcomingResult.results;
-    completedBookings = completedResult.results;
+    upcomingBookings = upcomingBookingResult.results;
+    leadsWithDates = leadsWithDatesResult.results;
+    leadsWithoutDates = leadsWithoutDatesResult.results;
+    hiddenBookings = hiddenBookingResult.results;
+    hiddenLeads = hiddenLeadResult.results;
     newLeadsCount = newCountResult?.count ?? 0;
     weekLeadsCount = weekCountResult?.count ?? 0;
     outstandingCents = outstandingResult?.outstanding ?? 0;
@@ -141,6 +129,52 @@ if (!db) {
 }
 const cpanCents = daysInMonth > 0 ? Math.round(monthSummary.contribution_cents / daysInMonth) : 0;
 const statusLabel = (status: string) => (PIPELINE_LABELS as Record<string, string>)[status] || status;
+
+function bookingToItem(b: BookingRow): ListItem {
+  const outstanding = b.total_cents - b.paid_cents;
+  return {
+    kind: 'booking', id: b.id, name: b.guest_name, dateFrom: b.date_from, dateTo: b.date_to,
+    guests: b.adults + b.children, status: b.status, phone: b.guest_phone,
+    valueLabel: outstanding > 0 ? `Outstanding: ${money(outstanding)}` : 'Paid ✓',
+    valueClass: outstanding > 0 ? 'negative' : 'positive',
+    isUpcoming: true,
+  };
+}
+function leadToItem(lead: LeadRow): ListItem {
+  const from = lead.date_from ? lead.date_from.slice(0, 10) : null;
+  return {
+    kind: 'lead', id: lead.id, name: lead.guest_name || 'Unnamed inquiry', dateFrom: lead.date_from, dateTo: lead.date_to,
+    guests: lead.adults + lead.children, status: lead.status, phone: lead.whatsapp,
+    valueLabel: `Est. value: ${estimateLeadValue(lead)}`, valueClass: '',
+    isUpcoming: !!from && from >= todayStr && from <= upcomingBoundStr,
+  };
+}
+function datesLabel(item: ListItem): string {
+  if (item.dateFrom && item.dateTo) return `${shortDate(item.dateFrom)} → ${shortDate(item.dateTo)}`;
+  if (item.dateFrom) return shortDate(item.dateFrom);
+  return 'No dates yet';
+}
+
+const activeItems: ListItem[] = [
+  ...upcomingBookings.map(bookingToItem),
+  ...leadsWithDates.map(leadToItem),
+  ...leadsWithoutDates.map(leadToItem),
+];
+const hiddenItems: ListItem[] = [
+  ...hiddenBookings.map(bookingToItem),
+  ...hiddenLeads.map(leadToItem),
+];
+
+const FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'bookings', label: 'Bookings' },
+  { value: 'leads', label: 'Leads' },
+  { value: 'new', label: 'New' },
+  { value: 'quoted', label: 'Quoted' },
+  { value: 'deposit', label: 'Deposit' },
+  { value: 'upcoming', label: 'Upcoming' },
+] as const;
+
 const notice = Astro.url.searchParams.get('saved');
 const leadAdded = Astro.url.searchParams.get('leadAdded');
 const leadError = Astro.url.searchParams.get('leadError');
@@ -173,135 +207,69 @@ const leadError = Astro.url.searchParams.get('leadError');
     </p>
   )}
 
-  {!error && (attentionLeads.length > 0 || attentionBookings.length > 0) && (
-    <>
-      <p class="section-label">── Needs Attention ──</p>
-      <div class="card" style="margin-bottom:28px">
-        <div class="list">
-          {attentionLeads.map((lead) => (
-            <div class="row">
-              <div class="stack">
-                <div class="actions">
-                  <h3>{lead.guest_name || 'Unnamed inquiry'}</h3>
-                  <span class={`badge ${lead.status}`}>{statusLabel(lead.status)}</span>
-                </div>
-                <span class="muted">{lead.experience_type} · {shortDate(lead.date_from)}{lead.date_to ? ` → ${shortDate(lead.date_to)}` : ''} · {lead.adults + lead.children} guests</span>
-                <span class="amount">{estimateLeadValue(lead)}</span>
-              </div>
-              <div class="actions">
-                {lead.whatsapp && <a class="button whatsapp" href={`https://wa.me/${lead.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener">💬 WhatsApp</a>}
-                <a class="button" href={`/admin/leads/${lead.id}`}>{LEAD_ACTION_LABELS[lead.status as typeof PIPELINE_STATUSES[number]] || 'Open'}</a>
-              </div>
-            </div>
-          ))}
-          {attentionBookings.map((booking) => (
-            <div class="row">
-              <div class="stack">
-                <div class="actions"><h3>{booking.guest_name}</h3><span class="badge lost">Balance due</span></div>
-                <span class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)}</span>
-                <span class="amount negative">Outstanding: {money(booking.outstanding_cents)}</span>
-              </div>
-              <a class="button" href={`/admin/bookings/${booking.id}`}>Collect Balance</a>
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
-  )}
-
   {!error && (
     <>
-      <p class="section-label">── Upcoming Stays ──</p>
-      {upcomingStays.length === 0 && <p class="muted" style="margin-bottom:28px">No stays in the next 30 days.</p>}
-      {upcomingStays.length > 0 && (
-        <div class="grid grid-2" style="margin-bottom:28px">
-          {upcomingStays.map((stay) => {
-            const balance = stay.total_cents - stay.paid_cents;
-            return (
-              <div class="card">
-                <div class="actions" style="justify-content:space-between">
-                  <h3>{stay.guest_name}</h3>
-                  <div class="actions">
-                    <span class={`badge ${channelBadgeClass(stay.channel)}`}>{BOOKING_CHANNEL_LABELS[stay.channel as typeof BOOKING_CHANNELS[number]] || stay.channel}</span>
-                    <span class={`badge ${stay.status}`}>{stay.status.replace('_',' ')}</span>
-                  </div>
-                </div>
-                <p class="muted" style="margin:6px 0">{shortDate(stay.date_from)} → {shortDate(stay.date_to)} · {stay.nights} nights</p>
-                <p class="muted" style="margin:0 0 10px">Food: {stay.has_food ? '✓' : '—'} · Transport: {stay.has_transport ? '✓' : '—'}</p>
-                <div class="actions" style="justify-content:space-between">
-                  {balance > 0
-                    ? <span class="amount negative">Balance: {money(balance)}</span>
-                    : <span class="amount positive">Paid ✓</span>}
-                  <a class="button secondary" href={`/admin/bookings/${stay.id}`}>Open</a>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </>
-  )}
-
-  {!error && (
-    <>
-      <p class="section-label">── All Leads ──</p>
-      <div class="pipeline">
-        {LEADS_FILTERS.map((f) => (
-          <a href={f === 'all' ? '/admin' : `/admin?leads=${f}`} class={activeFilter === f ? 'active' : ''}>{f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}</a>
+      <div class="pipeline" id="filter-bar">
+        {FILTERS.map((f) => (
+          <a href="#" data-filter={f.value} class={f.value === 'all' ? 'active' : ''}>{f.label}</a>
         ))}
       </div>
-      {leads.length === 0 && <p class="muted">No leads captured yet.</p>}
-      {leads.length > 0 && (
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Type</th><th>Dates</th><th>Guests</th><th>Est. Value</th><th>Status</th><th>WhatsApp</th></tr>
-          </thead>
-          <tbody>
-            {leads.map((lead) => (
-              <tr class="lead-row" data-href={`/admin/leads/${lead.id}`}>
-                <td>{lead.guest_name || 'Unnamed inquiry'}</td>
-                <td>{lead.experience_type}</td>
-                <td>{shortDate(lead.date_from)}{lead.date_to ? ` → ${shortDate(lead.date_to)}` : ''}</td>
-                <td>{lead.adults + lead.children}</td>
-                <td>{estimateLeadValue(lead)}</td>
-                <td><span class={`badge ${lead.status}`}>{statusLabel(lead.status)}</span></td>
-                <td>
-                  {lead.whatsapp
-                    ? <a href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener">{lead.whatsapp}</a>
-                    : <span class="muted">—</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+
+      <div class="card">
+        <div class="list" id="unified-list">
+          {activeItems.length === 0 && <p class="muted">Nothing to show yet.</p>}
+          {activeItems.map((item) => (
+            <div
+              class="row clickable-row"
+              data-href={`/admin/${item.kind === 'booking' ? 'bookings' : 'leads'}/${item.id}`}
+              data-kind={item.kind}
+              data-status={item.status}
+              data-upcoming={item.isUpcoming ? '1' : '0'}
+            >
+              <div class="stack" style="min-width:0;flex:1">
+                <div class="actions">
+                  <span class={`type-pill ${item.kind}`}>{item.kind === 'booking' ? 'BOOKING' : 'LEAD'}</span>
+                  <h3>{item.name}</h3>
+                </div>
+                <span class="muted">{datesLabel(item)} · {item.guests} guests</span>
+                <span class={`amount ${item.valueClass}`}>{item.valueLabel}</span>
+              </div>
+              <div class="actions" style="flex-shrink:0">
+                <span class={`badge ${item.status}`}>{statusLabel(item.status)}</span>
+                {item.phone && <a class="button whatsapp" href={`https://wa.me/${item.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener" title="Open WhatsApp">💬</a>}
+              </div>
+            </div>
+          ))}
+          <p class="muted" id="no-filter-matches" style="display:none">No items match this filter.</p>
+        </div>
+      </div>
     </>
   )}
 
   {!error && (
-    <details style="margin-top:28px">
-      <summary>Show completed bookings ({completedBookings.length}) ▼</summary>
-      {completedBookings.length === 0 && <p class="muted" style="margin-top:12px">No completed bookings yet.</p>}
-      {completedBookings.length > 0 && (
-        <div class="grid grid-2" style="margin-top:14px">
-          {completedBookings.map((stay) => {
-            const balance = stay.total_cents - stay.paid_cents;
-            return (
-              <div class="card">
-                <div class="actions" style="justify-content:space-between">
-                  <h3>{stay.guest_name}</h3>
-                  <span class={`badge ${channelBadgeClass(stay.channel)}`}>{BOOKING_CHANNEL_LABELS[stay.channel as typeof BOOKING_CHANNELS[number]] || stay.channel}</span>
+    <details style="margin-top:20px">
+      <summary>Show completed / lost ({hiddenItems.length}) ▼</summary>
+      {hiddenItems.length === 0 && <p class="muted" style="margin-top:12px">Nothing here yet.</p>}
+      {hiddenItems.length > 0 && (
+        <div class="card" style="margin-top:14px">
+          <div class="list">
+            {hiddenItems.map((item) => (
+              <div class="row clickable-row" data-href={`/admin/${item.kind === 'booking' ? 'bookings' : 'leads'}/${item.id}`}>
+                <div class="stack" style="min-width:0;flex:1">
+                  <div class="actions">
+                    <span class={`type-pill ${item.kind}`}>{item.kind === 'booking' ? 'BOOKING' : 'LEAD'}</span>
+                    <h3>{item.name}</h3>
+                  </div>
+                  <span class="muted">{datesLabel(item)} · {item.guests} guests</span>
+                  <span class={`amount ${item.valueClass}`}>{item.valueLabel}</span>
                 </div>
-                <p class="muted" style="margin:6px 0">{shortDate(stay.date_from)} → {shortDate(stay.date_to)} · {stay.nights} nights</p>
-                <div class="actions" style="justify-content:space-between">
-                  {balance > 0
-                    ? <span class="amount negative">Balance: {money(balance)}</span>
-                    : <span class="amount positive">Paid ✓</span>}
-                  <a class="button secondary" href={`/admin/bookings/${stay.id}`}>Open</a>
+                <div class="actions" style="flex-shrink:0">
+                  <span class={`badge ${item.status}`}>{statusLabel(item.status)}</span>
+                  {item.phone && <a class="button whatsapp" href={`https://wa.me/${item.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener" title="Open WhatsApp">💬</a>}
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
     </details>
@@ -345,11 +313,42 @@ const leadError = Astro.url.searchParams.get('leadError');
 </AdminLayout>
 
 <script>
-  document.querySelectorAll('tr.lead-row').forEach((row) => {
+  document.querySelectorAll('.clickable-row').forEach((row) => {
     row.addEventListener('click', (event) => {
       if (event.target instanceof Element && event.target.closest('a')) return;
       const href = row.getAttribute('data-href');
       if (href) window.location.href = href;
+    });
+  });
+
+  const filterBar = document.getElementById('filter-bar');
+  const listRows = document.querySelectorAll('#unified-list .clickable-row');
+  const noMatches = document.getElementById('no-filter-matches');
+  function applyFilter(filter: string) {
+    let visibleCount = 0;
+    listRows.forEach((row) => {
+      const el = row as HTMLElement;
+      const kind = el.dataset.kind;
+      const status = el.dataset.status;
+      const upcoming = el.dataset.upcoming === '1';
+      let show = true;
+      if (filter === 'bookings') show = kind === 'booking';
+      else if (filter === 'leads') show = kind === 'lead';
+      else if (filter === 'new') show = status === 'new';
+      else if (filter === 'quoted') show = status === 'quoted';
+      else if (filter === 'deposit') show = status === 'deposit_pending' || status === 'deposit';
+      else if (filter === 'upcoming') show = upcoming;
+      el.style.display = show ? '' : 'none';
+      if (show) visibleCount++;
+    });
+    if (noMatches) noMatches.style.display = visibleCount === 0 ? '' : 'none';
+  }
+  filterBar?.querySelectorAll('a[data-filter]').forEach((pill) => {
+    pill.addEventListener('click', (event) => {
+      event.preventDefault();
+      filterBar.querySelectorAll('a[data-filter]').forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      applyFilter((pill as HTMLElement).dataset.filter || 'all');
     });
   });
 
@@ -441,9 +440,12 @@ const leadError = Astro.url.searchParams.get('leadError');
   .info-tip { display:inline-flex; cursor:help; border-radius:999px; background:#eee8e5; color:var(--brown); width:16px; height:16px; align-items:center; justify-content:center; font-size:11px; font-weight:700; margin-left:4px; }
   .amount.positive { color:#166534; }
   .amount.negative { color:var(--red); }
-  .section-label { text-align:center; color:#a89890; font-size:12px; font-weight:700; letter-spacing:.04em; margin:28px 0 14px; }
-  tr.lead-row { cursor: pointer; }
-  tr.lead-row:hover { background: #faf7f6; }
+  #filter-bar { margin-bottom:16px; }
+  .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
+  .type-pill.booking { background:#57392E; }
+  .type-pill.lead { background:#7D98AB; }
+  .clickable-row { cursor:pointer; margin:0 -20px; padding-left:20px; padding-right:20px; border-radius:8px; }
+  .clickable-row:hover { background:#faf7f6; }
   dialog#add-lead-dialog { border: 1px solid var(--line); border-radius: 14px; padding: 22px; max-width: 560px; width: calc(100% - 40px); box-shadow: 0 10px 40px rgb(38 29 26 / 18%); }
   dialog#add-lead-dialog::backdrop { background: rgb(38 29 26 / 35%); }
   .field-error { color: var(--red); font-size: 12px; margin-top: -8px; }

@@ -54,13 +54,6 @@ export function channelBadgeClass(channel: string): string {
   return channel.replace(/[^a-z0-9]/gi, '');
 }
 
-// "Needs attention" primary action per lead pipeline stage, shown on the dashboard.
-export const LEAD_ACTION_LABELS: Partial<Record<typeof PIPELINE_STATUSES[number], string>> = {
-  new: 'Send Quote',
-  quoted: 'Request Deposit',
-  deposit_pending: 'Send Payment Link',
-};
-
 interface ChargeLike {
   category: string;
   amount_cents: number;

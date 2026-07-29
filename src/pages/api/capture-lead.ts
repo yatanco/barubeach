@@ -89,5 +89,5 @@ export const POST: APIRoute = async ({ request, locals }) => {
     );
   }
 
-  return Response.json({ success: true, id, storedInD1, storedInWebhook }, { status: 201 });
+  return Response.json({ success: true, id, storedInD1, storedInWebhook }, { status: 200 });
 };
