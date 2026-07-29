@@ -3,7 +3,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireDb } from '../../../lib/db';
 import {
   money, shortDate, timeAgo, channelBadgeClass,
-  BOOKING_CHANNELS, BOOKING_CHANNEL_LABELS, DEFAULT_COMMISSION_RATE,
+  BOOKING_CHANNELS, BOOKING_CHANNEL_LABELS, CHANNEL_PILL_LABELS, DEFAULT_COMMISSION_RATE,
   PROVIDER_PAYMENT_METHODS, PROVIDER_PAYMENT_METHOD_LABELS, BOOKING_STATUSES, BOOKING_STATUS_LABELS,
 } from '../../../lib/crm';
 
@@ -86,7 +86,7 @@ const notice = Astro.url.searchParams.get('saved');
   {notice && <div class="alert">Saved successfully.</div>}
   <div class="actions" style="justify-content:space-between;margin-bottom:22px">
     <div>
-      <div class="actions"><h1 style="margin:0">{booking.guest_name}</h1><span class={`badge ${channelBadgeClass(booking.channel)}`}>{BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span>{booking.source === 'hosthub_ical' && <span class="badge hh">HH</span>}</div>
+      <div class="actions"><h1 style="margin:0">{booking.guest_name}</h1><span class={`channel-pill ${channelBadgeClass(booking.channel)}`} id="header-channel-pill">{CHANNEL_PILL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span>{booking.source === 'hosthub_ical' && <span class="badge hh">HH</span>}</div>
       <p class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · {booking.nights} nights · {booking.adults} adults · {booking.children} children</p>
     </div>
     {booking.guest_phone && <a class="button whatsapp" href={`https://wa.me/${booking.guest_phone.replace(/\D/g,'')}`} target="_blank" rel="noopener">💬 WhatsApp</a>}
@@ -103,10 +103,10 @@ const notice = Astro.url.searchParams.get('saved');
   </section>
 
   <details class="card hosthub-card" style="margin-bottom:20px">
-    <summary><strong>HostHub</strong> · {booking.reservation_id || 'not linked'} · {BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</summary>
+    <summary><strong>HostHub</strong> · {booking.reservation_id || 'not linked'} · <span id="hosthub-summary-channel">{BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span></summary>
     <div class="grid grid-2">
       <div class="stack">
-        <span><strong>Channel:</strong> <span class={`badge ${channelBadgeClass(booking.channel)}`}>{BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span></span>
+        <span><strong>Channel:</strong> <span class={`channel-pill ${channelBadgeClass(booking.channel)}`} id="hosthub-channel-pill">{CHANNEL_PILL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span></span>
         <span><strong>Reservation ID:</strong> {booking.reservation_id || 'not linked'}</span>
         <span><strong>Source:</strong> {booking.source === 'hosthub_ical' ? 'HostHub iCal sync' : 'Manual entry'}</span>
         <span><strong>Last synced:</strong> {lastSync ? timeAgo(lastSync.synced_at) : 'never'}</span>
@@ -374,9 +374,27 @@ const notice = Astro.url.searchParams.get('saved');
 <script>
   const channelSelect = document.getElementById('channel-select');
   const airbnbField = document.getElementById('airbnb-payout-field');
+  const CHANNEL_PILL_LABELS_CLIENT: Record<string, string> = { direct: 'DIRECT', airbnb: 'AIRBNB', 'booking.com': 'BK.COM', other: 'OTHER' };
+  const CHANNEL_LABELS_CLIENT: Record<string, string> = { direct: 'Direct', airbnb: 'Airbnb', 'booking.com': 'Booking.com', other: 'Other' };
+  function channelPillClass(channel: string): string {
+    return channel.replace(/[^a-z0-9]/gi, '');
+  }
+  function updateChannelPills(channel: string) {
+    const label = CHANNEL_PILL_LABELS_CLIENT[channel] || channel.toUpperCase();
+    const cls = channelPillClass(channel);
+    ['header-channel-pill', 'hosthub-channel-pill'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = `channel-pill ${cls}`;
+      el.textContent = label;
+    });
+    const summaryEl = document.getElementById('hosthub-summary-channel');
+    if (summaryEl) summaryEl.textContent = CHANNEL_LABELS_CLIENT[channel] || channel;
+  }
   function syncChannelFields() {
     if (!(channelSelect instanceof HTMLSelectElement)) return;
     if (airbnbField) (airbnbField as HTMLElement).style.display = channelSelect.value === 'airbnb' ? '' : 'none';
+    updateChannelPills(channelSelect.value);
   }
   channelSelect?.addEventListener('change', syncChannelFields);
   syncChannelFields();

@@ -38,6 +38,13 @@ export const BOOKING_CHANNEL_LABELS: Record<typeof BOOKING_CHANNELS[number], str
   'booking.com': 'Booking.com',
   other: 'Other',
 };
+// Short uppercase labels for the compact channel pill shown next to the BOOKING/LEAD type pill.
+export const CHANNEL_PILL_LABELS: Record<typeof BOOKING_CHANNELS[number], string> = {
+  direct: 'DIRECT',
+  airbnb: 'AIRBNB',
+  'booking.com': 'BK.COM',
+  other: 'OTHER',
+};
 export const BOOKING_SOURCES = ['manual', 'hosthub_ical'] as const;
 export const DEFAULT_COMMISSION_RATE = 18;
 

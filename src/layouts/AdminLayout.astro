@@ -48,6 +48,11 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       .badge.airbnb { background:#ffe8ec; color:#c81d5c; }
       .badge.bookingcom { background:#e0eafc; color:#003580; }
       .badge.hh { background:#1f2937; color:#fff; }
+      .channel-pill { display:inline-flex; width:max-content; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
+      .channel-pill.airbnb { background:#FF5A5F; }
+      .channel-pill.bookingcom { background:#003580; }
+      .channel-pill.direct { background:#57392E; }
+      .channel-pill.other { background:#6B7280; }
       .pipeline { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 20px; }
       .pipeline a { display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px; padding:7px 14px; background:#fff; color:var(--ink); text-decoration:none; font-size:13px; font-weight:700; }
       .pipeline a .count { background:#eee8e5; color:var(--brown); border-radius:999px; padding:1px 8px; font-size:12px; }

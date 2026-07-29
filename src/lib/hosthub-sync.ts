@@ -15,11 +15,35 @@ export interface HostHubSyncEnv {
 }
 
 const BLOCKED_SUMMARY = /^(blocked|not available)/i;
-const BOOKING_REF_CODE = /^(.*?)\s*\(([A-Z0-9]{5,})\)\s*$/;
+const BOOKING_REF_CODE = /^(.*?)\s*\(([A-Za-z0-9]{5,})\)\s*$/;
 
 export function extractField(block: string, field: string): string {
   const match = block.match(new RegExp(`^${field}(?:;[^:\\r\\n]*)?:(.*)$`, 'm'));
   return match ? match[1].trim() : '';
+}
+
+// Any custom X- property HostHub (or an upstream channel manager) attaches to the VEVENT —
+// logged during sync so we can see whether channel info travels through one of these
+// instead of (or in addition to) SUMMARY/DESCRIPTION.
+export function extractXFields(block: string): Record<string, string> {
+  const fields: Record<string, string> = {};
+  const regex = /^(X-[A-Z0-9-]+)(?:;[^:\r\n]*)?:(.*)$/gim;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(block))) {
+    fields[match[1].toUpperCase()] = match[2].trim();
+  }
+  return fields;
+}
+
+// Explicit platform keyword anywhere in a text field — the most reliable signal
+// whenever HostHub actually includes it (SUMMARY, DESCRIPTION, or an X- field).
+function detectChannelFromText(text: string): string | null {
+  if (!text) return null;
+  if (/airbnb/i.test(text)) return 'airbnb';
+  if (/booking\s*\.?\s*com/i.test(text)) return 'booking.com';
+  if (/\bvrbo\b|\bexpedia\b|\bhomeaway\b/i.test(text)) return 'other';
+  if (/\bdirect\b|\boffline\b/i.test(text)) return 'direct';
+  return null;
 }
 
 function icalDateToIso(value: string): string {
@@ -31,21 +55,48 @@ function unescapeIcalText(value: string): string {
   return value.replace(/\\n/gi, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').trim();
 }
 
-export function parseReservationSummary(summary: string): { guestName: string; channel: string } {
+export function parseReservationSummary(
+  summary: string,
+  description = '',
+  xFields: Record<string, string> = {},
+): { guestName: string; channel: string } {
   const trimmed = summary.trim();
   if (!trimmed || /^offline booking$/i.test(trimmed)) {
     return { guestName: 'Direct Guest', channel: 'direct' };
   }
 
   // Strip a trailing booking-ref code like "(HME55WFNHR)" from the display name regardless
-  // of channel, but let an explicit "airbnb"/"booking" keyword decide the channel first —
-  // HostHub's own channel prefix is more reliable than the shape of the ref code.
+  // of channel — used for display either way.
   const codeMatch = trimmed.match(BOOKING_REF_CODE);
   const displayName = codeMatch && codeMatch[1].trim() ? codeMatch[1].trim() : trimmed;
 
-  if (/airbnb/i.test(trimmed)) return { guestName: displayName, channel: 'airbnb' };
-  if (/booking/i.test(trimmed)) return { guestName: displayName, channel: 'booking.com' };
-  if (codeMatch && codeMatch[1].trim()) return { guestName: displayName, channel: 'booking.com' };
+  // 1. An explicit X- custom field naming the channel is the most trustworthy signal,
+  // if HostHub sends one — try known-ish names first, then any X- field's value.
+  const xChannelField = xFields['X-CHANNEL'] || xFields['X-SOURCE'] || xFields['X-BOOKING-CHANNEL']
+    || xFields['X-HOSTHUB-CHANNEL'] || xFields['X-RESERVATION-CHANNEL'];
+  const fromNamedXField = xChannelField ? detectChannelFromText(xChannelField) : null;
+  if (fromNamedXField) return { guestName: displayName, channel: fromNamedXField };
+  for (const value of Object.values(xFields)) {
+    const detected = detectChannelFromText(value);
+    if (detected) return { guestName: displayName, channel: detected };
+  }
+
+  // 2. Explicit keyword in SUMMARY or DESCRIPTION.
+  const fromSummary = detectChannelFromText(trimmed);
+  if (fromSummary) return { guestName: displayName, channel: fromSummary };
+  const fromDescription = detectChannelFromText(description);
+  if (fromDescription) return { guestName: displayName, channel: fromDescription };
+
+  // 3. No keyword anywhere — fall back to the shape of the reservation code in parens.
+  // Booking.com confirmation numbers are purely numeric (commonly 9-10 digits); Airbnb's
+  // are alphanumeric. This is a best-effort guess pending real sample data (see the
+  // 'iCal event' diagnostic log emitted during sync) and may need retuning.
+  if (codeMatch) {
+    const code = codeMatch[2];
+    if (/^[0-9]+$/.test(code)) return { guestName: displayName, channel: 'booking.com' };
+    if (/[A-Za-z]/.test(code)) return { guestName: displayName, channel: 'airbnb' };
+  }
+
   return { guestName: displayName, channel: 'direct' };
 }
 
@@ -88,6 +139,7 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
 
     const today = nowIso().slice(0, 10);
     const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    let loggedEvents = 0;
 
     for (const rawBlock of blocks) {
       const block = rawBlock.split('END:VEVENT')[0];
@@ -97,6 +149,15 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
         const dtEnd = extractField(block, 'DTEND');
         const summary = extractField(block, 'SUMMARY');
         const description = extractField(block, 'DESCRIPTION');
+        const xFields = extractXFields(block);
+
+        // Temporary diagnostic: HostHub's calendar UI shows the correct channel per
+        // reservation, but that info isn't reliably present in SUMMARY alone — log the
+        // first few raw events so we can see exactly which field actually carries it.
+        if (loggedEvents < 3) {
+          console.log('iCal event:', { uid, summary, description, xFields, raw: block.substring(0, 500) });
+          loggedEvents++;
+        }
 
         if (!uid || !dtStart || !dtEnd) {
           result.skipped++;
@@ -129,7 +190,7 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
           continue;
         }
 
-        const { guestName, channel } = parseReservationSummary(summary);
+        const { guestName, channel } = parseReservationSummary(summary, description, xFields);
         const nights = nightsBetween(checkIn, checkOut);
         const status = deriveStatus(checkIn, checkOut, today);
         const now = nowIso();
