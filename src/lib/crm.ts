@@ -24,9 +24,6 @@ export const GUEST_INTENTS = [
 ] as const;
 export const GUEST_INTENT_VALUES = GUEST_INTENTS.map((i) => i.value);
 
-export const CHARGE_CATEGORIES = ['accommodation', 'transport', 'food', 'boat', 'extra'] as const;
-export const OPERATIONAL_STATUSES = ['not_required', 'pending', 'confirmed', 'completed'] as const;
-
 export const BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed', 'cancelled'] as const;
 export const BOOKING_CHANNELS = ['direct', 'airbnb', 'booking.com', 'other'] as const;
 export const BOOKING_CHANNEL_LABELS: Record<typeof BOOKING_CHANNELS[number], string> = {
@@ -52,24 +49,6 @@ export function isOneOf<T extends readonly string[]>(value: string, values: T): 
 
 export function channelBadgeClass(channel: string): string {
   return channel.replace(/[^a-z0-9]/gi, '');
-}
-
-interface ChargeLike {
-  category: string;
-  amount_cents: number;
-}
-
-export function revenueByCategory(charges: ChargeLike[]): { accommodation: number; food: number; transport: number; other: number } {
-  return charges.reduce(
-    (acc, charge) => {
-      if (charge.category === 'accommodation') acc.accommodation += charge.amount_cents;
-      else if (charge.category === 'food') acc.food += charge.amount_cents;
-      else if (charge.category === 'transport') acc.transport += charge.amount_cents;
-      else acc.other += charge.amount_cents; // boat, extra
-      return acc;
-    },
-    { accommodation: 0, food: 0, transport: 0, other: 0 },
-  );
 }
 
 export function money(cents: number, currency = 'COP'): string {

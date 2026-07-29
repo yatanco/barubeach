@@ -11,19 +11,20 @@ function centsOrZero(value: string): number {
   return pesos * 100;
 }
 
+// Commission rate itself is edited inline in the Revenue & cost table (see
+// /admin/api/bookings/[id]/commission-rate.ts) — this endpoint only switches
+// the channel and recomputes ota_commission_cents against whatever rate is
+// already stored, so switching channel doesn't require a second save to
+// pick up commission.
 export const POST: APIRoute = async ({ request, locals, params }) => {
   if (!params.id) return new Response('Invalid booking', { status: 422 });
   const db = requireDb(locals);
-  const booking = await db.prepare('SELECT source FROM bookings WHERE id = ?1').bind(params.id).first<{ source: string }>();
+  const booking = await db.prepare('SELECT source, commission_rate FROM bookings WHERE id = ?1').bind(params.id).first<{ source: string; commission_rate: number }>();
   if (!booking) return new Response('Booking not found', { status: 404 });
 
   const form = await request.formData();
   const channel = formString(form, 'channel');
   if (!isOneOf(channel, BOOKING_CHANNELS)) return new Response('Invalid channel', { status: 422 });
-
-  const rateRaw = formString(form, 'commission_rate');
-  const commissionRate = rateRaw ? Number(rateRaw) : DEFAULT_COMMISSION_RATE;
-  if (!Number.isFinite(commissionRate) || commissionRate < 0) return new Response('Invalid commission rate', { status: 422 });
 
   let airbnbPayoutCents: number;
   try {
@@ -44,17 +45,18 @@ export const POST: APIRoute = async ({ request, locals, params }) => {
   const accommodationRow = await db.prepare(`SELECT COALESCE(SUM(amount_cents),0) AS total FROM charges WHERE booking_id = ?1 AND category = 'accommodation'`)
     .bind(params.id).first<{ total: number }>();
   const accommodationCents = accommodationRow?.total ?? 0;
+  const commissionRate = booking.commission_rate ?? DEFAULT_COMMISSION_RATE;
   const otaCommissionCents = channel === 'booking.com' ? Math.round(accommodationCents * (commissionRate / 100) * 1.19) : 0;
 
   const now = nowIso();
   if (canEditDates) {
     const nights = Math.max(0, Math.round((Date.parse(`${dateTo}T00:00:00Z`) - Date.parse(`${dateFrom}T00:00:00Z`)) / 86_400_000));
-    await db.prepare(`UPDATE bookings SET channel=?1, commission_rate=?2, airbnb_payout_cents=?3, ota_commission_cents=?4, date_from=?5, date_to=?6, nights=?7, updated_at=?8 WHERE id=?9`)
-      .bind(channel, commissionRate, airbnbPayoutCents, otaCommissionCents, dateFrom, dateTo, nights, now, params.id)
+    await db.prepare(`UPDATE bookings SET channel=?1, airbnb_payout_cents=?2, ota_commission_cents=?3, date_from=?4, date_to=?5, nights=?6, updated_at=?7 WHERE id=?8`)
+      .bind(channel, airbnbPayoutCents, otaCommissionCents, dateFrom, dateTo, nights, now, params.id)
       .run();
   } else {
-    await db.prepare(`UPDATE bookings SET channel=?1, commission_rate=?2, airbnb_payout_cents=?3, ota_commission_cents=?4, updated_at=?5 WHERE id=?6`)
-      .bind(channel, commissionRate, airbnbPayoutCents, otaCommissionCents, now, params.id)
+    await db.prepare(`UPDATE bookings SET channel=?1, airbnb_payout_cents=?2, ota_commission_cents=?3, updated_at=?4 WHERE id=?5`)
+      .bind(channel, airbnbPayoutCents, otaCommissionCents, now, params.id)
       .run();
   }
 

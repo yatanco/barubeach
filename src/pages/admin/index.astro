@@ -106,9 +106,9 @@ if (!db) {
       db.prepare(`SELECT
           COALESCE(SUM(MAX(0, CAST(JULIANDAY(MIN(SUBSTR(b.date_to,1,10), ?2)) - JULIANDAY(MAX(SUBSTR(b.date_from,1,10), ?1)) AS INTEGER))), 0) AS occupied_nights,
           COALESCE(SUM(COALESCE(rev.total_cents, 0)), 0) AS revenue_cents,
-          COALESCE(SUM(COALESCE(rev.total_cents, 0) + COALESCE(b.airbnb_payout_cents, 0) - b.ota_commission_cents - b.cost_staff_cents - b.cost_food_cents - b.cost_transport_cents), 0) AS contribution_cents
+          COALESCE(SUM(COALESCE(rev.total_cents, 0) + COALESCE(b.airbnb_payout_cents, 0) - b.ota_commission_cents - COALESCE(rev.total_cost_cents, 0)), 0) AS contribution_cents
         FROM bookings b
-        LEFT JOIN (SELECT booking_id, SUM(amount_cents) AS total_cents FROM charges GROUP BY booking_id) rev ON rev.booking_id = b.id
+        LEFT JOIN (SELECT booking_id, SUM(amount_cents) AS total_cents, SUM(cost_cents) AS total_cost_cents FROM charges GROUP BY booking_id) rev ON rev.booking_id = b.id
         WHERE b.status != 'cancelled' AND SUBSTR(b.date_from,1,10) < ?2 AND SUBSTR(b.date_to,1,10) > ?1`)
         .bind(monthStartStr, monthEndStr).first<MonthSummaryRow>(),
     ]);
