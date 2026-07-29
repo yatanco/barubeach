@@ -13,16 +13,15 @@ function centsOrZero(value: string): number {
 export const POST: APIRoute = async ({ request, locals, params }) => {
   if (!params.id) return new Response('Invalid booking', { status: 422 });
   const form = await request.formData();
-  let otaCommission: number, costStaff: number, costFood: number, costTransport: number;
+  let costStaff: number, costFood: number, costTransport: number;
   try {
-    otaCommission = centsOrZero(formString(form, 'ota_commission'));
     costStaff = centsOrZero(formString(form, 'cost_staff'));
     costFood = centsOrZero(formString(form, 'cost_food'));
     costTransport = centsOrZero(formString(form, 'cost_transport'));
   } catch {
     return new Response('Invalid amount', { status: 422 });
   }
-  await requireDb(locals).prepare(`UPDATE bookings SET ota_commission_cents = ?1, cost_staff_cents = ?2, cost_food_cents = ?3, cost_transport_cents = ?4 WHERE id = ?5`)
-    .bind(otaCommission, costStaff, costFood, costTransport, params.id).run();
+  await requireDb(locals).prepare(`UPDATE bookings SET cost_staff_cents = ?1, cost_food_cents = ?2, cost_transport_cents = ?3 WHERE id = ?4`)
+    .bind(costStaff, costFood, costTransport, params.id).run();
   return redirectBack(request, `/admin/bookings/${params.id}`, { saved: '1' });
 };

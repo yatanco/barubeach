@@ -38,12 +38,13 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       .badge { display:inline-flex; width:max-content; border-radius:999px; padding:3px 9px; background:#eee8e5; color:var(--brown); font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
       .badge.new,.badge.confirmed { background:#dff8f1; color:#116149; }
       .badge.quoted,.badge.checked_in { background:#e0f2fe; color:#075985; }
+      .badge.deposit_pending { background:#ffedd5; color:#9a3412; }
       .badge.deposit { background:#fef3c7; color:#92400e; }
       .badge.booked { background:#dcfce7; color:#166534; }
       .badge.completed { background:#ede9fe; color:#5b21b6; }
       .badge.spam { background:#f3f4f6; color:#6b7280; }
       .badge.lost,.badge.cancelled,.badge.overdue { background:#fee4e2; color:var(--red); }
-      .badge.direct { background:#eee8e5; color:var(--brown); }
+      .badge.direct,.badge.other { background:#eee8e5; color:var(--brown); }
       .badge.airbnb { background:#ffe8ec; color:#c81d5c; }
       .badge.bookingcom { background:#e0eafc; color:#003580; }
       .badge.hh { background:#1f2937; color:#fff; }

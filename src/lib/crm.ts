@@ -1,10 +1,11 @@
-export const LEAD_STATUSES = ['new', 'quoted', 'deposit', 'booked', 'completed', 'lost', 'spam'] as const;
+export const LEAD_STATUSES = ['new', 'quoted', 'deposit_pending', 'deposit', 'booked', 'completed', 'lost', 'spam'] as const;
 export type LeadStatus = typeof LEAD_STATUSES[number];
 
-export const PIPELINE_STATUSES = ['new', 'quoted', 'deposit', 'booked', 'completed'] as const;
+export const PIPELINE_STATUSES = ['new', 'quoted', 'deposit_pending', 'deposit', 'booked', 'completed'] as const;
 export const PIPELINE_LABELS: Record<typeof PIPELINE_STATUSES[number], string> = {
   new: 'New',
   quoted: 'Quoted',
+  deposit_pending: 'Deposit Pending',
   deposit: 'Deposit',
   booked: 'Booked',
   completed: 'Completed',
@@ -27,8 +28,15 @@ export const CHARGE_CATEGORIES = ['accommodation', 'transport', 'food', 'boat', 
 export const OPERATIONAL_STATUSES = ['not_required', 'pending', 'confirmed', 'completed'] as const;
 
 export const BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed', 'cancelled'] as const;
-export const BOOKING_CHANNELS = ['direct', 'airbnb', 'booking.com'] as const;
+export const BOOKING_CHANNELS = ['direct', 'airbnb', 'booking.com', 'other'] as const;
+export const BOOKING_CHANNEL_LABELS: Record<typeof BOOKING_CHANNELS[number], string> = {
+  direct: 'Direct',
+  airbnb: 'Airbnb',
+  'booking.com': 'Booking.com',
+  other: 'Other',
+};
 export const BOOKING_SOURCES = ['manual', 'hosthub_ical'] as const;
+export const DEFAULT_COMMISSION_RATE = 18;
 
 export const PAYMENT_LINK_PROVIDERS = ['bold', 'wompi'] as const;
 export const PROVIDER_PAYMENT_METHODS = ['nequi', 'transferencia', 'efectivo'] as const;
@@ -44,6 +52,31 @@ export function isOneOf<T extends readonly string[]>(value: string, values: T): 
 
 export function channelBadgeClass(channel: string): string {
   return channel.replace(/[^a-z0-9]/gi, '');
+}
+
+// "Needs attention" primary action per lead pipeline stage, shown on the dashboard.
+export const LEAD_ACTION_LABELS: Partial<Record<typeof PIPELINE_STATUSES[number], string>> = {
+  new: 'Send Quote',
+  quoted: 'Request Deposit',
+  deposit_pending: 'Send Payment Link',
+};
+
+interface ChargeLike {
+  category: string;
+  amount_cents: number;
+}
+
+export function revenueByCategory(charges: ChargeLike[]): { accommodation: number; food: number; transport: number; other: number } {
+  return charges.reduce(
+    (acc, charge) => {
+      if (charge.category === 'accommodation') acc.accommodation += charge.amount_cents;
+      else if (charge.category === 'food') acc.food += charge.amount_cents;
+      else if (charge.category === 'transport') acc.transport += charge.amount_cents;
+      else acc.other += charge.amount_cents; // boat, extra
+      return acc;
+    },
+    { accommodation: 0, food: 0, transport: 0, other: 0 },
+  );
 }
 
 export function money(cents: number, currency = 'COP'): string {

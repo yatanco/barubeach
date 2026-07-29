@@ -6,7 +6,7 @@ import { createBoldLink, createWompiLink } from '../../../../../lib/payment-prov
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, locals, params }) => {
-  if (!params.id) return Response.json({ success: false, error: 'Invalid booking' }, { status: 422 });
+  if (!params.id) return Response.json({ success: false, error: 'Invalid lead' }, { status: 422 });
   const db = requireDb(locals);
   const env = getRuntimeEnv(locals);
 
@@ -39,14 +39,18 @@ export const POST: APIRoute = async ({ request, locals, params }) => {
         })();
 
     const id = crypto.randomUUID();
-    await db.prepare(`INSERT INTO payment_links (id,booking_id,charge_description,amount_cents,provider,link_id,url,status,created_at,expires_at)
-      VALUES (?1,?2,?3,?4,?5,?6,?7,'active',?8,?9)`)
-      .bind(id, params.id, description, amountCents, provider, result.linkId, result.url, nowIso(), result.expiresAt)
-      .run();
+    const now = nowIso();
+    await db.batch([
+      db.prepare(`INSERT INTO payment_links (id,lead_id,charge_description,amount_cents,provider,link_id,url,status,created_at,expires_at)
+        VALUES (?1,?2,?3,?4,?5,?6,?7,'active',?8,?9)`)
+        .bind(id, params.id, description, amountCents, provider, result.linkId, result.url, now, result.expiresAt),
+      db.prepare(`UPDATE leads SET status = 'deposit_pending', updated_at = ?1 WHERE id = ?2 AND status NOT IN ('booked', 'completed', 'lost', 'spam')`)
+        .bind(now, params.id),
+    ]);
 
     return Response.json({ success: true, url: result.url, provider });
   } catch (cause) {
-    console.error('[admin] booking payment link creation failed', cause);
+    console.error('[admin] lead payment link creation failed', cause);
     const providerLabel = provider === 'bold' ? 'Bold' : 'Wompi';
     const otherLabel = provider === 'bold' ? 'Wompi' : 'Bold';
     return Response.json({ success: false, error: `${providerLabel} unavailable — use ${otherLabel}` }, { status: 502 });

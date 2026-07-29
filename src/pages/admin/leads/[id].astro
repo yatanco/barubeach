@@ -2,14 +2,18 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireDb } from '../../../lib/db';
 import {
-  PIPELINE_STATUSES, PIPELINE_LABELS, GUEST_INTENTS, shortDate,
+  PIPELINE_STATUSES, PIPELINE_LABELS, GUEST_INTENTS, shortDate, money,
   nightsBetween, formatUsd, formatMoneyAmount, QUOTE_RATES, QUOTE_CURRENCIES, waLinkTo, buildQuoteWhatsAppMessage,
 } from '../../../lib/crm';
 
 export const prerender = false;
+interface PaymentLinkRow {
+  id:string; charge_description:string; amount_cents:number; provider:string; url:string; status:string; created_at:string; expires_at:string|null;
+}
 const db = requireDb(Astro.locals);
 const lead = await db.prepare('SELECT * FROM leads WHERE id = ?1').bind(Astro.params.id).first<any>();
 if (!lead) return Astro.redirect('/admin');
+const depositLinks = (await db.prepare(`SELECT * FROM payment_links WHERE lead_id = ?1 ORDER BY created_at DESC`).bind(lead.id).all<PaymentLinkRow>()).results;
 const notice = Astro.url.searchParams.get('saved');
 const leadError = Astro.url.searchParams.get('leadError');
 
@@ -125,6 +129,57 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
       </div>
     </form>
   </section>
+
+  {Number(lead.quote_deposit) > 0 && (
+    <section class="card" style="max-width:760px;margin-bottom:20px">
+      <h2>Collect deposit</h2>
+      <p class="muted" style="margin-top:-8px">
+        Deposit amount: <strong>{formatMoneyAmount(lead.quote_deposit, currency)} {currency}</strong>
+        {currency !== 'COP' && ' — quote is in USD, enter the COP amount to charge below (payment links are COP only)'}
+      </p>
+      <form class="form-grid" id="deposit-link-form">
+        <label class="span-2">Description<input name="description" id="deposit-description" required value={`Depósito — ${lead.guest_name || 'Casa Gaviota'}`} /></label>
+        <label>Amount (COP)<input name="amount" inputmode="numeric" id="deposit-amount" required value={currency === 'COP' ? Math.round(lead.quote_deposit) : ''} placeholder={currency !== 'COP' ? 'Enter COP amount' : ''} /></label>
+        <div class="span-2 actions" style="align-items:flex-start;flex-wrap:wrap;gap:16px">
+          <div class="stack" style="gap:6px">
+            <button type="submit" data-provider="wompi" style="background:#3369ff">🔵 Generate Wompi link</button>
+            <span class="field-error" id="wompi-link-error" style="display:none"></span>
+          </div>
+          <div class="stack" style="gap:6px">
+            <button type="submit" data-provider="bold" style="background:#ffc93c;color:#261d1a">🟡 Generate Bold link</button>
+            <span class="field-error" id="bold-link-error" style="display:none"></span>
+          </div>
+        </div>
+      </form>
+
+      {depositLinks.length === 0 && <p class="muted" style="margin-top:14px">No payment links generated yet.</p>}
+      {depositLinks.length > 0 && (
+        <table style="margin-top:14px">
+          <thead><tr><th>Provider</th><th>Description</th><th>Amount</th><th>Status</th><th>Link</th></tr></thead>
+          <tbody>
+            {depositLinks.map((link) => (
+              <tr>
+                <td><span class="badge">{link.provider}</span></td>
+                <td>{link.charge_description}</td>
+                <td class="amount">{money(link.amount_cents)}</td>
+                <td><span class={`badge ${link.status === 'active' ? 'confirmed' : 'lost'}`}>{link.status}</span></td>
+                <td class="actions">
+                  <button type="button" class="secondary copy-link-btn" data-url={link.url}>Copy</button>
+                  <a class="button secondary" href={link.url} target="_blank" rel="noopener">Open</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {depositLinks.length > 0 && (
+        <div class="stack" style="margin-top:16px">
+          <button type="button" class="secondary" id="copy-deposit-message-btn">📋 Copy deposit request</button>
+        </div>
+      )}
+    </section>
+  )}
 
   <details>
     <summary>+ Convert to Booking</summary>
@@ -284,4 +339,92 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
   document.querySelectorAll('input[name="quote_currency"]').forEach((el) => el.addEventListener('change', () => { syncCurrencyLabels(); recalcTotal(); }));
 
   syncToggleVisibility();
+</script>
+
+<script define:vars={{ guestName: lead.guest_name, leadId: lead.id, waLinks: depositLinks.map((l: any) => ({ provider: l.provider, description: l.charge_description, amount: l.amount_cents / 100, url: l.url })) }}>
+  const depositForm = document.getElementById('deposit-link-form');
+  depositForm?.querySelectorAll('button[data-provider]').forEach((btn) => {
+    btn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      if (!(btn instanceof HTMLButtonElement)) return;
+      const provider = btn.dataset.provider;
+      const errorBox = document.getElementById(`${provider}-link-error`);
+      const description = (document.getElementById('deposit-description')).value.trim();
+      const amount = Number((document.getElementById('deposit-amount')).value.replace(/[^0-9]/g, ''));
+      if (!description || !amount) return;
+      if (errorBox) errorBox.style.display = 'none';
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Generating…';
+      try {
+        const res = await fetch(`/admin/api/leads/${leadId}/payment-links`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, amount, description }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else if (errorBox) {
+          errorBox.textContent = data.error || 'Could not generate payment link.';
+          errorBox.style.display = '';
+        }
+      } catch {
+        if (errorBox) {
+          errorBox.textContent = 'Network error — could not reach the server.';
+          errorBox.style.display = '';
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
+  });
+
+  document.querySelectorAll('.copy-link-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const url = btn.getAttribute('data-url');
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      } catch {
+        // clipboard API unavailable — nothing else to do here
+      }
+    });
+  });
+
+  document.getElementById('copy-deposit-message-btn')?.addEventListener('click', async () => {
+    if (!waLinks.length) return;
+    const latest = waLinks[0];
+    const wompi = waLinks.find((l) => l.provider === 'wompi');
+    const bold = waLinks.find((l) => l.provider === 'bold');
+    const lines = [
+      `Hola ${guestName || ''}! 🌴`,
+      '',
+      'Para confirmar tu reserva en Casa Gaviota,',
+      'necesitamos el depósito de:',
+      '',
+      `💳 $${latest.amount.toLocaleString('es-CO')} COP`,
+      '',
+      'Puedes pagar aquí:',
+    ];
+    if (wompi) lines.push(`- Wompi: ${wompi.url}`);
+    if (bold) lines.push(`- Bold: ${bold.url}`);
+    lines.push(
+      '',
+      'Una vez confirmado el pago bloqueamos',
+      'tus fechas. ¡Gracias! 🌊',
+    );
+    const message = lines.join('\n');
+    const btn = document.getElementById('copy-deposit-message-btn');
+    try {
+      await navigator.clipboard.writeText(message);
+      if (btn) { const original = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => { if (btn) btn.textContent = original; }, 1500); }
+    } catch {
+      // clipboard API unavailable — nothing else to do here
+    }
+  });
 </script>

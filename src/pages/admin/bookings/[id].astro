@@ -1,7 +1,11 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireDb } from '../../../lib/db';
-import { money, shortDate, timeAgo, channelBadgeClass, PAYMENT_LINK_PROVIDERS, PROVIDER_PAYMENT_METHODS, PROVIDER_PAYMENT_METHOD_LABELS } from '../../../lib/crm';
+import {
+  money, shortDate, timeAgo, channelBadgeClass, revenueByCategory,
+  BOOKING_CHANNELS, BOOKING_CHANNEL_LABELS, DEFAULT_COMMISSION_RATE,
+  PROVIDER_PAYMENT_METHODS, PROVIDER_PAYMENT_METHOD_LABELS,
+} from '../../../lib/crm';
 
 export const prerender = false;
 interface ChargeRow {
@@ -34,17 +38,27 @@ const chargeViews = charges.map((charge) => {
   };
 });
 
+const revenue = revenueByCategory(charges);
 const costStaff = booking.cost_staff_cents ?? 0;
 const costFood = booking.cost_food_cents ?? 0;
 const costTransport = booking.cost_transport_cents ?? 0;
-const otaCommission = booking.ota_commission_cents ?? 0;
 const totalCosts = costStaff + costFood + costTransport;
+const airbnbPayoutCents = booking.airbnb_payout_cents ?? 0;
+const commissionRate = booking.commission_rate ?? DEFAULT_COMMISSION_RATE;
+const otaCommissionCents = booking.ota_commission_cents ?? 0;
+// Live preview from current charges + rate — kept separate from the persisted
+// ota_commission_cents (used in Net Contribution below) so the commission box
+// stays internally consistent even before "Save booking details" is clicked.
+const commissionPreviewCents = Math.round(revenue.accommodation * commissionRate / 100 * 1.19);
 
 const paymentLinks = (await db.prepare(`SELECT * FROM payment_links WHERE booking_id = ?1 ORDER BY created_at DESC`).bind(booking.id).all<PaymentLinkRow>()).results;
 const providerPayments = (await db.prepare(`SELECT * FROM provider_payments WHERE booking_id = ?1 ORDER BY paid_at DESC`).bind(booking.id).all<ProviderPaymentRow>()).results;
 const providerPaymentsTotal = providerPayments.reduce((sum, item) => sum + item.amount_cents, 0);
 
-const netContribution = total - otaCommission - totalCosts - providerPaymentsTotal;
+// Airbnb collects accommodation revenue directly (payout is net of Airbnb's own cut), so it's
+// added on top of charges rather than replacing them; ota_commission_cents is only ever
+// non-zero for Booking.com (see /admin/api/bookings/[id]/channel.ts).
+const netContribution = total + airbnbPayoutCents - otaCommissionCents - totalCosts - providerPaymentsTotal;
 const perNight = booking.nights > 0 ? Math.round(netContribution / booking.nights) : 0;
 const perGuest = booking.adults > 0 ? Math.round(netContribution / booking.adults) : 0;
 
@@ -55,7 +69,7 @@ const notice = Astro.url.searchParams.get('saved');
   {notice && <div class="alert">Saved successfully.</div>}
   <div class="actions" style="justify-content:space-between;margin-bottom:22px">
     <div>
-      <div class="actions"><h1 style="margin:0">{booking.guest_name}</h1><span class={`badge ${channelBadgeClass(booking.channel)}`}>{booking.channel}</span>{booking.source === 'hosthub_ical' && <span class="badge hh">HH</span>}</div>
+      <div class="actions"><h1 style="margin:0">{booking.guest_name}</h1><span class={`badge ${channelBadgeClass(booking.channel)}`}>{BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span>{booking.source === 'hosthub_ical' && <span class="badge hh">HH</span>}</div>
       <p class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · {booking.nights} nights · {booking.adults} adults · {booking.children} children</p>
     </div>
     {booking.guest_phone && <a class="button" href={`https://wa.me/${booking.guest_phone.replace(/\D/g,'')}`} target="_blank">Open WhatsApp</a>}
@@ -65,7 +79,7 @@ const notice = Astro.url.searchParams.get('saved');
     <h2>HostHub reservation</h2>
     <div class="grid grid-2">
       <div class="stack">
-        <span><strong>Channel:</strong> <span class={`badge ${channelBadgeClass(booking.channel)}`}>{booking.channel}</span></span>
+        <span><strong>Channel:</strong> <span class={`badge ${channelBadgeClass(booking.channel)}`}>{BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span></span>
         <span><strong>Reservation ID:</strong> {booking.reservation_id || 'not linked'}</span>
         <span><strong>Source:</strong> {booking.source === 'hosthub_ical' ? 'HostHub iCal sync' : 'Manual entry'}</span>
         <span><strong>Last synced:</strong> {lastSync ? timeAgo(lastSync.synced_at) : 'never'}</span>
@@ -76,6 +90,35 @@ const notice = Astro.url.searchParams.get('saved');
         <span class="muted" style="font-size:12px">HostHub owns availability and channel sync. This CRM owns extras, payments and operations.</span>
       </div>
     </div>
+  </section>
+
+  <section class="card" style="margin-bottom:20px">
+    <h2>Booking details</h2>
+    <form class="form-grid" method="POST" action={`/admin/api/bookings/${booking.id}/channel`} id="channel-form">
+      <label>Channel
+        <select name="channel" id="channel-select">
+          {BOOKING_CHANNELS.map((c) => <option value={c} selected={c === booking.channel}>{BOOKING_CHANNEL_LABELS[c]}</option>)}
+        </select>
+      </label>
+      <div class="span-2" />
+
+      <label id="commission-rate-field" style={booking.channel === 'booking.com' ? '' : 'display:none'}>
+        Booking.com commission rate (%)<input type="number" min="0" step="0.1" name="commission_rate" value={commissionRate} />
+      </label>
+      <label id="airbnb-payout-field" style={booking.channel === 'airbnb' ? '' : 'display:none'}>
+        Airbnb payout received (COP)<input name="airbnb_payout" inputmode="numeric" value={airbnbPayoutCents / 100} />
+      </label>
+
+      {booking.source === 'manual'
+        ? <>
+            <label>Check-in<input type="date" name="date_from" id="booking-date-from" value={booking.date_from?.slice(0,10) || ''} /></label>
+            <label>Checkout<input type="date" name="date_to" id="booking-date-to" value={booking.date_to?.slice(0,10) || ''} /></label>
+            <div class="span-2 field-error" id="booking-date-error" style="display:none">Check-out must be after check-in</div>
+          </>
+        : <div class="span-2 muted" style="font-size:12px">Dates are managed by the HostHub sync — edit the reservation in HostHub, not here.</div>}
+
+      <div class="span-2"><button type="submit" id="channel-save-btn">Save booking details</button></div>
+    </form>
   </section>
 
   <div class="grid grid-2">
@@ -100,12 +143,37 @@ const notice = Astro.url.searchParams.get('saved');
   </div>
 
   <section class="card" style="margin-top:20px">
+    <h2>Revenue by category</h2>
+    <p class="muted" style="font-size:12px;margin-top:-8px">Rolled up from the charges below — add or edit charges to change these.</p>
+    {booking.channel !== 'airbnb' && <div class="row" style="border-top:0;padding-top:0"><span>Accommodation</span><span class="amount">{money(revenue.accommodation)}</span></div>}
+    {booking.channel === 'airbnb' && <div class="row" style="border-top:0;padding-top:0"><span>Airbnb payout</span><span class="amount">{money(airbnbPayoutCents)}</span></div>}
+    <div class="row"><span>Food</span><span class="amount">{money(revenue.food)}</span></div>
+    <div class="row"><span>Transport</span><span class="amount">{money(revenue.transport)}</span></div>
+    <div class="row"><span>Other</span><span class="amount">{money(revenue.other)}</span></div>
+
+    {booking.channel === 'booking.com' && (
+      <div class="commission-box">
+        <h3 style="margin-bottom:10px">Booking.com commission</h3>
+        <div class="row" style="border-top:0;padding-top:0"><span>Rate</span><span class="amount">{commissionRate}%</span></div>
+        <div class="row"><span>Commission</span><span class="amount">{money(Math.round(revenue.accommodation * commissionRate / 100))}</span></div>
+        <div class="row"><span>VAT (19%)</span><span class="amount">{money(Math.round(revenue.accommodation * commissionRate / 100 * 0.19))}</span></div>
+        <div class="row"><strong>Total</strong><strong class="amount">{money(commissionPreviewCents)}</strong></div>
+        <p class="muted" style="font-size:12px;margin:10px 0 0">Rate varies by booking (Genius discounts etc). Default 18%.
+          {commissionPreviewCents !== otaCommissionCents && ' Save booking details to apply this to Net Contribution below.'}
+        </p>
+      </div>
+    )}
+
+    {booking.channel === 'airbnb' && (
+      <div class="info-box">✅ Stay paid by Airbnb automatically. Focus on food and transport upsells.</div>
+    )}
+  </section>
+
+  <section class="card" style="margin-top:20px">
     <h2>Variable costs</h2>
     <form class="form-grid" method="POST" action={`/admin/api/bookings/${booking.id}/costs`}>
-      <label>OTA commission (COP)<input name="ota_commission" inputmode="numeric" value={otaCommission / 100} /></label>
-      <div class="muted" style="align-self:end;font-size:12px;padding-bottom:9px">Airbnb / Booking.com commission — 0 for direct bookings</div>
       <label>Staff (COP)<input name="cost_staff" inputmode="numeric" value={costStaff / 100} /></label>
-      <div class="span-2" />
+      <div class="muted" style="align-self:end;font-size:12px;padding-bottom:9px"></div>
       <label>Food (COP)<input name="cost_food" inputmode="numeric" value={costFood / 100} /></label>
       <div class="muted" style="align-self:end;font-size:12px;padding-bottom:9px">Groceries — what you spend at the market</div>
       <label>Transport (COP)<input name="cost_transport" inputmode="numeric" value={costTransport / 100} /></label>
@@ -152,13 +220,18 @@ const notice = Astro.url.searchParams.get('saved');
 
   <section class="card" style="margin-top:20px">
     <h2>Payment links</h2>
-    <div class="alert" id="link-error" style="display:none"></div>
     <form class="form-grid" id="payment-link-form">
       <label class="span-2">Description<input name="description" required placeholder="Depósito 50%" id="link-description" /></label>
       <label>Amount (COP)<input name="amount" inputmode="numeric" required placeholder="750.000" id="link-amount" /></label>
-      <div class="span-2 actions">
-        <button type="submit" data-provider="wompi" style="background:#3369ff">🔵 Generate Wompi link</button>
-        <button type="submit" data-provider="bold" style="background:#ffc93c;color:#261d1a">🟡 Generate Bold link</button>
+      <div class="span-2 actions" style="align-items:flex-start;flex-wrap:wrap;gap:16px">
+        <div class="stack" style="gap:6px">
+          <button type="submit" data-provider="wompi" style="background:#3369ff">🔵 Generate Wompi link</button>
+          <span class="field-error" id="wompi-link-error" style="display:none"></span>
+        </div>
+        <div class="stack" style="gap:6px">
+          <button type="submit" data-provider="bold" style="background:#ffc93c;color:#261d1a">🟡 Generate Bold link</button>
+          <span class="field-error" id="bold-link-error" style="display:none"></span>
+        </div>
       </div>
     </form>
 
@@ -249,21 +322,72 @@ const notice = Astro.url.searchParams.get('saved');
   .contribution-box .row { border-top:1px solid rgb(87 57 46 / 15%); }
   .contribution-box .row:first-child { border-top:0; }
   .contribution-box .amount { color:#57392E; }
+  .commission-box { background:#f6f3f1; border:1px solid var(--line); border-radius:10px; padding:6px 16px; margin-top:16px; }
+  .info-box { background:#dff8f1; color:#116149; border-radius:10px; padding:14px 16px; margin-top:16px; font-weight:700; }
+  .field-error { color:var(--red); font-size:12px; margin-top:-8px; }
   dialog#add-provider-payment-dialog { border:1px solid var(--line); border-radius:14px; padding:22px; max-width:520px; width:calc(100% - 40px); box-shadow:0 10px 40px rgb(38 29 26 / 18%); }
   dialog#add-provider-payment-dialog::backdrop { background:rgb(38 29 26 / 35%); }
 </style>
 
+<script>
+  const channelSelect = document.getElementById('channel-select');
+  const commissionField = document.getElementById('commission-rate-field');
+  const airbnbField = document.getElementById('airbnb-payout-field');
+  function syncChannelFields() {
+    if (!(channelSelect instanceof HTMLSelectElement)) return;
+    if (commissionField) (commissionField as HTMLElement).style.display = channelSelect.value === 'booking.com' ? '' : 'none';
+    if (airbnbField) (airbnbField as HTMLElement).style.display = channelSelect.value === 'airbnb' ? '' : 'none';
+  }
+  channelSelect?.addEventListener('change', syncChannelFields);
+  syncChannelFields();
+
+  function wireDateValidation(checkinId: string, checkoutId: string, errorId: string, submitId: string) {
+    const checkin = document.getElementById(checkinId) as HTMLInputElement | null;
+    const checkout = document.getElementById(checkoutId) as HTMLInputElement | null;
+    const error = document.getElementById(errorId);
+    const submit = document.getElementById(submitId) as HTMLButtonElement | null;
+    if (!checkin || !checkout) return;
+
+    function addDay(dateStr: string): string {
+      const d = new Date(`${dateStr}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      return d.toISOString().slice(0, 10);
+    }
+    function isInvalid(): boolean {
+      return !!(checkin!.value && checkout!.value && checkout!.value <= checkin!.value);
+    }
+    function refresh() {
+      const invalid = isInvalid();
+      if (error) (error as HTMLElement).style.display = invalid ? '' : 'none';
+      if (submit) submit.disabled = invalid;
+    }
+
+    checkin.addEventListener('change', () => {
+      checkout!.min = checkin!.value ? addDay(checkin!.value) : '';
+      if (isInvalid()) checkout!.value = '';
+      refresh();
+    });
+    checkout.addEventListener('change', refresh);
+
+    if (checkin.value) checkout.min = addDay(checkin.value);
+    refresh();
+  }
+
+  wireDateValidation('booking-date-from', 'booking-date-to', 'booking-date-error', 'channel-save-btn');
+</script>
+
 <script define:vars={{ guestName: booking.guest_name, bookingId: booking.id, waLinks: paymentLinks.map((l: any) => ({ provider: l.provider, description: l.charge_description, amount: l.amount_cents / 100, url: l.url })) }}>
   const linkForm = document.getElementById('payment-link-form');
-  const linkErrorBox = document.getElementById('link-error');
   linkForm?.querySelectorAll('button[data-provider]').forEach((btn) => {
     btn.addEventListener('click', async (event) => {
       event.preventDefault();
-      if (!(btn instanceof HTMLButtonElement) || !(linkForm instanceof HTMLFormElement)) return;
+      if (!(btn instanceof HTMLButtonElement)) return;
+      const provider = btn.dataset.provider;
+      const errorBox = document.getElementById(`${provider}-link-error`);
       const description = (document.getElementById('link-description')).value.trim();
       const amount = Number((document.getElementById('link-amount')).value.replace(/[^0-9]/g, ''));
       if (!description || !amount) return;
-      if (linkErrorBox) linkErrorBox.style.display = 'none';
+      if (errorBox) errorBox.style.display = 'none';
       const original = btn.textContent;
       btn.disabled = true;
       btn.textContent = 'Generating…';
@@ -271,19 +395,19 @@ const notice = Astro.url.searchParams.get('saved');
         const res = await fetch(`/admin/api/bookings/${bookingId}/payment-links`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ provider: btn.dataset.provider, amount, description }),
+          body: JSON.stringify({ provider, amount, description }),
         });
         const data = await res.json();
         if (data.success) {
           window.location.reload();
-        } else if (linkErrorBox) {
-          linkErrorBox.textContent = data.error || 'Could not generate payment link.';
-          linkErrorBox.style.display = '';
+        } else if (errorBox) {
+          errorBox.textContent = data.error || 'Could not generate payment link.';
+          errorBox.style.display = '';
         }
       } catch {
-        if (linkErrorBox) {
-          linkErrorBox.textContent = 'Network error — could not reach the server.';
-          linkErrorBox.style.display = '';
+        if (errorBox) {
+          errorBox.textContent = 'Network error — could not reach the server.';
+          errorBox.style.display = '';
         }
       } finally {
         btn.disabled = false;
