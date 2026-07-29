@@ -33,13 +33,14 @@ interface ListItem {
   valueLabel: string;
   valueClass: string;
   isUpcoming: boolean;
+  isWithin60: boolean;
 }
 
 const BOOKING_HIDDEN_STATUSES = ['cancelled', 'completed'];
 const LEAD_HIDDEN_STATUSES = ['lost', 'spam', 'completed'];
 
 const db = getDb(Astro.locals);
-let upcomingBookings: BookingRow[] = [];
+let futureBookings: BookingRow[] = [];
 let leadsWithDates: LeadRow[] = [];
 let leadsWithoutDates: LeadRow[] = [];
 let hiddenBookings: BookingRow[] = [];
@@ -61,20 +62,21 @@ const monthEndStr = monthEnd.toISOString().slice(0, 10);
 const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86_400_000);
 const todayStr = now.toISOString().slice(0, 10);
 const upcomingBoundStr = new Date(now.getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
+const within60BoundStr = new Date(now.getTime() + 60 * 86_400_000).toISOString().slice(0, 10);
 
 if (!db) {
   error = 'D1 is not configured yet. Bind the database as DB and run the migration.';
 } else {
   try {
     const [
-      upcomingBookingResult, leadsWithDatesResult, leadsWithoutDatesResult, hiddenBookingResult, hiddenLeadResult,
+      futureBookingResult, leadsWithDatesResult, leadsWithoutDatesResult, hiddenBookingResult, hiddenLeadResult,
       newCountResult, weekCountResult, outstandingResult, arrivalsResult, inHouseResult, lastSyncResult, monthSummaryResult,
     ] = await Promise.all([
       db.prepare(`SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status,
           COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
           COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
         FROM bookings b
-        WHERE b.status NOT IN ('cancelled','completed') AND b.date_from BETWEEN date('now') AND date('now', '+14 days')
+        WHERE b.status NOT IN ('cancelled','completed') AND b.date_from >= date('now')
         ORDER BY b.date_from ASC`).all<BookingRow>(),
       db.prepare(`SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, quote_total, quote_currency, estimated_price, created_at
         FROM leads WHERE status NOT IN ('lost','spam','completed') AND date_from IS NOT NULL
@@ -110,7 +112,7 @@ if (!db) {
         WHERE b.status != 'cancelled' AND SUBSTR(b.date_from,1,10) < ?2 AND SUBSTR(b.date_to,1,10) > ?1`)
         .bind(monthStartStr, monthEndStr).first<MonthSummaryRow>(),
     ]);
-    upcomingBookings = upcomingBookingResult.results;
+    futureBookings = futureBookingResult.results;
     leadsWithDates = leadsWithDatesResult.results;
     leadsWithoutDates = leadsWithoutDatesResult.results;
     hiddenBookings = hiddenBookingResult.results;
@@ -132,12 +134,14 @@ const statusLabel = (status: string) => (PIPELINE_LABELS as Record<string, strin
 
 function bookingToItem(b: BookingRow): ListItem {
   const outstanding = b.total_cents - b.paid_cents;
+  const from = b.date_from.slice(0, 10);
   return {
     kind: 'booking', id: b.id, name: b.guest_name, dateFrom: b.date_from, dateTo: b.date_to,
     guests: b.adults + b.children, status: b.status, phone: b.guest_phone,
     valueLabel: outstanding > 0 ? `Outstanding: ${money(outstanding)}` : 'Paid ✓',
     valueClass: outstanding > 0 ? 'negative' : 'positive',
-    isUpcoming: true,
+    isUpcoming: from >= todayStr && from <= upcomingBoundStr,
+    isWithin60: from >= todayStr && from <= within60BoundStr,
   };
 }
 function leadToItem(lead: LeadRow): ListItem {
@@ -147,6 +151,8 @@ function leadToItem(lead: LeadRow): ListItem {
     guests: lead.adults + lead.children, status: lead.status, phone: lead.whatsapp,
     valueLabel: `Est. value: ${estimateLeadValue(lead)}`, valueClass: '',
     isUpcoming: !!from && from >= todayStr && from <= upcomingBoundStr,
+    // Leads without a date are always in scope for the "All" view — only a dated lead can fall outside the 60-day window.
+    isWithin60: !from || (from >= todayStr && from <= within60BoundStr),
   };
 }
 function datesLabel(item: ListItem): string {
@@ -156,7 +162,7 @@ function datesLabel(item: ListItem): string {
 }
 
 const activeItems: ListItem[] = [
-  ...upcomingBookings.map(bookingToItem),
+  ...futureBookings.map(bookingToItem),
   ...leadsWithDates.map(leadToItem),
   ...leadsWithoutDates.map(leadToItem),
 ];
@@ -225,6 +231,7 @@ const leadError = Astro.url.searchParams.get('leadError');
               data-kind={item.kind}
               data-status={item.status}
               data-upcoming={item.isUpcoming ? '1' : '0'}
+              data-within60={item.isWithin60 ? '1' : '0'}
             >
               <div class="stack" style="min-width:0;flex:1">
                 <div class="actions">
@@ -331,13 +338,17 @@ const leadError = Astro.url.searchParams.get('leadError');
       const kind = el.dataset.kind;
       const status = el.dataset.status;
       const upcoming = el.dataset.upcoming === '1';
+      const within60 = el.dataset.within60 === '1';
       let show = true;
-      if (filter === 'bookings') show = kind === 'booking';
+      // "All" is bounded to the next 60 days (dated items) + all undated leads.
+      // "Bookings" is every future booking, no cutoff. "Upcoming" is bookings only, next 14 days.
+      if (filter === 'all') show = within60;
+      else if (filter === 'bookings') show = kind === 'booking';
       else if (filter === 'leads') show = kind === 'lead';
       else if (filter === 'new') show = status === 'new';
       else if (filter === 'quoted') show = status === 'quoted';
       else if (filter === 'deposit') show = status === 'deposit_pending' || status === 'deposit';
-      else if (filter === 'upcoming') show = upcoming;
+      else if (filter === 'upcoming') show = kind === 'booking' && upcoming;
       el.style.display = show ? '' : 'none';
       if (show) visibleCount++;
     });
@@ -351,6 +362,7 @@ const leadError = Astro.url.searchParams.get('leadError');
       applyFilter((pill as HTMLElement).dataset.filter || 'all');
     });
   });
+  applyFilter('all');
 
   const dialog = document.getElementById('add-lead-dialog');
   document.getElementById('open-add-lead')?.addEventListener('click', () => {
