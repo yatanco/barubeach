@@ -4,7 +4,7 @@ import { requireDb } from '../../../lib/db';
 import {
   money, shortDate, timeAgo, channelBadgeClass,
   BOOKING_CHANNELS, BOOKING_CHANNEL_LABELS, DEFAULT_COMMISSION_RATE,
-  PROVIDER_PAYMENT_METHODS, PROVIDER_PAYMENT_METHOD_LABELS,
+  PROVIDER_PAYMENT_METHODS, PROVIDER_PAYMENT_METHOD_LABELS, BOOKING_STATUSES, BOOKING_STATUS_LABELS,
 } from '../../../lib/crm';
 
 export const prerender = false;
@@ -89,11 +89,21 @@ const notice = Astro.url.searchParams.get('saved');
       <div class="actions"><h1 style="margin:0">{booking.guest_name}</h1><span class={`badge ${channelBadgeClass(booking.channel)}`}>{BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span>{booking.source === 'hosthub_ical' && <span class="badge hh">HH</span>}</div>
       <p class="muted">{shortDate(booking.date_from)} → {shortDate(booking.date_to)} · {booking.nights} nights · {booking.adults} adults · {booking.children} children</p>
     </div>
-    {booking.guest_phone && <a class="button" href={`https://wa.me/${booking.guest_phone.replace(/\D/g,'')}`} target="_blank">Open WhatsApp</a>}
+    {booking.guest_phone && <a class="button whatsapp" href={`https://wa.me/${booking.guest_phone.replace(/\D/g,'')}`} target="_blank" rel="noopener">💬 WhatsApp</a>}
   </div>
 
   <section class="card" style="margin-bottom:20px">
-    <h2>HostHub reservation</h2>
+    <h2>Status</h2>
+    <div class="status-pills" id="booking-status-pills">
+      {BOOKING_STATUSES.map((status) => (
+        <button type="button" class={`status-pill ${booking.status === status ? 'active' : ''}`} data-status={status}>{BOOKING_STATUS_LABELS[status]}</button>
+      ))}
+    </div>
+    <div class="inline-feedback" id="booking-status-feedback"></div>
+  </section>
+
+  <details class="card hosthub-card" style="margin-bottom:20px">
+    <summary><strong>HostHub</strong> · {booking.reservation_id || 'not linked'} · {BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</summary>
     <div class="grid grid-2">
       <div class="stack">
         <span><strong>Channel:</strong> <span class={`badge ${channelBadgeClass(booking.channel)}`}>{BOOKING_CHANNEL_LABELS[booking.channel as typeof BOOKING_CHANNELS[number]] || booking.channel}</span></span>
@@ -107,7 +117,7 @@ const notice = Astro.url.searchParams.get('saved');
         <span class="muted" style="font-size:12px">HostHub owns availability and channel sync. This CRM owns extras, payments and operations.</span>
       </div>
     </div>
-  </section>
+  </details>
 
   <section class="card" style="margin-bottom:20px">
     <h2>Booking details</h2>
@@ -197,9 +207,12 @@ const notice = Astro.url.searchParams.get('saved');
 
     <div class="contribution-box">
       <div class="row" style="border-top:0;padding-top:0"><strong>Net contribution</strong><strong class="amount" id="net-contribution">{money(netContribution)}</strong></div>
-      <div class="row"><span>Per night</span><span class="amount" id="per-night">{money(perNight)}</span></div>
-      <div class="row"><span>Per guest</span><span class="amount" id="per-guest">{money(perGuest)}</span></div>
     </div>
+  </section>
+
+  <section class="card" style="margin-top:20px">
+    <h2>Notes <span class="muted notes-state" id="booking-notes-feedback">Autosaves</span></h2>
+    <textarea id="booking-notes" aria-label="Booking notes">{booking.notes || ''}</textarea>
   </section>
 
   <section class="card" style="margin-top:20px">
@@ -345,6 +358,17 @@ const notice = Astro.url.searchParams.get('saved');
   tr.rc-error-flash { background:#fee4e2; }
   dialog#add-provider-payment-dialog { border:1px solid var(--line); border-radius:14px; padding:22px; max-width:520px; width:calc(100% - 40px); box-shadow:0 10px 40px rgb(38 29 26 / 18%); }
   dialog#add-provider-payment-dialog::backdrop { background:rgb(38 29 26 / 35%); }
+  .hosthub-card summary { min-height:44px; display:flex; align-items:center; cursor:pointer; }
+  .hosthub-card[open] summary { margin-bottom:16px; }
+  .notes-state { font-size:12px; font-weight:400; }
+  @media(max-width:760px) {
+    .rc-table th,.rc-table td { padding:10px 4px; }
+    .rc-table th:nth-child(1),.rc-table td:nth-child(1) { width:42%; }
+    .rc-table th:nth-child(2),.rc-table td:nth-child(2),.rc-table th:nth-child(3),.rc-table td:nth-child(3) { width:29%; }
+    .rc-display { font-size:12px; }
+    #add-line-input-row input { min-width:0; padding:6px 4px; }
+    dialog#add-provider-payment-dialog { width:calc(100% - 20px); padding:16px; }
+  }
 </style>
 
 <script>
@@ -400,6 +424,46 @@ const notice = Astro.url.searchParams.get('saved');
   function formatCOP(pesos) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(pesos);
   }
+
+  const bookingStatusFeedback = document.getElementById('booking-status-feedback');
+  document.querySelectorAll('#booking-status-pills .status-pill').forEach((pill) => {
+    pill.addEventListener('click', async () => {
+      const status = pill.getAttribute('data-status');
+      if (!status || !(pill instanceof HTMLButtonElement)) return;
+      document.querySelectorAll('#booking-status-pills button').forEach((b) => { if (b instanceof HTMLButtonElement) b.disabled = true; });
+      try {
+        const res = await fetch(`/admin/api/bookings/${bookingId}/status`, {
+          method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not update status');
+        document.querySelectorAll('#booking-status-pills .status-pill').forEach((p) => p.classList.toggle('active', p === pill));
+        if (bookingStatusFeedback) { bookingStatusFeedback.classList.remove('error'); bookingStatusFeedback.textContent = '✓ Saved'; setTimeout(() => { bookingStatusFeedback.textContent = ''; }, 1000); }
+      } catch (error) {
+        if (bookingStatusFeedback) { bookingStatusFeedback.classList.add('error'); bookingStatusFeedback.textContent = error instanceof Error ? error.message : 'Could not update status'; }
+      } finally {
+        document.querySelectorAll('#booking-status-pills button').forEach((b) => { if (b instanceof HTMLButtonElement) b.disabled = false; });
+      }
+    });
+  });
+
+  const bookingNotes = document.getElementById('booking-notes');
+  const bookingNotesFeedback = document.getElementById('booking-notes-feedback');
+  let bookingNotesTimer;
+  bookingNotes?.addEventListener('input', () => {
+    if (!(bookingNotes instanceof HTMLTextAreaElement)) return;
+    if (bookingNotesFeedback) bookingNotesFeedback.textContent = 'Saving…';
+    clearTimeout(bookingNotesTimer);
+    bookingNotesTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/admin/api/bookings/${bookingId}/notes`, {
+          method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({notes:bookingNotes.value}),
+        });
+        if (!res.ok) throw new Error();
+        if (bookingNotesFeedback) bookingNotesFeedback.textContent = '✓ Saved';
+      } catch { if (bookingNotesFeedback) bookingNotesFeedback.textContent = 'Could not save'; }
+    }, 600);
+  });
 
   function flashRow(el, ok) {
     el.classList.add(ok ? 'rc-save-flash' : 'rc-error-flash');
@@ -629,7 +693,10 @@ const notice = Astro.url.searchParams.get('saved');
         });
         const data = await res.json();
         if (data.success) {
-          window.location.reload();
+          await navigator.clipboard.writeText(data.url);
+          btn.textContent = '✓ Link copied';
+          if (errorBox) { errorBox.textContent = 'Ready to paste in WhatsApp.'; errorBox.style.display = ''; errorBox.classList.remove('field-error'); }
+          return;
         } else if (errorBox) {
           errorBox.textContent = data.error || 'Could not generate payment link.';
           errorBox.style.display = '';
@@ -641,7 +708,7 @@ const notice = Astro.url.searchParams.get('saved');
         }
       } finally {
         btn.disabled = false;
-        btn.textContent = original;
+        if (btn.textContent !== '✓ Link copied') btn.textContent = original;
       }
     });
   });

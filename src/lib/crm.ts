@@ -25,6 +25,12 @@ export const GUEST_INTENTS = [
 export const GUEST_INTENT_VALUES = GUEST_INTENTS.map((i) => i.value);
 
 export const BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed', 'cancelled'] as const;
+export const BOOKING_STATUS_LABELS: Record<typeof BOOKING_STATUSES[number], string> = {
+  confirmed: 'Confirmed',
+  checked_in: 'Checked In',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
 export const BOOKING_CHANNELS = ['direct', 'airbnb', 'booking.com', 'other'] as const;
 export const BOOKING_CHANNEL_LABELS: Record<typeof BOOKING_CHANNELS[number], string> = {
   direct: 'Direct',
@@ -180,4 +186,3 @@ export function buildQuoteWhatsAppMessage(lead: QuoteLead): string {
   );
   return lines.join('\n');
 }
-

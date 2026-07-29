@@ -53,11 +53,12 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       .pipeline a .count { background:#eee8e5; color:var(--brown); border-radius:999px; padding:1px 8px; font-size:12px; }
       .pipeline a.active { background:var(--brown); color:#fff; border-color:var(--brown); }
       .pipeline a.active .count { background:rgb(255 255 255 / 20%); color:#fff; }
-      .button,button { appearance:none; border:0; border-radius:8px; background:var(--brown); color:#fff; padding:9px 12px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; }
+      .button,button { appearance:none; border:0; border-radius:8px; background:var(--brown); color:#fff; min-height:44px; padding:10px 14px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
+      button:disabled { opacity:.62; cursor:wait; }
       .button.secondary,button.secondary { background:#eee8e5; color:var(--brown); }
       .button.whatsapp { background:#25d366; }
       .button.whatsapp[disabled] { background:#d8ded9; color:#8a938d; cursor:not-allowed; }
-      input,select,textarea { width:100%; border:1px solid #d8cbc5; border-radius:8px; padding:9px 10px; background:#fff; color:var(--ink); font:inherit; }
+      input,select,textarea { width:100%; min-height:44px; border:1px solid #d8cbc5; border-radius:8px; padding:10px; background:#fff; color:var(--ink); font:inherit; font-size:16px; }
       textarea { min-height:72px; resize:vertical; }
       label { display:grid; gap:5px; color:#615854; font-size:12px; font-weight:700; }
       form.inline { display:flex; align-items:end; gap:8px; flex-wrap:wrap; }
@@ -69,7 +70,32 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       table { border-collapse:collapse; width:100%; }
       th,td { padding:10px 8px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
       th { color:#756b67; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
-      @media(max-width:760px) { .grid-2,.form-grid { grid-template-columns:1fr; } .span-2 { grid-column:auto; } .row { align-items:flex-start; flex-direction:column; } table { display:block; overflow-x:auto; } }
+      .status-pills { display:flex; gap:8px; flex-wrap:wrap; }
+      .status-pill { min-height:44px; border:2px solid transparent; border-radius:999px; background:#f3f4f6; color:#4b5563; padding:8px 13px; }
+      .status-pill[data-status="quoted"],.status-pill[data-status="checked_in"] { background:#dbeafe;color:#1d4ed8; }
+      .status-pill[data-status="deposit_pending"] { background:#fef3c7;color:#92400e; }
+      .status-pill[data-status="deposit"],.status-pill[data-status="booked"],.status-pill[data-status="confirmed"] { background:#dcfce7;color:#166534; }
+      .status-pill[data-status="completed"] { background:#ccfbf1;color:#0f766e; }
+      .status-pill[data-status="lost"],.status-pill[data-status="cancelled"] { background:#fee2e2;color:#b91c1c; }
+      .status-pill.active { border-color:currentColor; }
+      .inline-feedback { min-height:20px; color:#166534; font-size:13px; }
+      .inline-feedback.error { color:var(--red); }
+      @media(max-width:760px) {
+        .nav,.shell { width:min(100% - 24px,1180px); }
+        .shell { padding:18px 0 88px; }
+        .nav { min-height:56px; }
+        .user { display:none; }
+        h1 { font-size:24px; }
+        .card { padding:16px; border-radius:12px; }
+        .grid-2,.form-grid { grid-template-columns:1fr; }
+        .span-2 { grid-column:auto; }
+        .row { align-items:flex-start; flex-direction:column; }
+        .actions { width:100%; }
+        .actions > .button,.actions > button { flex:1; }
+        .pipeline { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; }
+        .pipeline a { min-height:44px; flex:0 0 auto; }
+        table { display:table; max-width:100%; }
+      }
     </style>
   </head>
   <body>
@@ -80,6 +106,17 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       </nav>
     </header>
     <main class="shell"><slot /></main>
+    <script>
+      document.querySelectorAll('form').forEach((form) => {
+        form.addEventListener('submit', () => {
+          form.querySelectorAll('button[type="submit"]').forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) return;
+            button.disabled = true;
+            if (!button.dataset.loadingLabel) button.dataset.loadingLabel = button.textContent || '';
+            button.textContent = 'Saving…';
+          });
+        });
+      });
+    </script>
   </body>
 </html>
-

@@ -2,8 +2,8 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireDb } from '../../../lib/db';
 import {
-  PIPELINE_STATUSES, PIPELINE_LABELS, GUEST_INTENTS, shortDate, money,
-  nightsBetween, formatUsd, formatMoneyAmount, QUOTE_RATES, QUOTE_CURRENCIES, waLinkTo, buildQuoteWhatsAppMessage,
+  PIPELINE_LABELS, shortDate, money,
+  nightsBetween, formatMoneyAmount, QUOTE_RATES, waLinkTo, buildQuoteWhatsAppMessage,
 } from '../../../lib/crm';
 
 export const prerender = false;
@@ -50,19 +50,12 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
   <section class="card" style="max-width:760px;margin-bottom:20px">
     <div class="actions" style="justify-content:space-between;margin-bottom:16px">
       <span class="badge">{lead.experience_type}</span>
-      <span class="muted">Source: {lead.source} · Created {shortDate(lead.created_at)}</span>
+      <span class="muted">{shortDate(lead.date_from)} → {shortDate(lead.date_to)} · {lead.adults + lead.children} guests</span>
     </div>
 
     <form class="form-grid" method="POST" action={`/admin/api/leads/${lead.id}/update`} id="main-form">
       <label>Name<input name="guest_name" required value={lead.guest_name || ''} /></label>
       <label>Phone<input type="tel" name="whatsapp" value={lead.whatsapp || ''} placeholder="+57 300 000 0000" /></label>
-      <label>Email<input name="email" type="email" value={lead.email || ''} /></label>
-      <label>Guest intent
-        <select name="guest_intent">
-          <option value="">—</option>
-          {GUEST_INTENTS.map((intent) => <option value={intent.value} selected={intent.value === lead.guest_intent}>{intent.label}</option>)}
-        </select>
-      </label>
       <label>Check-in<input type="date" name="date_from" id="main-date-from" value={lead.date_from?.slice(0,10) || ''} /></label>
       <label>Checkout
         <input type="date" name="date_to" id="main-date-to" value={lead.date_to?.slice(0,10) || ''} />
@@ -70,63 +63,40 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
       <div class="span-2 field-error" id="main-date-error" style="display:none">Check-out must be after check-in</div>
       <label>Adults<input type="number" min="1" name="adults" value={lead.adults || 1} /></label>
       <label>Children<input type="number" min="0" name="children" value={lead.children || 0} /></label>
-      <label class="span-2">Notes<textarea name="notes">{lead.notes || ''}</textarea></label>
+      <input type="hidden" name="email" value={lead.email || ''} />
+      <label class="span-2">Notes <span class="muted" id="notes-feedback">Autosaves</span><textarea name="notes" id="lead-notes">{lead.notes || ''}</textarea></label>
       <div class="span-2"><button type="submit" id="main-save-btn">Save changes</button></div>
     </form>
 
-    <div class="actions" style="justify-content:space-between;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
-      <span class={`badge ${lead.status}`}>{lead.status}</span>
-      <form class="inline" method="POST" action={`/admin/api/leads/${lead.id}/status`}>
-        <label style="min-width:160px">Move to
-          <select name="status">
-            {PIPELINE_STATUSES.map((status) => <option value={status} selected={status === lead.status}>{PIPELINE_LABELS[status]}</option>)}
-            <option value="lost" selected={lead.status === 'lost'}>Lost</option>
-            <option value="spam" selected={lead.status === 'spam'}>Spam</option>
-          </select>
-        </label>
-        <button type="submit" class="secondary">Update</button>
-      </form>
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+      <div class="status-pills" id="lead-status-pills">
+        {(['new','quoted','deposit_pending','deposit','booked','lost'] as const).map((status) => (
+          <button type="button" class={`status-pill ${lead.status === status ? 'active' : ''}`} data-status={status}>
+            {status === 'deposit_pending' ? 'Awaiting deposit' : status === 'deposit' ? 'Deposit paid' : status === 'lost' ? 'Lost' : PIPELINE_LABELS[status]}
+          </button>
+        ))}
+      </div>
+      <div class="inline-feedback" id="status-feedback"></div>
     </div>
   </section>
 
   <section class="card" style="max-width:760px;margin-bottom:20px">
-    <h2>Quote</h2>
+    <h2>Quote calculator</h2>
     <form method="POST" action={`/admin/api/leads/${lead.id}/quote`} id="quote-form">
-      <div class="actions" style="gap:20px;margin-bottom:16px;flex-wrap:wrap">
-        <fieldset class="toggle-group">
-          <legend>Currency</legend>
-          {QUOTE_CURRENCIES.map((c) => (
-            <label class="radio-inline"><input type="radio" name="quote_currency" value={c} checked={c === currency} /> {c}</label>
-          ))}
-        </fieldset>
-        <fieldset class="toggle-group">
-          <legend>Transport</legend>
-          <label class="radio-inline"><input type="radio" name="transport_included" value="1" checked={transportIncluded} /> Yes</label>
-          <label class="radio-inline"><input type="radio" name="transport_included" value="0" checked={!transportIncluded} /> No</label>
-        </fieldset>
-        <fieldset class="toggle-group">
-          <legend>Food</legend>
-          <label class="radio-inline"><input type="radio" name="food_included" value="1" checked={foodIncluded} /> Yes</label>
-          <label class="radio-inline"><input type="radio" name="food_included" value="0" checked={!foodIncluded} /> No</label>
-        </fieldset>
-      </div>
-
-      <div class="form-grid">
-        <label>Accommodation (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_accommodation" id="quote-accommodation" value={accommodationValue} /></label>
-        <div class="muted" id="accommodation-hint" style="align-self:end;font-size:12px;padding-bottom:9px">
-          {currency === 'USD'
-            ? `${nights} nights × $350 = ${formatUsd(accommodationSuggestion)} USD`
-            : 'Enter amount manually in COP'}
-        </div>
-
-        <label id="transport-field" style={transportIncluded ? '' : 'display:none'}>Transport (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_transport" id="quote-transport" value={transportValue} /></label>
-        <label id="food-field" style={foodIncluded ? '' : 'display:none'}>Food (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_food" id="quote-food" value={foodValue} /></label>
-
-        <label>Total (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_total" id="quote-total" value={totalValue} /></label>
-        <label>Deposit — 50% (<span class="qty-currency">{currency}</span>)<input type="number" min="0" step="1" name="quote_deposit" id="quote-deposit" value={depositValue} /></label>
-
-        <div class="span-2"><button type="submit">Save Quote</button></div>
-      </div>
+      <input type="hidden" name="quote_currency" value="USD" />
+      <input type="hidden" name="quote_accommodation" id="quote-accommodation" value={accommodationValue} />
+      <input type="hidden" name="quote_transport" id="quote-transport" value={transportValue} />
+      <input type="hidden" name="quote_food" id="quote-food" value={foodValue} />
+      <input type="hidden" name="quote_total" id="quote-total" value={totalValue} />
+      <input type="hidden" name="quote_deposit" id="quote-deposit" value={depositValue} />
+      <input type="hidden" name="transport_included" id="transport-included" value={transportIncluded ? '1' : '0'} />
+      <input type="hidden" name="food_included" id="food-included" value={foodIncluded ? '1' : '0'} />
+      <div class="quote-line"><span>{nights} nights × $350</span><strong id="accommodation-display">${accommodationSuggestion} USD</strong></div>
+      <button type="button" class={`quote-toggle ${transportIncluded ? 'active' : ''}`} id="transport-toggle">+ Transport $250</button>
+      <button type="button" class={`quote-toggle ${foodIncluded ? 'active' : ''}`} id="food-toggle">+ Food $50/person/night = ${foodSuggestion}</button>
+      <div class="quote-total"><span>Total</span><strong id="total-display">${totalValue || totalSuggestion} USD</strong></div>
+      <div class="quote-line"><span>Deposit (50%)</span><strong id="deposit-display">${depositValue || Math.round(totalSuggestion * .5)} USD</strong></div>
+      <button type="submit" id="save-quote-btn">Save quote</button>
     </form>
   </section>
 
@@ -138,7 +108,7 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
         {currency !== 'COP' && ' — quote is in USD, enter the COP amount to charge below (payment links are COP only)'}
       </p>
       <form class="form-grid" id="deposit-link-form">
-        <label class="span-2">Description<input name="description" id="deposit-description" required value={`Depósito — ${lead.guest_name || 'Casa Gaviota'}`} /></label>
+        <input type="hidden" name="description" id="deposit-description" value={`Depósito — ${lead.guest_name || 'Casa Gaviota'}`} />
         <label>Amount (COP)<input name="amount" inputmode="numeric" id="deposit-amount" required value={currency === 'COP' ? Math.round(lead.quote_deposit) : ''} placeholder={currency !== 'COP' ? 'Enter COP amount' : ''} /></label>
         <div class="span-2 actions" style="align-items:flex-start;flex-wrap:wrap;gap:16px">
           <div class="stack" style="gap:6px">
@@ -181,23 +151,21 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
     </section>
   )}
 
-  <details>
+  <details open={lead.status === 'deposit'}>
     <summary>+ Convert to Booking</summary>
     <p class="muted" style="margin-top:12px">Create the reservation in Hosthub first, then paste its booking ID here.</p>
     <section class="card" style="max-width:760px">
       <form class="form-grid" method="POST" action="/admin/api/bookings/create" id="convert-form">
         <input type="hidden" name="lead_id" value={lead.id} />
         <label>Hosthub booking ID<input name="reservation_id" required placeholder="c1zshdhyycnzc1" /></label>
-        <label>Guest name<input name="guest_name" required value={lead.guest_name || ''} /></label>
-        <label>Phone<input name="guest_phone" value={lead.whatsapp || ''} /></label>
-        <label>Check-in<input type="date" name="date_from" id="convert-date-from" required value={lead.date_from?.slice(0,10) || ''} /></label>
-        <label>Checkout
-          <input type="date" name="date_to" id="convert-date-to" required value={lead.date_to?.slice(0,10) || ''} />
-        </label>
+        <input type="hidden" name="guest_name" value={lead.guest_name || ''} />
+        <input type="hidden" name="guest_phone" value={lead.whatsapp || ''} />
+        <input type="hidden" name="date_from" id="convert-date-from" value={lead.date_from?.slice(0,10) || ''} />
+        <input type="hidden" name="date_to" id="convert-date-to" value={lead.date_to?.slice(0,10) || ''} />
         <div class="span-2 field-error" id="convert-date-error" style="display:none">Check-out must be after check-in</div>
-        <label>Adults<input type="number" min="1" name="adults" required value={lead.adults || 1} /></label>
-        <label>Children<input type="number" min="0" name="children" value={lead.children || 0} /></label>
-        <label class="span-2">Internal notes<textarea name="notes">{lead.notes || ''}</textarea></label>
+        <input type="hidden" name="adults" value={lead.adults || 1} />
+        <input type="hidden" name="children" value={lead.children || 0} />
+        <input type="hidden" name="notes" value={lead.notes || ''} />
         <div class="span-2"><button type="submit" id="convert-save-btn">Create linked booking</button></div>
       </form>
     </section>
@@ -210,6 +178,10 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
   details summary::-webkit-details-marker { display:none; }
   details[open] summary { margin-bottom:4px; }
   .field-error { color:var(--red); font-size:12px; margin-top:-8px; }
+  .quote-line,.quote-total { display:flex; justify-content:space-between; gap:16px; padding:12px 0; }
+  .quote-total { border-top:2px solid var(--ink); margin-top:12px; font-size:20px; }
+  .quote-toggle { width:100%; justify-content:flex-start; background:#eee8e5; color:var(--brown); margin:5px 0; }
+  .quote-toggle.active { background:#dcfce7; color:#166534; }
   fieldset.toggle-group { border:1px solid var(--line); border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:12px; margin:0; }
   fieldset.toggle-group legend { font-size:12px; font-weight:700; color:#615854; padding:0 4px; }
   .radio-inline { display:inline-flex !important; align-items:center; gap:4px; font-weight:500 !important; width:auto !important; color:var(--ink); }
@@ -253,92 +225,76 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
   wireDateValidation('convert-date-from', 'convert-date-to', 'convert-date-error', 'convert-save-btn');
 </script>
 
-<script define:vars={{ nights: nights, adults: lead.adults || 0 }}>
-  const RATES = { accommodation: 350, transport: 250, foodPerAdultNight: 50 };
-
-  const transportField = document.getElementById('transport-field');
-  const foodField = document.getElementById('food-field');
-  const accommodationInput = document.getElementById('quote-accommodation');
-  const transportInput = document.getElementById('quote-transport');
-  const foodInput = document.getElementById('quote-food');
-  const totalInput = document.getElementById('quote-total');
-  const depositInput = document.getElementById('quote-deposit');
-  const accommodationHint = document.getElementById('accommodation-hint');
-
-  let totalDirty = false;
-  let depositDirty = false;
-  // Track fields the admin has actually typed into (vs. values this script wrote itself as a
-  // suggestion) so a currency switch can safely clear stale suggestions without ever touching
-  // something the admin deliberately entered. Anything already saved on the lead counts as "edited".
-  let accommodationEdited = !!accommodationInput.value && accommodationInput.value !== String(nights * RATES.accommodation);
-  let transportEdited = !!transportInput.value && transportInput.value !== String(RATES.transport);
-  let foodEdited = !!foodInput.value && foodInput.value !== String(Math.round(adults * RATES.foodPerAdultNight * nights));
-
-  function currency() {
-    return document.querySelector('input[name="quote_currency"]:checked')?.value || 'USD';
+<script define:vars={{ nights: nights, adults: lead.adults || 0, leadId: lead.id }}>
+  const accommodation = nights * 350;
+  const food = adults * nights * 50;
+  const transportToggle = document.getElementById('transport-toggle');
+  const foodToggle = document.getElementById('food-toggle');
+  const transportIncluded = document.getElementById('transport-included');
+  const foodIncluded = document.getElementById('food-included');
+  function recalc() {
+    const hasTransport = transportIncluded.value === '1';
+    const hasFood = foodIncluded.value === '1';
+    const total = accommodation + (hasTransport ? 250 : 0) + (hasFood ? food : 0);
+    document.getElementById('quote-accommodation').value = String(accommodation);
+    document.getElementById('quote-transport').value = hasTransport ? '250' : '';
+    document.getElementById('quote-food').value = hasFood ? String(food) : '';
+    document.getElementById('quote-total').value = String(total);
+    document.getElementById('quote-deposit').value = String(Math.round(total / 2));
+    document.getElementById('total-display').textContent = `$${total} USD`;
+    document.getElementById('deposit-display').textContent = `$${Math.round(total / 2)} USD`;
+    transportToggle.classList.toggle('active', hasTransport);
+    foodToggle.classList.toggle('active', hasFood);
   }
-  function transportIncluded() {
-    return document.querySelector('input[name="transport_included"]:checked')?.value === '1';
-  }
-  function foodIncluded() {
-    return document.querySelector('input[name="food_included"]:checked')?.value === '1';
-  }
+  transportToggle?.addEventListener('click', () => {
+    transportIncluded.value = transportIncluded.value === '1' ? '0' : '1';
+    recalc();
+  });
+  foodToggle?.addEventListener('click', () => {
+    foodIncluded.value = foodIncluded.value === '1' ? '0' : '1';
+    recalc();
+  });
+  recalc();
 
-  function syncToggleVisibility() {
-    const tIncluded = transportIncluded();
-    const fIncluded = foodIncluded();
-    transportField.style.display = tIncluded ? '' : 'none';
-    foodField.style.display = fIncluded ? '' : 'none';
-    transportInput.required = tIncluded;
-    foodInput.required = fIncluded;
-    if (currency() === 'USD') {
-      if (tIncluded && !transportEdited && !transportInput.value) transportInput.value = String(RATES.transport);
-      if (fIncluded && !foodEdited && !foodInput.value) foodInput.value = String(Math.round(adults * RATES.foodPerAdultNight * nights));
-    }
-  }
+  const statusFeedback = document.getElementById('status-feedback');
+  document.querySelectorAll('#lead-status-pills .status-pill').forEach((pill) => {
+    pill.addEventListener('click', async () => {
+      const status = pill.getAttribute('data-status');
+      if (!status || !(pill instanceof HTMLButtonElement)) return;
+      document.querySelectorAll('#lead-status-pills button').forEach((b) => { if (b instanceof HTMLButtonElement) b.disabled = true; });
+      try {
+        const res = await fetch(`/admin/api/leads/${leadId}/status`, {
+          method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not update status');
+        document.querySelectorAll('#lead-status-pills .status-pill').forEach((p) => p.classList.toggle('active', p === pill));
+        if (statusFeedback) { statusFeedback.classList.remove('error'); statusFeedback.textContent = '✓ Saved'; setTimeout(() => { statusFeedback.textContent = ''; }, 1000); }
+      } catch (error) {
+        if (statusFeedback) { statusFeedback.classList.add('error'); statusFeedback.textContent = error instanceof Error ? error.message : 'Could not update status'; }
+      } finally {
+        document.querySelectorAll('#lead-status-pills button').forEach((b) => { if (b instanceof HTMLButtonElement) b.disabled = false; });
+      }
+    });
+  });
 
-  function syncCurrencyLabels() {
-    const cur = currency();
-    document.querySelectorAll('.qty-currency').forEach((el) => { el.textContent = cur; });
-    if (accommodationHint) {
-      accommodationHint.textContent = cur === 'USD'
-        ? `${nights} nights × $350 = $${nights * RATES.accommodation} USD`
-        : 'Enter amount manually in COP';
-    }
-    if (cur === 'USD') {
-      if (!accommodationEdited) accommodationInput.value = String(nights * RATES.accommodation);
-      if (transportIncluded() && !transportEdited) transportInput.value = String(RATES.transport);
-      if (foodIncluded() && !foodEdited) foodInput.value = String(Math.round(adults * RATES.foodPerAdultNight * nights));
-    } else {
-      if (!accommodationEdited) accommodationInput.value = '';
-      if (!transportEdited) transportInput.value = '';
-      if (!foodEdited) foodInput.value = '';
-    }
-  }
-
-  function recalcTotal() {
-    if (totalDirty) return;
-    const acc = Number(accommodationInput.value) || 0;
-    const trans = transportIncluded() ? (Number(transportInput.value) || 0) : 0;
-    const food = foodIncluded() ? (Number(foodInput.value) || 0) : 0;
-    totalInput.value = String(Math.round(acc + trans + food));
-    recalcDeposit();
-  }
-  function recalcDeposit() {
-    if (depositDirty) return;
-    depositInput.value = String(Math.round((Number(totalInput.value) || 0) * 0.5));
-  }
-
-  accommodationInput.addEventListener('input', () => { accommodationEdited = true; recalcTotal(); });
-  transportInput.addEventListener('input', () => { transportEdited = true; recalcTotal(); });
-  foodInput.addEventListener('input', () => { foodEdited = true; recalcTotal(); });
-  totalInput.addEventListener('input', () => { totalDirty = true; recalcDeposit(); });
-  depositInput.addEventListener('input', () => { depositDirty = true; });
-  document.querySelectorAll('input[name="transport_included"]').forEach((el) => el.addEventListener('change', () => { syncToggleVisibility(); recalcTotal(); }));
-  document.querySelectorAll('input[name="food_included"]').forEach((el) => el.addEventListener('change', () => { syncToggleVisibility(); recalcTotal(); }));
-  document.querySelectorAll('input[name="quote_currency"]').forEach((el) => el.addEventListener('change', () => { syncCurrencyLabels(); recalcTotal(); }));
-
-  syncToggleVisibility();
+  const notes = document.getElementById('lead-notes');
+  const notesFeedback = document.getElementById('notes-feedback');
+  let notesTimer;
+  notes?.addEventListener('input', () => {
+    if (!(notes instanceof HTMLTextAreaElement)) return;
+    if (notesFeedback) notesFeedback.textContent = 'Saving…';
+    clearTimeout(notesTimer);
+    notesTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/admin/api/leads/${leadId}/update`, {
+          method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({notes:notes.value}),
+        });
+        if (!res.ok) throw new Error();
+        if (notesFeedback) notesFeedback.textContent = '✓ Saved';
+      } catch { if (notesFeedback) notesFeedback.textContent = 'Could not save'; }
+    }, 600);
+  });
 </script>
 
 <script define:vars={{ guestName: lead.guest_name, leadId: lead.id, waLinks: depositLinks.map((l: any) => ({ provider: l.provider, description: l.charge_description, amount: l.amount_cents / 100, url: l.url })) }}>
@@ -364,7 +320,10 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
         });
         const data = await res.json();
         if (data.success) {
-          window.location.reload();
+          await navigator.clipboard.writeText(data.url);
+          btn.textContent = '✓ Link copied';
+          if (errorBox) { errorBox.textContent = 'Ready to paste in WhatsApp.'; errorBox.style.display = ''; errorBox.classList.remove('field-error'); }
+          return;
         } else if (errorBox) {
           errorBox.textContent = data.error || 'Could not generate payment link.';
           errorBox.style.display = '';
@@ -376,7 +335,7 @@ const waHref = lead.whatsapp ? waLinkTo(lead.whatsapp, quoteMessage) : null;
         }
       } finally {
         btn.disabled = false;
-        btn.textContent = original;
+        if (btn.textContent !== '✓ Link copied') btn.textContent = original;
       }
     });
   });
