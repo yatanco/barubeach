@@ -88,9 +88,9 @@ const metaPixelId = import.meta.env.PUBLIC_META_PIXEL_ID ?? '1039533654806987';
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-YCRQRM6R43"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-YCRQRM6R43');
+      window.gtag = (...args) => window.dataLayer?.push(args);
+      window.gtag('js', new Date());
+      window.gtag('config', 'G-YCRQRM6R43');
     </script>
 
     <!-- Meta Pixel -->
@@ -131,7 +131,7 @@ const metaPixelId = import.meta.env.PUBLIC_META_PIXEL_ID ?? '1039533654806987';
           style="background: #25D366;"
         >
           <button
-            onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
+            onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{intentional:true}}))"
             class="flex items-center justify-between w-full px-5 py-4 text-white font-semibold cursor-pointer"
             aria-label={stickyLabel}
           >
@@ -174,7 +174,7 @@ const metaPixelId = import.meta.env.PUBLIC_META_PIXEL_ID ?? '1039533654806987';
               clearTimeout(timer);
               document.removeEventListener('mouseleave', onLeave);
               sessionStorage.setItem('popup_shown', '1');
-              window.dispatchEvent(new CustomEvent('open-wa-popup'));
+              window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{intentional:false}}));
             }
             var timer = setTimeout(fire, 40000);
             function onLeave(e) { if (e.clientY <= 5) fire(); }
@@ -186,7 +186,19 @@ const metaPixelId = import.meta.env.PUBLIC_META_PIXEL_ID ?? '1039533654806987';
 
     <script>
       import { initLightbox } from '../lib/lightbox';
+      import { publicAnalyticsContext, trackGA4Event } from '../lib/analytics';
       initLightbox();
+
+      document.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) return;
+        const link = event.target.closest<HTMLAnchorElement>('a[href*="wa.me/"]');
+        if (!link) return;
+        const language = document.documentElement.lang === 'es' ? 'es' : 'en';
+        trackGA4Event('whatsapp_click', {
+          link_type: 'whatsapp',
+          ...publicAnalyticsContext(language),
+        });
+      });
     </script>
   </body>
 </html>

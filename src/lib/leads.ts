@@ -18,18 +18,26 @@ export interface LeadData {
   pageUrl: string;
 }
 
-// Fire-and-forget — never rejects, never blocks the user flow
-export function captureLead(data: Partial<LeadData> & Pick<LeadData, 'source' | 'language' | 'type' | 'adults'>): void {
+export async function captureLead(
+  data: Partial<LeadData> & Pick<LeadData, 'source' | 'language' | 'type' | 'adults'>,
+): Promise<boolean> {
   const payload: LeadData = {
     timestamp: new Date().toISOString(),
     pageUrl: typeof window !== 'undefined' ? window.location.href : '',
     ...data,
   };
 
-  fetch('/api/capture-lead', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    keepalive: true,
-  }).catch(() => {});
+  try {
+    const response = await fetch('/api/capture-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+    if (!response.ok) return false;
+    const result = await response.json() as { success?: boolean };
+    return result.success === true;
+  } catch {
+    return false;
+  }
 }

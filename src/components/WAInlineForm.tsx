@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { captureLead } from '../lib/leads';
+import { publicAnalyticsContext, trackGA4Event } from '../lib/analytics';
+import { trackMetaEvent } from '../lib/metaPixel';
 import { waLink } from '../lib/whatsapp';
 import { daytripEstimate } from '../lib/pricing';
 import WhatsAppIcon from './icons/WhatsAppIcon';
@@ -80,6 +82,9 @@ export default function WAInlineForm({ lang = 'en', defaultType = 'stay' }: Prop
   const [adults, setAdults] = useState(2);
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const submissionTrackedRef = useRef(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -99,9 +104,13 @@ export default function WAInlineForm({ lang = 'en', defaultType = 'stay' }: Prop
     return msg;
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    captureLead({
+    if (submitting || submissionTrackedRef.current) return;
+    setSubmitting(true);
+    setSubmitError('');
+    const whatsappWindow = window.open('', '_blank');
+    const captured = await captureLead({
       source: type === 'daytrip' ? 'daytrip_form' : 'home_form',
       language: lang,
       type,
@@ -114,7 +123,30 @@ export default function WAInlineForm({ lang = 'en', defaultType = 'stay' }: Prop
         ? daytripEstimate(adults)
         : 'From $350 USD/night + transport + food',
     });
-    window.open(waLink(buildMessage()), '_blank');
+    if (!captured) {
+      whatsappWindow?.close();
+      setSubmitError(lang === 'es'
+        ? 'No pudimos guardar tu solicitud. Intenta de nuevo.'
+        : 'We could not save your enquiry. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+    submissionTrackedRef.current = true;
+    const analyticsContext = publicAnalyticsContext(lang, type);
+    trackGA4Event('generate_lead', {
+      currency: 'COP',
+      form_name: 'availability_enquiry',
+      ...analyticsContext,
+    });
+    trackMetaEvent('Lead');
+    trackGA4Event('whatsapp_click', {
+      link_type: 'whatsapp',
+      ...analyticsContext,
+    });
+    const whatsappUrl = waLink(buildMessage());
+    if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+    else window.location.href = whatsappUrl;
+    setSubmitting(false);
   }
 
   return (
@@ -204,13 +236,16 @@ export default function WAInlineForm({ lang = 'en', defaultType = 'stay' }: Prop
         />
       </div>
 
+      {submitError && <p role="alert" className="text-sm text-red-700">{submitError}</p>}
+
       <button
         type="submit"
+        disabled={submitting}
         className="w-full font-semibold py-4 rounded-xl text-sm sm:text-base text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
         style={{ background: '#25D366' }}
       >
         <WhatsAppIcon className="w-5 h-5 flex-shrink-0" />
-        {t.submitBtn}
+        {submitting ? (lang === 'es' ? 'Enviando…' : 'Sending…') : t.submitBtn}
       </button>
 
       <p className="text-center text-sm text-ink/50">{t.reply}</p>

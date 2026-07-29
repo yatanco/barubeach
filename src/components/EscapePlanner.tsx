@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { captureLead } from '../lib/leads';
+import { publicAnalyticsContext, trackGA4Event } from '../lib/analytics';
+import { trackMetaEvent } from '../lib/metaPixel';
 import { waLink } from '../lib/whatsapp';
 
 interface Props {
@@ -294,6 +296,7 @@ export default function EscapePlanner({ lang = 'en' }: Props) {
   const [emailName, setEmailName] = useState('');
   const [emailAddr, setEmailAddr] = useState('');
   const [emailSent, setEmailSent] = useState(false);
+  const trackedSubmissions = useRef(new Set<string>());
 
   const totalSteps = flow === 'daytrip' ? 3 : 4;
   const nights = calcNights(stCheckin, stCheckout);
@@ -301,6 +304,11 @@ export default function EscapePlanner({ lang = 'en' }: Props) {
   const stPrice = flow === 'stay' && nights > 0 ? calcStPrice(nights, stAdults, stTransport, stFood) : 0;
 
   function selectFlow(f: Flow) {
+    trackGA4Event('lead_form_open', {
+      form_name: 'availability_enquiry',
+      language: lang,
+      page_path: window.location.pathname,
+    });
     setFlow(f);
     setStep(1);
     setError('');
@@ -330,34 +338,80 @@ export default function EscapePlanner({ lang = 'en' }: Props) {
     setError('');
   }
 
-  function handleDtWA() {
-    captureLead({
+  function trackConfirmedLead(type: 'daytrip' | 'stay', key: string): boolean {
+    if (trackedSubmissions.current.has(key)) return false;
+    trackedSubmissions.current.add(key);
+    const analyticsContext = publicAnalyticsContext(lang, type);
+    trackGA4Event('generate_lead', {
+      currency: 'COP',
+      form_name: 'availability_enquiry',
+      ...analyticsContext,
+    });
+    trackMetaEvent('Lead');
+    return true;
+  }
+
+  async function handleDtWA() {
+    if (trackedSubmissions.current.has('daytrip-whatsapp')) return;
+    const whatsappWindow = window.open('', '_blank');
+    const captured = await captureLead({
       source: 'plan', language: lang, type: 'daytrip',
       adults: dtAdults, children: dtChildren, date: dtDate,
       estimatedPrice: dtPrice !== null ? `$${dtPrice} USD` : 'large group',
       pageUrl: typeof window !== 'undefined' ? window.location.href : '',
     });
-    window.open(buildDtWA(dtDate, dtAdults, dtChildren, dtPrice), '_blank');
+    if (!captured) {
+      whatsappWindow?.close();
+      setError(lang === 'es' ? 'No pudimos guardar tu solicitud. Intenta de nuevo.' : 'We could not save your enquiry. Please try again.');
+      return;
+    }
+    if (!trackConfirmedLead('daytrip', 'daytrip-whatsapp')) return;
+    trackGA4Event('whatsapp_click', {
+      link_type: 'whatsapp',
+      ...publicAnalyticsContext(lang, 'daytrip'),
+    });
+    const whatsappUrl = buildDtWA(dtDate, dtAdults, dtChildren, dtPrice);
+    if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+    else window.location.href = whatsappUrl;
   }
 
-  function handleStWA() {
-    captureLead({
+  async function handleStWA() {
+    if (trackedSubmissions.current.has('stay-whatsapp')) return;
+    const whatsappWindow = window.open('', '_blank');
+    const captured = await captureLead({
       source: 'plan', language: lang, type: 'stay',
       adults: stAdults, children: stChildren, date: stCheckin, checkOut: stCheckout,
       transport: stTransport, food: stFood, estimatedPrice: `~$${stPrice} USD`,
       pageUrl: typeof window !== 'undefined' ? window.location.href : '',
     });
-    window.open(buildStWA(stCheckin, stCheckout, nights, stAdults, stChildren, stTransport, stFood, stPrice), '_blank');
+    if (!captured) {
+      whatsappWindow?.close();
+      setError(lang === 'es' ? 'No pudimos guardar tu solicitud. Intenta de nuevo.' : 'We could not save your enquiry. Please try again.');
+      return;
+    }
+    if (!trackConfirmedLead('stay', 'stay-whatsapp')) return;
+    trackGA4Event('whatsapp_click', {
+      link_type: 'whatsapp',
+      ...publicAnalyticsContext(lang, 'stay'),
+    });
+    const whatsappUrl = buildStWA(stCheckin, stCheckout, nights, stAdults, stChildren, stTransport, stFood, stPrice);
+    if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+    else window.location.href = whatsappUrl;
   }
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const submissionKey = `${flow}-email`;
+    if (trackedSubmissions.current.has(submissionKey)) return;
     const payload = flow === 'daytrip'
       ? { source: 'plan', language: lang, type: 'daytrip', adults: dtAdults, children: dtChildren, date: dtDate, estimatedPrice: dtPrice !== null ? `$${dtPrice} USD` : 'large group', name: emailName, email: emailAddr, pageUrl: typeof window !== 'undefined' ? window.location.href : '' }
       : { source: 'plan', language: lang, type: 'stay', adults: stAdults, children: stChildren, date: stCheckin, checkOut: stCheckout, transport: stTransport, food: stFood, estimatedPrice: `~$${stPrice} USD`, name: emailName, email: emailAddr, pageUrl: typeof window !== 'undefined' ? window.location.href : '' };
-    try {
-      await fetch('/api/capture-lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    } catch { /* fire and forget */ }
+    const captured = await captureLead(payload);
+    if (!captured) {
+      setError(lang === 'es' ? 'No pudimos guardar tu solicitud. Intenta de nuevo.' : 'We could not save your enquiry. Please try again.');
+      return;
+    }
+    if (!trackConfirmedLead(flow === 'daytrip' ? 'daytrip' : 'stay', submissionKey)) return;
     setEmailSent(true);
   }
 

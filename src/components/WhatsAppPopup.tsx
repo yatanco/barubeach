@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { captureLead } from '../lib/leads';
 import { isDateBlocked, isRangeBlocked, type BlockedRange } from '../lib/availability';
 import { trackMetaEvent } from '../lib/metaPixel';
+import { publicAnalyticsContext, trackGA4Event } from '../lib/analytics';
 import { waLink } from '../lib/whatsapp';
 import { daytripEstimate } from '../lib/pricing';
 import DateCalendar from './DateCalendar';
@@ -115,19 +116,31 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
   const [blocked, setBlocked] = useState<BlockedRange[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityStale, setAvailabilityStale] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const overlayRef = useRef<HTMLDivElement>(null);
+  const submissionTrackedRef = useRef(false);
 
   const t = T[lang];
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ type?: ExperienceType }>).detail;
+      const detail = (e as CustomEvent<{ type?: ExperienceType; intentional?: boolean }>).detail;
       if (detail?.type) setType(detail.type);
+      submissionTrackedRef.current = false;
+      setSubmitError('');
+      if (detail?.intentional !== false) {
+        trackGA4Event('lead_form_open', {
+          form_name: 'availability_enquiry',
+          language: lang,
+          page_path: window.location.pathname,
+        });
+      }
       setOpen(true);
     };
     window.addEventListener('open-wa-popup', handler);
     return () => window.removeEventListener('open-wa-popup', handler);
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     if (!open) return;
@@ -208,10 +221,13 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     setType(defaultType);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSubmit) return;
-    captureLead({
+    if (!canSubmit || submitting || submissionTrackedRef.current) return;
+    setSubmitting(true);
+    setSubmitError('');
+    const whatsappWindow = window.open('', '_blank');
+    const captured = await captureLead({
       source: 'popup',
       language: lang,
       type,
@@ -226,6 +242,22 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
         ? daytripEstimate(adults)
         : 'From $350 USD/night + transport + food',
     });
+    if (!captured) {
+      whatsappWindow?.close();
+      setSubmitError(lang === 'es'
+        ? 'No pudimos guardar tu solicitud. Intenta de nuevo.'
+        : 'We could not save your enquiry. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+    submissionTrackedRef.current = true;
+    const analyticsContext = publicAnalyticsContext(lang, type);
+    trackGA4Event('generate_lead', {
+      currency: 'COP',
+      form_name: 'availability_enquiry',
+      ...analyticsContext,
+    });
+    trackMetaEvent('Lead');
     trackMetaEvent('Contact', {
       content_name: 'WhatsApp Inquiry',
       source: 'popup',
@@ -233,7 +265,14 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       experience_type: type,
     });
     sessionStorage.setItem('popup_shown', '1');
-    window.open(waLink(buildMessage()), '_blank');
+    trackGA4Event('whatsapp_click', {
+      link_type: 'whatsapp',
+      ...analyticsContext,
+    });
+    const whatsappUrl = waLink(buildMessage());
+    if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+    else window.location.href = whatsappUrl;
+    setSubmitting(false);
     closePopup();
   }
 
@@ -244,7 +283,16 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          submissionTrackedRef.current = false;
+          setSubmitError('');
+          trackGA4Event('lead_form_open', {
+            form_name: 'availability_enquiry',
+            language: lang,
+            page_path: window.location.pathname,
+          });
+          setOpen(true);
+        }}
         aria-label="Contact via WhatsApp"
         className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-whatsapp text-white shadow-lg hover:scale-105 transition-transform flex items-center justify-center"
       >
@@ -391,9 +439,11 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
                 />
               </div>
 
+              {submitError && <p role="alert" className="text-sm text-red-700">{submitError}</p>}
+
               <button
                 type="submit"
-                disabled={!canSubmit}
+                disabled={!canSubmit || submitting}
                 className={`w-full font-semibold py-3.5 rounded-xl transition text-sm flex items-center justify-center gap-2 mt-2 ${
                   canSubmit
                     ? 'bg-whatsapp text-white hover:opacity-90'
@@ -401,7 +451,7 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
                 }`}
               >
                 <WhatsAppIcon className="w-4 h-4 flex-shrink-0" />
-                {t.submitBtn}
+                {submitting ? (lang === 'es' ? 'Enviando…' : 'Sending…') : t.submitBtn}
               </button>
             </form>
           </div>
