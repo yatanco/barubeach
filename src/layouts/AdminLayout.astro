@@ -20,6 +20,7 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       .nav { min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
       .brand { color:var(--ink); font-size:18px; font-weight:800; text-decoration:none; }
       .user { color:#756b67; font-size:12px; }
+      .nav-link { color:var(--brown); font-size:13px; font-weight:700; text-decoration:none; }
       .shell { padding:28px 0 64px; }
       h1 { margin:0 0 6px; font-size:28px; }
       h2 { margin:0 0 16px; font-size:19px; }
@@ -35,15 +36,8 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       .row:last-child { padding-bottom:0; }
       .stack { display:grid; gap:5px; min-width:0; }
       .actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-      .badge { display:inline-flex; width:max-content; border-radius:999px; padding:3px 9px; background:#eee8e5; color:var(--brown); font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
-      .badge.new,.badge.confirmed { background:#dff8f1; color:#116149; }
-      .badge.quoted,.badge.checked_in { background:#e0f2fe; color:#075985; }
-      .badge.deposit_pending { background:#ffedd5; color:#9a3412; }
-      .badge.deposit { background:#fef3c7; color:#92400e; }
-      .badge.booked { background:#dcfce7; color:#166534; }
-      .badge.completed { background:#ede9fe; color:#5b21b6; }
-      .badge.spam { background:#f3f4f6; color:#6b7280; }
-      .badge.lost,.badge.cancelled,.badge.overdue { background:#fee4e2; color:var(--red); }
+      .badge { display:inline-flex; width:max-content; border-radius:999px; padding:3px 9px; background:color-mix(in srgb, var(--pill-color, #6B7280) 16%, white); color:var(--pill-color, var(--brown)); font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
+      .badge.overdue { background:#fee4e2; color:var(--red); }
       .badge.direct,.badge.other { background:#eee8e5; color:var(--brown); }
       .badge.airbnb { background:#ffe8ec; color:#c81d5c; }
       .badge.bookingcom { background:#e0eafc; color:#003580; }
@@ -76,12 +70,7 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
       th,td { padding:10px 8px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
       th { color:#756b67; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
       .status-pills { display:flex; gap:8px; flex-wrap:wrap; }
-      .status-pill { min-height:44px; border:2px solid transparent; border-radius:999px; background:#f3f4f6; color:#4b5563; padding:8px 13px; }
-      .status-pill[data-status="quoted"],.status-pill[data-status="checked_in"] { background:#dbeafe;color:#1d4ed8; }
-      .status-pill[data-status="deposit_pending"] { background:#fef3c7;color:#92400e; }
-      .status-pill[data-status="deposit"],.status-pill[data-status="booked"],.status-pill[data-status="confirmed"] { background:#dcfce7;color:#166534; }
-      .status-pill[data-status="completed"] { background:#ccfbf1;color:#0f766e; }
-      .status-pill[data-status="lost"],.status-pill[data-status="cancelled"] { background:#fee2e2;color:#b91c1c; }
+      .status-pill { min-height:44px; border:2px solid transparent; border-radius:999px; background:color-mix(in srgb, var(--pill-color, #6B7280) 16%, white); color:var(--pill-color, #4b5563); padding:8px 13px; }
       .status-pill.active { border-color:currentColor; }
       .inline-feedback { min-height:20px; color:#166534; font-size:13px; }
       .inline-feedback.error { color:var(--red); }
@@ -107,7 +96,10 @@ const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email'
     <header>
       <nav class="nav">
         <a class="brand" href="/admin">Casa Gaviota CRM</a>
-        {userEmail && <span class="user">{userEmail}</span>}
+        <span class="actions" style="gap:14px">
+          <a href="/admin/api/export" class="nav-link">Export CSV</a>
+          {userEmail && <span class="user">{userEmail}</span>}
+        </span>
       </nav>
     </header>
     <main class="shell"><slot /></main>

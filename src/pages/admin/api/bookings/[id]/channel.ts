@@ -1,64 +1,34 @@
 import type { APIRoute } from 'astro';
-import { formString, nowIso, redirectBack, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb } from '../../../../../lib/db';
 import { BOOKING_CHANNELS, DEFAULT_COMMISSION_RATE, isOneOf } from '../../../../../lib/crm';
+
 export const prerender = false;
 
-function centsOrZero(value: string): number {
-  if (!value) return 0;
-  const normalized = value.replace(/[^0-9]/g, '');
-  const pesos = Number.parseInt(normalized, 10);
-  if (!Number.isFinite(pesos) || pesos < 0) throw new Error('Invalid amount');
-  return pesos * 100;
-}
+// Section 10 (HostHub card, bookings) — channel dropdown, saves immediately.
+// Airbnb payout and accommodation amount live on the accommodation.ts
+// endpoint instead (Section 3), not here.
+export const PATCH: APIRoute = async ({ request, locals, params }) => {
+  if (!params.id) return Response.json({ success: false, error: 'Invalid booking' }, { status: 422 });
+  let body: { channel?: string };
+  try { body = await request.json(); } catch {
+    return Response.json({ success: false, error: 'Invalid request body' }, { status: 400 });
+  }
+  if (!body.channel || !isOneOf(body.channel, BOOKING_CHANNELS)) {
+    return Response.json({ success: false, error: 'Invalid channel' }, { status: 422 });
+  }
 
-// Commission rate itself is edited inline in the Revenue & cost table (see
-// /admin/api/bookings/[id]/commission-rate.ts) — this endpoint only switches
-// the channel and recomputes ota_commission_cents against whatever rate is
-// already stored, so switching channel doesn't require a second save to
-// pick up commission.
-export const POST: APIRoute = async ({ request, locals, params }) => {
-  if (!params.id) return new Response('Invalid booking', { status: 422 });
   const db = requireDb(locals);
-  const booking = await db.prepare('SELECT source, commission_rate FROM bookings WHERE id = ?1').bind(params.id).first<{ source: string; commission_rate: number }>();
-  if (!booking) return new Response('Booking not found', { status: 404 });
-
-  const form = await request.formData();
-  const channel = formString(form, 'channel');
-  if (!isOneOf(channel, BOOKING_CHANNELS)) return new Response('Invalid channel', { status: 422 });
-
-  let airbnbPayoutCents: number;
-  try {
-    airbnbPayoutCents = centsOrZero(formString(form, 'airbnb_payout'));
-  } catch {
-    return new Response('Invalid amount', { status: 422 });
-  }
-
-  // HostHub owns dates for synced bookings — re-syncing would silently overwrite a manual
-  // edit here, so only manually-created bookings can have their dates changed on this form.
-  const dateFrom = formString(form, 'date_from');
-  const dateTo = formString(form, 'date_to');
-  const canEditDates = booking.source === 'manual' && dateFrom && dateTo;
-  if (booking.source === 'manual' && dateFrom && dateTo && dateTo <= dateFrom) {
-    return new Response('Check-out must be after check-in', { status: 422 });
-  }
+  const booking = await db.prepare('SELECT commission_rate FROM bookings WHERE id = ?1').bind(params.id).first<{ commission_rate: number }>();
+  if (!booking) return Response.json({ success: false, error: 'Booking not found' }, { status: 404 });
 
   const accommodationRow = await db.prepare(`SELECT COALESCE(SUM(amount_cents),0) AS total FROM charges WHERE booking_id = ?1 AND category = 'accommodation'`)
     .bind(params.id).first<{ total: number }>();
   const accommodationCents = accommodationRow?.total ?? 0;
-  const commissionRate = booking.commission_rate ?? DEFAULT_COMMISSION_RATE;
-  const otaCommissionCents = channel === 'booking.com' ? Math.round(accommodationCents * (commissionRate / 100) * 1.19) : 0;
+  const rate = booking.commission_rate ?? DEFAULT_COMMISSION_RATE;
+  const otaCommissionCents = body.channel === 'booking.com' ? Math.round(accommodationCents * (rate / 100) * 1.19) : 0;
 
-  const now = nowIso();
-  if (canEditDates) {
-    const nights = Math.max(0, Math.round((Date.parse(`${dateTo}T00:00:00Z`) - Date.parse(`${dateFrom}T00:00:00Z`)) / 86_400_000));
-    await db.prepare(`UPDATE bookings SET channel=?1, airbnb_payout_cents=?2, ota_commission_cents=?3, date_from=?4, date_to=?5, nights=?6, updated_at=?7 WHERE id=?8`)
-      .bind(channel, airbnbPayoutCents, otaCommissionCents, dateFrom, dateTo, nights, now, params.id)
-      .run();
-  } else {
-    await db.prepare(`UPDATE bookings SET channel=?1, airbnb_payout_cents=?2, ota_commission_cents=?3, updated_at=?4 WHERE id=?5`)
-      .bind(channel, airbnbPayoutCents, otaCommissionCents, now, params.id)
-      .run();
-  }
+  await db.prepare('UPDATE bookings SET channel = ?1, ota_commission_cents = ?2, updated_at = ?3 WHERE id = ?4')
+    .bind(body.channel, otaCommissionCents, nowIso(), params.id).run();
 
-  return redirectBack(request, `/admin/bookings/${params.id}`, { saved: '1' });
+  return Response.json({ success: true });
 };

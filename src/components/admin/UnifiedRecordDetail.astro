@@ -1,0 +1,613 @@
+---
+import { requireDb, boldPaymentLink, getRuntimeEnv } from '../../lib/db';
+import {
+  money, shortDate, timeAgo, waLinkTo, nightsBetween, channelBadgeClass,
+  STATUS_LABELS, STATUS_COLORS, pipelineFor, normalizeStatus,
+  BOOKING_CHANNELS, BOOKING_CHANNEL_LABELS, CHANNEL_PILL_LABELS, DEFAULT_COMMISSION_RATE,
+  PAYMENT_METHODS,
+} from '../../lib/crm';
+
+interface Props {
+  kind: 'lead' | 'booking';
+  record: any;
+}
+const { kind, record } = Astro.props;
+
+const db = requireDb(Astro.locals);
+const env = getRuntimeEnv(Astro.locals);
+
+const isBooking = kind === 'booking';
+const phone: string | null = isBooking ? record.guest_phone : record.whatsapp;
+const nights = nightsBetween(record.date_from, record.date_to);
+const guests = (record.adults || 0) + (record.children || 0);
+const channel: string | null = isBooking ? record.channel : null;
+const isAirbnb = channel === 'airbnb';
+
+// --- Accommodation ---------------------------------------------------------
+let accommodationCents = 0;
+let accommodationChargeId: string | null = null;
+if (isBooking) {
+  const row = await db.prepare(`SELECT id, amount_cents FROM charges WHERE booking_id = ?1 AND category = 'accommodation' LIMIT 1`)
+    .bind(record.id).first<{ id: string; amount_cents: number }>();
+  accommodationCents = row?.amount_cents ?? 0;
+  accommodationChargeId = row?.id ?? null;
+} else {
+  accommodationCents = record.accommodation_amount ?? 0;
+}
+const airbnbPayoutCents = isBooking ? (record.airbnb_payout_cents ?? 0) : 0;
+const commissionRate = isBooking ? (record.commission_rate ?? DEFAULT_COMMISSION_RATE) : DEFAULT_COMMISSION_RATE;
+const isBookingCom = isBooking && channel === 'booking.com';
+const commissionCents = isBookingCom ? Math.round(accommodationCents * (commissionRate / 100) * 1.19) : 0;
+
+// --- Totals ------------------------------------------------------------------
+const collectibleAccommodationCents = isAirbnb ? 0 : accommodationCents;
+const foodCents = record.food_confirmed ? (record.food_amount ?? 0) : 0;
+const transportCents = record.transport_confirmed ? (record.transport_amount ?? 0) : 0;
+const totalToCollectCents = collectibleAccommodationCents + foodCents + transportCents;
+const netToYouCents = totalToCollectCents - commissionCents;
+const defaultDepositCents = Math.round(totalToCollectCents * 0.5);
+
+// --- Costs / net contribution (bookings only) --------------------------------
+const costStaffCents = isBooking ? (record.cost_staff_cents ?? 0) : 0;
+const costFoodCents = isBooking ? (record.cost_food_cents ?? 0) : 0;
+const costTransportCents = isBooking ? (record.cost_transport_cents ?? 0) : 0;
+const revenueForContributionCents = (isAirbnb ? airbnbPayoutCents : accommodationCents) + foodCents + transportCents;
+const netContributionCents = revenueForContributionCents - commissionCents - costStaffCents - costFoodCents - costTransportCents;
+const perNightCents = nights > 0 ? Math.round(netContributionCents / nights) : 0;
+
+// --- Payments received ---------------------------------------------------------
+interface PaymentRow { id: string; amount_cents: number; method: string | null; paid_at: string; }
+const paymentsResult = isBooking
+  ? await db.prepare(`SELECT p.id, p.amount_cents, p.method, p.paid_at FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = ?1 ORDER BY p.paid_at DESC`).bind(record.id).all<PaymentRow>()
+  : await db.prepare(`SELECT p.id, p.amount_cents, p.method, p.paid_at FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.lead_id = ?1 ORDER BY p.paid_at DESC`).bind(record.id).all<PaymentRow>();
+const payments = paymentsResult.results;
+const totalReceivedCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
+const balanceDueCents = totalToCollectCents - totalReceivedCents;
+
+// --- HostHub / last sync (bookings only) --------------------------------------
+const lastSync = isBooking && record.source === 'hosthub_ical'
+  ? await db.prepare(`SELECT synced_at FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<{ synced_at: string }>()
+  : null;
+
+const pipeline = pipelineFor(channel);
+const currentStatus = normalizeStatus(record.status);
+const boldLink = boldPaymentLink(env);
+const boldLinkIsFallback = !env.BOLD_PAYMENT_LINK;
+
+const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/leads/${record.id}`;
+---
+<div class="urd" data-kind={kind} data-id={record.id}>
+  <div class="header-top">
+    <h1>{record.guest_name || (isBooking ? 'Unnamed booking' : 'Unnamed lead')}</h1>
+    <a id="wa-btn" class="button whatsapp" href={phone ? waLinkTo(phone) : '#'} target="_blank" rel="noopener" style={phone ? '' : 'display:none'}>💬 WhatsApp</a>
+  </div>
+  <div class="actions" style="margin-bottom:10px">
+    <span class={`type-pill ${kind}`}>{isBooking ? 'BOOKING' : 'LEAD'}</span>
+    {isBooking && <span class={`channel-pill ${channelBadgeClass(channel!)}`}>{CHANNEL_PILL_LABELS[channel as typeof BOOKING_CHANNELS[number]] || channel}</span>}
+    {isBooking && record.source === 'hosthub_ical' && <span class="badge hh">HH</span>}
+  </div>
+  <p class="muted dates-line">
+    {record.date_from && record.date_to ? <>{shortDate(record.date_from)} → {shortDate(record.date_to)} · {nights} nights</> : 'No dates yet'}
+    {guests > 0 && <> · {guests} guests</>}
+  </p>
+  <label class="phone-field">Phone
+    <input type="tel" id="phone-input" value={phone || ''} placeholder="+57 300 000 0000" />
+  </label>
+  <div class="inline-feedback" id="phone-feedback"></div>
+
+  <section class="card urd-section">
+    <h2>Status</h2>
+    <div class="status-pills" id="status-pills">
+      {pipeline.map((status) => (
+        <button type="button" class={`status-pill ${currentStatus === status ? 'active' : ''}`} data-status={status} style={`--pill-color:${STATUS_COLORS[status]}`}>
+          {STATUS_LABELS[status]}
+        </button>
+      ))}
+    </div>
+    <div class="inline-feedback" id="status-feedback"></div>
+  </section>
+
+  <section class="card urd-section">
+    <h2>Accommodation</h2>
+    {isAirbnb
+      ? <>
+          <p class="info-box">✅ Paid by Airbnb</p>
+          <label>Payout received (COP)
+            <input type="text" inputmode="numeric" id="airbnb-payout-input" value={airbnbPayoutCents / 100} placeholder="Enter amount Airbnb paid you" />
+          </label>
+        </>
+      : <label>Amount (COP)
+          <input type="text" inputmode="numeric" id="accommodation-input" value={accommodationCents / 100 || ''} placeholder="Enter amount in COP" />
+        </label>}
+    <div class="inline-feedback" id="accommodation-feedback"></div>
+  </section>
+
+  <section class="card urd-section">
+    <h2>Food &amp; transport</h2>
+    <div class="extras-list">
+      <div class="extras-row" data-field="food">
+        <span class="extras-label">🍽️ Food</span>
+        <div class="extras-control">
+          {record.food_confirmed
+            ? <>
+                <span class="extras-amount-display">{money(record.food_amount || 0)}</span>
+                <input class="extras-amount-input" type="text" inputmode="numeric" value={(record.food_amount || 0) / 100} style="display:none" />
+                <button type="button" class="secondary extras-remove">✕ Remove</button>
+              </>
+            : <button type="button" class="secondary extras-add">➕ Add food</button>}
+        </div>
+      </div>
+      <div class="extras-row" data-field="transport">
+        <span class="extras-label">🚤 Transport</span>
+        <div class="extras-control">
+          {record.transport_confirmed
+            ? <>
+                <span class="extras-amount-display">{money(record.transport_amount || 0)}</span>
+                <input class="extras-amount-input" type="text" inputmode="numeric" value={(record.transport_amount || 0) / 100} style="display:none" />
+                <button type="button" class="secondary extras-remove">✕ Remove</button>
+              </>
+            : <button type="button" class="secondary extras-add">➕ Add transport</button>}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card urd-section">
+    <h2>Totals</h2>
+    <div class="row"><span>Total to collect</span><strong class="amount" id="total-to-collect">{money(totalToCollectCents)}</strong></div>
+    <div class="row"><span>Deposit (50%)</span><strong class="amount" id="deposit-preview">{money(defaultDepositCents)}</strong></div>
+    {isBookingCom && <>
+      <div class="row">
+        <span>Commission rate</span>
+        <span class="rc-cell" id="commission-rate-cell">
+          <span class="rc-display amount">{commissionRate}%</span>
+          <input class="rc-input" type="text" inputmode="decimal" id="commission-rate-input" value={commissionRate} style="display:none" />
+        </span>
+      </div>
+      <div class="row"><span>Commission (18% VAT incl.)</span><strong class="amount" id="commission-amount">{money(commissionCents)}</strong></div>
+      <div class="row"><strong>Net to you</strong><strong class="amount" id="net-to-you">{money(netToYouCents)}</strong></div>
+    </>}
+  </section>
+
+  {totalToCollectCents > 0 && (
+    <section class="card urd-section">
+      <h2>Collect deposit</h2>
+      <label>Deposit (COP)
+        <input type="text" inputmode="numeric" id="deposit-input" value={defaultDepositCents / 100} />
+      </label>
+      {boldLinkIsFallback && <p class="muted" style="font-size:12px;margin-top:-6px">⚠️ BOLD_PAYMENT_LINK secret not set — using fallback link.</p>}
+      <button type="button" class="secondary" id="copy-deposit-btn" style="margin-top:8px">📋 Copy WhatsApp message</button>
+      <div class="inline-feedback" id="deposit-feedback"></div>
+    </section>
+  )}
+
+  <section class="card urd-section">
+    <h2>Payments received</h2>
+    <div class="payments-list" id="payments-list">
+      {payments.length === 0 && <p class="muted" id="no-payments">No payments recorded yet.</p>}
+      {payments.map((p) => (
+        <div class="row payment-row" data-payment-id={p.id}>
+          <span>{shortDate(p.paid_at)} · {p.method || '—'}</span>
+          <div class="actions">
+            <strong class="amount">{money(p.amount_cents)}</strong>
+            <button type="button" class="secondary payment-remove" data-id={p.id}>✕</button>
+          </div>
+        </div>
+      ))}
+    </div>
+    <button type="button" class="secondary" id="add-payment-btn" style="margin-top:10px">+ Add payment</button>
+    <form class="form-grid" id="add-payment-form" style="display:none;margin-top:12px">
+      <label>Amount (COP)<input type="text" inputmode="numeric" id="payment-amount" required /></label>
+      <label>Method
+        <select id="payment-method">
+          {PAYMENT_METHODS.map((m) => <option value={m}>{m}</option>)}
+        </select>
+      </label>
+      <label class="span-2">Date<input type="date" id="payment-date" value={new Date().toISOString().slice(0, 10)} /></label>
+      <div class="span-2 actions">
+        <button type="button" class="secondary" id="payment-cancel-btn">Cancel</button>
+        <button type="button" id="payment-save-btn">Save</button>
+      </div>
+    </form>
+    <p class="field-error" id="payment-error" style="display:none"></p>
+    <div class="row" style="margin-top:6px"><span>Total received</span><strong class="amount">{money(totalReceivedCents)}</strong></div>
+    <div class="row"><strong>Balance due</strong><strong class={`amount ${balanceDueCents > 0 ? 'negative' : 'positive'}`}>{money(Math.max(0, balanceDueCents))}</strong></div>
+  </section>
+
+  {isBooking && (
+    <details class="urd-section">
+      <summary>▶ Variable costs</summary>
+      <section class="card" style="margin-top:10px">
+        <label>Staff (COP)<input type="text" inputmode="numeric" id="cost-staff-input" value={costStaffCents / 100 || ''} /></label>
+        <label style="margin-top:10px">Food cost (COP)<input type="text" inputmode="numeric" id="cost-food-input" value={costFoodCents / 100 || ''} /></label>
+        <label style="margin-top:10px">Transport cost (COP)<input type="text" inputmode="numeric" id="cost-transport-input" value={costTransportCents / 100 || ''} /></label>
+        <div class="inline-feedback" id="costs-feedback"></div>
+        <div class="row" style="margin-top:10px"><strong>Net contribution</strong><strong class="amount" id="net-contribution">{money(netContributionCents)}</strong></div>
+        <div class="row"><span>Per night</span><strong class="amount" id="per-night">{money(perNightCents)}</strong></div>
+      </section>
+    </details>
+  )}
+
+  <section class="card urd-section">
+    <h2>Notes <span class="muted notes-state" id="notes-feedback">Autosaves</span></h2>
+    <textarea id="notes-input" placeholder="Internal notes...">{record.notes || ''}</textarea>
+  </section>
+
+  <section class="card urd-section">
+    <h2>HostHub</h2>
+    {isBooking
+      ? <>
+          <div class="row"><span>Reservation</span><strong>{record.reservation_id || 'not linked'}</strong></div>
+          <label>Channel
+            <select id="hosthub-channel-select">
+              {BOOKING_CHANNELS.map((c) => <option value={c} selected={c === channel}>{BOOKING_CHANNEL_LABELS[c]}</option>)}
+            </select>
+          </label>
+          <div class="inline-feedback" id="channel-feedback"></div>
+          {record.source === 'hosthub_ical' && <p class="muted" style="font-size:12px">Last synced: {lastSync ? timeAgo(lastSync.synced_at) : 'never'}</p>}
+          <a class="button secondary" href="https://app.hosthub.com" target="_blank" rel="noopener" style="margin-top:8px">Open HostHub ↗</a>
+        </>
+      : <form method="POST" action="/admin/api/bookings/create" id="convert-form">
+          <input type="hidden" name="lead_id" value={record.id} />
+          <input type="hidden" name="guest_name" value={record.guest_name || ''} />
+          <input type="hidden" name="guest_phone" value={record.whatsapp || ''} />
+          <input type="hidden" name="date_from" value={record.date_from?.slice(0, 10) || ''} />
+          <input type="hidden" name="date_to" value={record.date_to?.slice(0, 10) || ''} />
+          <input type="hidden" name="adults" value={record.adults || 1} />
+          <input type="hidden" name="children" value={record.children || 0} />
+          <input type="hidden" name="notes" value={record.notes || ''} />
+          <label>🔗 Link HostHub reservation<input name="reservation_id" required placeholder="c1zshdhyycnzc1" /></label>
+          <button type="submit" style="margin-top:10px">Confirm booking</button>
+        </form>}
+  </section>
+</div>
+
+<style>
+  .header-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .header-top h1 { margin:0; }
+  .dates-line { margin-bottom:12px; }
+  .phone-field { max-width:280px; }
+  .urd-section { margin-top:18px; }
+  .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
+  .type-pill.booking { background:#57392E; }
+  .type-pill.lead { background:#7D98AB; }
+  .status-pill { background:color-mix(in srgb, var(--pill-color) 16%, white); color:var(--pill-color); }
+  .status-pill.active { border-color:var(--pill-color); }
+  .info-box { background:#dff8f1; color:#116149; border-radius:10px; padding:12px 14px; font-weight:700; margin-bottom:10px; }
+  .extras-list { display:grid; gap:14px; }
+  .extras-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .extras-label { font-weight:700; }
+  .extras-control { display:flex; align-items:center; gap:10px; }
+  .extras-amount-display { cursor:pointer; font-variant-numeric:tabular-nums; font-weight:750; border-bottom:1px dotted #a89890; }
+  .extras-amount-input { max-width:140px; text-align:right; }
+  .rc-cell { cursor:pointer; }
+  .rc-cell .rc-input { max-width:100px; text-align:right; display:inline-block; }
+  .amount.positive { color:#166534; }
+  .amount.negative { color:var(--red); }
+  .field-error { color:var(--red); font-size:12px; margin-top:8px; }
+  .notes-state { font-size:12px; font-weight:400; }
+  #notes-input { min-height:100px; }
+  details > summary { cursor:pointer; font-weight:700; color:var(--brown); padding:10px 0; list-style:none; }
+  details > summary::-webkit-details-marker { display:none; }
+  .payment-row { padding:10px 0; }
+</style>
+
+<script define:vars={{ apiBase, kind, boldLink, guestName: record.guest_name, dateFrom: record.date_from, dateTo: record.date_to, isBookingCom, accommodationCents, foodCentsInit: foodCents, transportCentsInit: transportCents, isAirbnb }}>
+  function pesosFromInput(str) {
+    const n = Number(String(str).replace(/[^0-9]/g, ''));
+    return Number.isFinite(n) ? n : 0;
+  }
+  function formatCOP(pesos) {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(pesos);
+  }
+  function shortDateEs(value) {
+    if (!value) return '';
+    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
+  }
+  function flash(el, ok) {
+    if (!el) return;
+    el.classList.remove('error');
+    if (!ok) el.classList.add('error');
+    el.textContent = ok ? '✓ Saved' : 'Could not save';
+    setTimeout(() => { if (ok) el.textContent = ''; }, 1200);
+  }
+
+  // ---- Phone (header) ----
+  const phoneInput = document.getElementById('phone-input');
+  const waBtn = document.getElementById('wa-btn');
+  const phoneFeedback = document.getElementById('phone-feedback');
+  function syncWaBtn() {
+    const digits = (phoneInput.value || '').replace(/\D/g, '');
+    if (digits) {
+      waBtn.href = `https://wa.me/${digits}`;
+      waBtn.style.display = '';
+    } else {
+      waBtn.style.display = 'none';
+    }
+  }
+  phoneInput?.addEventListener('input', syncWaBtn);
+  phoneInput?.addEventListener('blur', async () => {
+    const field = kind === 'booking' ? 'guest_phone' : 'whatsapp';
+    try {
+      const res = await fetch(`${apiBase}/update`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: phoneInput.value }) });
+      if (!res.ok) throw new Error();
+      flash(phoneFeedback, true);
+    } catch { flash(phoneFeedback, false); }
+  });
+
+  // ---- Status pills ----
+  const statusFeedback = document.getElementById('status-feedback');
+  document.querySelectorAll('#status-pills .status-pill').forEach((pill) => {
+    pill.addEventListener('click', async () => {
+      const status = pill.getAttribute('data-status');
+      if (!status) return;
+      document.querySelectorAll('#status-pills button').forEach((b) => { b.disabled = true; });
+      try {
+        const res = await fetch(`${apiBase}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Could not update status');
+        document.querySelectorAll('#status-pills .status-pill').forEach((p) => p.classList.toggle('active', p === pill));
+        flash(statusFeedback, true);
+      } catch (error) {
+        if (statusFeedback) { statusFeedback.classList.add('error'); statusFeedback.textContent = error instanceof Error ? error.message : 'Could not update status'; }
+      } finally {
+        document.querySelectorAll('#status-pills button').forEach((b) => { b.disabled = false; });
+      }
+    });
+  });
+
+  // ---- Accommodation ----
+  const accommodationFeedback = document.getElementById('accommodation-feedback');
+  let currentAccommodationCents = accommodationCents;
+  const accommodationInput = document.getElementById('accommodation-input');
+  accommodationInput?.addEventListener('blur', async () => {
+    const pesos = pesosFromInput(accommodationInput.value);
+    accommodationInput.value = String(pesos);
+    try {
+      const res = await fetch(`${apiBase}/accommodation`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: pesos }) });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error();
+      currentAccommodationCents = pesos * 100;
+      flash(accommodationFeedback, true);
+      recomputeTotals();
+    } catch { flash(accommodationFeedback, false); }
+  });
+  const airbnbPayoutInput = document.getElementById('airbnb-payout-input');
+  airbnbPayoutInput?.addEventListener('blur', async () => {
+    const pesos = pesosFromInput(airbnbPayoutInput.value);
+    airbnbPayoutInput.value = String(pesos);
+    try {
+      const res = await fetch(`${apiBase}/accommodation`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ airbnbPayout: pesos }) });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error();
+      flash(accommodationFeedback, true);
+    } catch { flash(accommodationFeedback, false); }
+  });
+
+  // ---- Food & transport ----
+  let currentFoodCents = foodCentsInit;
+  let currentTransportCents = transportCentsInit;
+
+  function wireExtraRow(row) {
+    const field = row.dataset.field;
+    const addBtn = row.querySelector('.extras-add');
+    const removeBtn = row.querySelector('.extras-remove');
+    const display = row.querySelector('.extras-amount-display');
+    const input = row.querySelector('.extras-amount-input');
+
+    addBtn?.addEventListener('click', async () => {
+      addBtn.disabled = true;
+      try {
+        const res = await fetch(`${apiBase}/extras`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, confirmed: true, amount: 0 }) });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error();
+        if (field === 'food') currentFoodCents = 0; else currentTransportCents = 0;
+        window.location.reload();
+      } catch {
+        addBtn.disabled = false;
+      }
+    });
+
+    removeBtn?.addEventListener('click', async () => {
+      removeBtn.disabled = true;
+      try {
+        const res = await fetch(`${apiBase}/extras`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, confirmed: false, amount: 0 }) });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error();
+        if (field === 'food') currentFoodCents = 0; else currentTransportCents = 0;
+        window.location.reload();
+      } catch {
+        removeBtn.disabled = false;
+      }
+    });
+
+    display?.addEventListener('click', () => {
+      display.style.display = 'none';
+      input.style.display = '';
+      input.focus();
+      input.select();
+    });
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+    input?.addEventListener('blur', async () => {
+      const pesos = pesosFromInput(input.value);
+      input.value = String(pesos);
+      try {
+        const res = await fetch(`${apiBase}/extras`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, amount: pesos }) });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error();
+        display.textContent = formatCOP(pesos);
+        if (field === 'food') currentFoodCents = pesos * 100; else currentTransportCents = pesos * 100;
+        recomputeTotals();
+      } catch { /* leave input visible so operator can retry */ return; }
+      display.style.display = '';
+      input.style.display = 'none';
+    });
+  }
+  document.querySelectorAll('.extras-row').forEach(wireExtraRow);
+
+  // ---- Totals (live recompute) ----
+  const commissionRateInput = document.getElementById('commission-rate-input');
+  const commissionRateCell = document.getElementById('commission-rate-cell');
+  function currentCommissionRate() {
+    return commissionRateInput ? Number(commissionRateInput.value) || 0 : 0;
+  }
+  function recomputeTotals() {
+    const collectibleAccommodation = isAirbnb ? 0 : currentAccommodationCents;
+    const totalToCollect = collectibleAccommodation + currentFoodCents + currentTransportCents;
+    const commissionCents = isBookingCom ? Math.round(currentAccommodationCents * (currentCommissionRate() / 100) * 1.19) : 0;
+    const el = (id) => document.getElementById(id);
+    if (el('total-to-collect')) el('total-to-collect').textContent = formatCOP(totalToCollect / 100);
+    if (el('deposit-preview')) el('deposit-preview').textContent = formatCOP(Math.round(totalToCollect * 0.5) / 100);
+    if (el('commission-amount')) el('commission-amount').textContent = formatCOP(commissionCents / 100);
+    if (el('net-to-you')) el('net-to-you').textContent = formatCOP((totalToCollect - commissionCents) / 100);
+    const depositInput = el('deposit-input');
+    if (depositInput && !depositInput.dataset.touched) depositInput.value = String(Math.round(totalToCollect / 2 / 100));
+  }
+  document.getElementById('deposit-input')?.addEventListener('input', (e) => { e.target.dataset.touched = '1'; });
+
+  if (commissionRateCell) {
+    const display = commissionRateCell.querySelector('.rc-display');
+    display?.addEventListener('click', () => {
+      display.style.display = 'none';
+      commissionRateInput.style.display = '';
+      commissionRateInput.focus();
+      commissionRateInput.select();
+    });
+    commissionRateInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') commissionRateInput.blur(); });
+    commissionRateInput?.addEventListener('blur', async () => {
+      const rate = Number(commissionRateInput.value.replace(/[^0-9.]/g, '')) || 0;
+      commissionRateInput.value = String(rate);
+      display.textContent = `${rate}%`;
+      display.style.display = '';
+      commissionRateInput.style.display = 'none';
+      recomputeTotals();
+      try {
+        await fetch(`${apiBase}/commission-rate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rate }) });
+      } catch { /* commission rate is a low-stakes preview field; a failed save just gets corrected on next edit */ }
+    });
+  }
+
+  // ---- Collect deposit ----
+  document.getElementById('copy-deposit-btn')?.addEventListener('click', async () => {
+    const depositInput = document.getElementById('deposit-input');
+    const pesos = pesosFromInput(depositInput.value);
+    const lines = [`Hola ${guestName || ''}! 🌴`, ''];
+    if (dateFrom && dateTo) {
+      lines.push(`Para confirmar tu reserva del ${shortDateEs(dateFrom)}`, `al ${shortDateEs(dateTo)}:`, '');
+    } else {
+      lines.push('Para confirmar tu reserva:', '');
+    }
+    lines.push(
+      `💳 Depósito: ${formatCOP(pesos)}`,
+      '',
+      'Ingresa ese monto aquí y paga con',
+      'tarjeta, PSE o Nequi:',
+      boldLink,
+      '',
+      '¡Gracias! 🌊',
+    );
+    const btn = document.getElementById('copy-deposit-btn');
+    const feedback = document.getElementById('deposit-feedback');
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      flash(feedback, true);
+      if (btn) { const original = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => { if (btn) btn.textContent = original; }, 1500); }
+    } catch { flash(feedback, false); }
+  });
+
+  // ---- Payments received ----
+  const addPaymentBtn = document.getElementById('add-payment-btn');
+  const addPaymentForm = document.getElementById('add-payment-form');
+  addPaymentBtn?.addEventListener('click', () => {
+    addPaymentForm.style.display = '';
+    addPaymentBtn.style.display = 'none';
+  });
+  document.getElementById('payment-cancel-btn')?.addEventListener('click', () => {
+    addPaymentForm.style.display = 'none';
+    addPaymentBtn.style.display = '';
+  });
+  document.getElementById('payment-save-btn')?.addEventListener('click', async () => {
+    const amountInput = document.getElementById('payment-amount');
+    const methodSelect = document.getElementById('payment-method');
+    const dateInput = document.getElementById('payment-date');
+    const errorBox = document.getElementById('payment-error');
+    const pesos = pesosFromInput(amountInput.value);
+    if (pesos <= 0) { if (errorBox) { errorBox.textContent = 'Enter a valid amount.'; errorBox.style.display = ''; } return; }
+    const btn = document.getElementById('payment-save-btn');
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${apiBase}/payments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: pesos, method: methodSelect.value, date: dateInput.value }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Could not save payment.');
+      window.location.reload();
+    } catch (error) {
+      if (errorBox) { errorBox.textContent = error instanceof Error ? error.message : 'Could not save payment.'; errorBox.style.display = ''; }
+      btn.disabled = false;
+    }
+  });
+  document.querySelectorAll('.payment-remove').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      if (!id) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/admin/api/payments/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        window.location.reload();
+      } catch { btn.disabled = false; }
+    });
+  });
+
+  // ---- Costs (bookings only) ----
+  function wireCostInput(id, field) {
+    const input = document.getElementById(id);
+    input?.addEventListener('blur', async () => {
+      const pesos = pesosFromInput(input.value);
+      input.value = String(pesos);
+      const feedback = document.getElementById('costs-feedback');
+      try {
+        const res = await fetch(`${apiBase}/costs`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: pesos }) });
+        if (!res.ok) throw new Error();
+        flash(feedback, true);
+        window.location.reload();
+      } catch { flash(feedback, false); }
+    });
+  }
+  wireCostInput('cost-staff-input', 'staff');
+  wireCostInput('cost-food-input', 'food');
+  wireCostInput('cost-transport-input', 'transport');
+
+  // ---- Notes (autosave) ----
+  const notesInput = document.getElementById('notes-input');
+  const notesFeedback = document.getElementById('notes-feedback');
+  let notesTimer;
+  notesInput?.addEventListener('input', () => {
+    if (notesFeedback) notesFeedback.textContent = 'Saving…';
+    clearTimeout(notesTimer);
+    notesTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${apiBase}/update`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: notesInput.value }) });
+        if (!res.ok) throw new Error();
+        if (notesFeedback) notesFeedback.textContent = '✓ Saved';
+      } catch { if (notesFeedback) notesFeedback.textContent = 'Could not save'; }
+    }, 600);
+  });
+
+  // ---- HostHub channel (bookings only) ----
+  const channelSelect = document.getElementById('hosthub-channel-select');
+  const channelFeedback = document.getElementById('channel-feedback');
+  channelSelect?.addEventListener('change', async () => {
+    try {
+      const res = await fetch(`${apiBase}/channel`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channel: channelSelect.value }) });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error();
+      flash(channelFeedback, true);
+      window.location.reload();
+    } catch { flash(channelFeedback, false); }
+  });
+</script>

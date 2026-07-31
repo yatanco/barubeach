@@ -1,15 +1,83 @@
-export const LEAD_STATUSES = ['new', 'quoted', 'deposit_pending', 'deposit', 'booked', 'completed', 'lost', 'spam'] as const;
-export type LeadStatus = typeof LEAD_STATUSES[number];
+// Unified status pipeline — leads and bookings share one status set (migration 0010).
+// 'checked_in' is a legacy value still written directly by hosthub-sync.ts (not touched
+// by this task); it is treated everywhere as a display/pipeline synonym for 'in_house'.
+export const UNIFIED_STATUSES = [
+  'new', 'quoted', 'deposit_requested', 'deposit_paid',
+  'confirmed', 'upsell_pending', 'upsell_confirmed',
+  'in_house', 'balance_requested', 'completed',
+  'lost', 'cancelled',
+] as const;
+export type UnifiedStatus = typeof UNIFIED_STATUSES[number];
+export type StoredStatus = UnifiedStatus | 'checked_in';
 
-export const PIPELINE_STATUSES = ['new', 'quoted', 'deposit_pending', 'deposit', 'booked', 'completed'] as const;
-export const PIPELINE_LABELS: Record<typeof PIPELINE_STATUSES[number], string> = {
+export const STATUS_LABELS: Record<StoredStatus, string> = {
   new: 'New',
   quoted: 'Quoted',
-  deposit_pending: 'Deposit Pending',
-  deposit: 'Deposit',
-  booked: 'Booked',
+  deposit_requested: 'Deposit Requested',
+  deposit_paid: 'Deposit Paid',
+  confirmed: 'Confirmed',
+  upsell_pending: 'Upsell Pending',
+  upsell_confirmed: 'Upsell Confirmed',
+  in_house: 'In House',
+  checked_in: 'In House',
+  balance_requested: 'Balance Requested',
   completed: 'Completed',
+  lost: 'Lost',
+  cancelled: 'Cancelled',
 };
+
+export const STATUS_COLORS: Record<StoredStatus, string> = {
+  new: '#6B7280',
+  quoted: '#3B82F6',
+  deposit_requested: '#F59E0B',
+  deposit_paid: '#8B5CF6',
+  confirmed: '#22C55E',
+  upsell_pending: '#6B7280',
+  upsell_confirmed: '#0D9488',
+  in_house: '#3B82F6',
+  checked_in: '#3B82F6',
+  balance_requested: '#F97316',
+  completed: '#0D9488',
+  lost: '#EF4444',
+  cancelled: '#EF4444',
+};
+
+// Tap-through pill sequence shown on the detail page, chosen by channel.
+// Direct/Booking.com (and leads, which are never Airbnb-channel) start at 'new';
+// Airbnb bookings arrive pre-confirmed via HostHub sync and skip straight to 'confirmed'.
+// 'confirmed' is included here too (not just on AIRBNB_PIPELINE) because
+// hosthub-sync.ts's deriveStatus() is channel-agnostic — a direct or
+// booking.com reservation synced from HostHub can land in 'confirmed' just
+// from its dates, same as an Airbnb one.
+export const DIRECT_PIPELINE = [
+  'new', 'quoted', 'deposit_requested', 'deposit_paid', 'confirmed',
+  'in_house', 'balance_requested', 'completed',
+  'lost', 'cancelled',
+] as const;
+export const AIRBNB_PIPELINE = [
+  'confirmed', 'upsell_pending', 'upsell_confirmed',
+  'in_house', 'balance_requested', 'completed',
+  'cancelled',
+] as const;
+export const LEAD_PIPELINE = DIRECT_PIPELINE;
+
+export function pipelineFor(channel: string | null | undefined): readonly UnifiedStatus[] {
+  return channel === 'airbnb' ? AIRBNB_PIPELINE : DIRECT_PIPELINE;
+}
+
+// Normalizes the legacy 'checked_in' value hosthub-sync.ts still writes onto the
+// unified 'in_house' status, so pill-matching logic never needs a special case for it.
+export function normalizeStatus(status: string): UnifiedStatus {
+  return status === 'checked_in' ? 'in_house' : (status as UnifiedStatus);
+}
+
+// Statuses shown on the dashboard's active-pipeline view (i.e. not yet arrived/departed
+// and not a dead end) — used to distinguish "in progress" records from completed/lost/cancelled.
+export const OPEN_STATUSES = [
+  'new', 'quoted', 'deposit_requested', 'deposit_paid',
+  'confirmed', 'upsell_pending', 'upsell_confirmed',
+  'in_house', 'checked_in', 'balance_requested',
+] as const;
 
 export const GUEST_INTENTS = [
   { value: 'family_vacation', label: 'Family Vacation' },
@@ -24,13 +92,6 @@ export const GUEST_INTENTS = [
 ] as const;
 export const GUEST_INTENT_VALUES = GUEST_INTENTS.map((i) => i.value);
 
-export const BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed', 'cancelled'] as const;
-export const BOOKING_STATUS_LABELS: Record<typeof BOOKING_STATUSES[number], string> = {
-  confirmed: 'Confirmed',
-  checked_in: 'Checked In',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-};
 export const BOOKING_CHANNELS = ['direct', 'airbnb', 'booking.com', 'other'] as const;
 export const BOOKING_CHANNEL_LABELS: Record<typeof BOOKING_CHANNELS[number], string> = {
   direct: 'Direct',
@@ -48,13 +109,8 @@ export const CHANNEL_PILL_LABELS: Record<typeof BOOKING_CHANNELS[number], string
 export const BOOKING_SOURCES = ['manual', 'hosthub_ical'] as const;
 export const DEFAULT_COMMISSION_RATE = 18;
 
-export const PAYMENT_LINK_PROVIDERS = ['bold', 'wompi'] as const;
-export const PROVIDER_PAYMENT_METHODS = ['nequi', 'transferencia', 'efectivo'] as const;
-export const PROVIDER_PAYMENT_METHOD_LABELS: Record<typeof PROVIDER_PAYMENT_METHODS[number], string> = {
-  nequi: 'Nequi',
-  transferencia: 'Transferencia',
-  efectivo: 'Efectivo',
-};
+// Payments Received method dropdown (Section 7 of the unified detail page).
+export const PAYMENT_METHODS = ['Transferencia', 'Nequi', 'Bold', 'Efectivo', 'Airbnb', 'BK.COM'] as const;
 
 export function isOneOf<T extends readonly string[]>(value: string, values: T): value is T[number] {
   return values.includes(value as T[number]);
@@ -95,15 +151,6 @@ export function waLinkTo(phone: string, text?: string): string {
   return text ? `https://wa.me/${digits}?text=${encodeURIComponent(text)}` : `https://wa.me/${digits}`;
 }
 
-export const QUOTE_RATES = {
-  accommodationPerNight: 350,
-  transportDefault: 250,
-  foodPerAdultPerNight: 50,
-} as const;
-
-export const QUOTE_CURRENCIES = ['USD', 'COP'] as const;
-export type QuoteCurrency = typeof QUOTE_CURRENCIES[number];
-
 export function nightsBetween(dateFrom: string | null | undefined, dateTo: string | null | undefined): number {
   if (!dateFrom || !dateTo) return 0;
   const inMs = Date.parse(`${dateFrom.slice(0, 10)}T00:00:00Z`);
@@ -112,84 +159,3 @@ export function nightsBetween(dateFrom: string | null | undefined, dateTo: strin
   return Math.max(0, Math.round((outMs - inMs) / 86_400_000));
 }
 
-export function formatUsd(amount: number): string {
-  return `$${Math.round(amount).toLocaleString('en-US')}`;
-}
-
-export function formatMoneyAmount(amount: number, currency: string): string {
-  const locale = currency === 'COP' ? 'es-CO' : 'en-US';
-  return `$${Math.round(amount).toLocaleString(locale)}`;
-}
-
-interface EstimateLead {
-  quote_total?: number | string | null;
-  quote_currency?: string | null;
-  date_from?: string | null;
-  date_to?: string | null;
-  adults?: number | null;
-}
-
-export function estimateLeadValue(lead: EstimateLead): string {
-  if (lead.quote_total !== null && lead.quote_total !== undefined && lead.quote_total !== ('' as unknown)) {
-    const total = Number(lead.quote_total);
-    if (Number.isFinite(total) && total > 0) {
-      const currency = lead.quote_currency || 'USD';
-      return `${formatMoneyAmount(total, currency)} ${currency}`;
-    }
-  }
-  const nights = nightsBetween(lead.date_from, lead.date_to);
-  if (nights > 0 && lead.adults) {
-    return `~${formatUsd(nights * QUOTE_RATES.accommodationPerNight)} USD`;
-  }
-  return '—';
-}
-
-interface QuoteLead {
-  guest_name: string | null;
-  date_from: string | null;
-  date_to: string | null;
-  adults: number;
-  children: number;
-  transport_included: number | null;
-  food_included: number | null;
-  quote_accommodation: number | null;
-  quote_transport: number | null;
-  quote_food: number | null;
-  quote_total: number | null;
-  quote_deposit: number | null;
-  quote_currency: string | null;
-}
-
-function spanishDate(value: string | null | undefined): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
-    .format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
-}
-
-export function buildQuoteWhatsAppMessage(lead: QuoteLead): string {
-  const nights = nightsBetween(lead.date_from, lead.date_to);
-  const currency = lead.quote_currency || 'USD';
-  const fmt = (amount: number | null) => `${formatMoneyAmount(amount || 0, currency)} ${currency}`;
-  const guestLine = `👥 ${lead.adults} adultos${lead.children > 0 ? ` + ${lead.children} niños` : ''}`;
-  const lines = [
-    `Hola ${lead.guest_name || ''}! 🌴`,
-    '',
-    'Aquí está tu cotización para Casa Gaviota:',
-    '',
-    `📅 ${spanishDate(lead.date_from)} → ${spanishDate(lead.date_to)} (${nights} noches)`,
-    guestLine,
-    '',
-    '💰 Desglose:',
-    `🏠 Alojamiento: ${fmt(lead.quote_accommodation)}`,
-  ];
-  if (lead.transport_included) lines.push(`🚤 Transporte: ${fmt(lead.quote_transport)}`);
-  if (lead.food_included) lines.push(`🍽️ Alimentación: ${fmt(lead.quote_food)}`);
-  lines.push(
-    '',
-    `Total: ${fmt(lead.quote_total)}`,
-    `Depósito (50%): ${fmt(lead.quote_deposit)}`,
-    '',
-    '¿Te parece bien? 🙏',
-  );
-  return lines.join('\n');
-}

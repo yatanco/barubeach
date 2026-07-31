@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   await db.batch([
     db.prepare(`INSERT INTO bookings (id,created_at,updated_at,lead_id,reservation_id,guest_name,guest_phone,date_from,date_to,nights,adults,children,status,channel,source,notes)
       VALUES (?1,?2,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,'confirmed','direct','manual',?12)`).bind(id, now, leadId, reservationId, guestName, formString(form,'guest_phone') || null, dateFrom, dateTo, nights, Number(formString(form,'adults')) || 1, Number(formString(form,'children')) || 0, formString(form,'notes') || null),
-    db.prepare("UPDATE leads SET status = 'booked', updated_at = ?1 WHERE id = ?2").bind(now, leadId),
+    db.prepare("UPDATE leads SET status = 'confirmed', updated_at = ?1 WHERE id = ?2").bind(now, leadId),
   ]);
   return Response.redirect(new URL(`/admin/bookings/${id}?saved=1`, request.url), 303);
 };

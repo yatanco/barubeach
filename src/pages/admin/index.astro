@@ -1,25 +1,28 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../lib/db';
-import { money, shortDate, timeAgo, PIPELINE_LABELS, GUEST_INTENTS, estimateLeadValue, channelBadgeClass, CHANNEL_PILL_LABELS, BOOKING_CHANNELS } from '../../lib/crm';
+import {
+  money, shortDate, timeAgo, GUEST_INTENTS, channelBadgeClass, CHANNEL_PILL_LABELS, BOOKING_CHANNELS,
+  STATUS_LABELS, STATUS_COLORS, DIRECT_PIPELINE, AIRBNB_PIPELINE, normalizeStatus,
+} from '../../lib/crm';
 
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 interface BookingRow {
   id: string; guest_name: string; guest_phone: string | null; date_from: string; date_to: string;
-  adults: number; children: number; status: string; channel: string; total_cents: number; paid_cents: number;
+  adults: number; children: number; status: string; channel: string;
+  food_amount: number; food_confirmed: number; transport_amount: number; transport_confirmed: number;
+  accommodation_cents: number; paid_cents: number;
 }
 interface LeadRow {
   id: string; guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
-  adults: number; children: number; status: string; quote_total: number | null; quote_currency: string | null;
-  estimated_price: string | null; guest_intent: string | null; created_at: string;
+  adults: number; children: number; status: string; created_at: string;
+  accommodation_amount: number; food_amount: number; food_confirmed: number; transport_amount: number; transport_confirmed: number;
+  paid_cents: number;
 }
 interface SyncLogRow {
   synced_at: string; processed: number; inserted: number; updated: number; skipped: number; error: string | null;
-}
-interface MonthSummaryRow {
-  occupied_nights: number; revenue_cents: number; contribution_cents: number;
 }
 interface ListItem {
   kind: 'booking' | 'lead';
@@ -30,134 +33,104 @@ interface ListItem {
   guests: number;
   status: string;
   phone: string | null;
-  valueLabel: string;
-  valueClass: string;
+  balanceLabel: string;
+  balanceClass: string;
   isUpcoming: boolean;
-  isWithin60: boolean;
-  guestIntent: string | null;
   channel: string | null;
 }
 
-const BOOKING_HIDDEN_STATUSES = ['cancelled', 'completed'];
-const LEAD_HIDDEN_STATUSES = ['lost', 'spam', 'completed'];
+const BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status, b.channel,
+    b.food_amount, b.food_confirmed, b.transport_amount, b.transport_confirmed,
+    COALESCE((SELECT amount_cents FROM charges WHERE booking_id = b.id AND category = 'accommodation' LIMIT 1), 0) AS accommodation_cents,
+    COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
+  FROM bookings b WHERE b.status NOT IN ('cancelled','completed')`;
+const LEAD_SELECT = `SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, created_at,
+    accommodation_amount, food_amount, food_confirmed, transport_amount, transport_confirmed,
+    COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.lead_id = leads.id), 0) AS paid_cents
+  FROM leads WHERE status NOT IN ('lost','cancelled','completed') AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)`;
 
 const db = getDb(Astro.locals);
-let futureBookings: BookingRow[] = [];
+let bookings: BookingRow[] = [];
 let leadsWithDates: LeadRow[] = [];
 let leadsWithoutDates: LeadRow[] = [];
-let hiddenBookings: BookingRow[] = [];
-let hiddenLeads: LeadRow[] = [];
 let newLeadsCount = 0;
 let weekLeadsCount = 0;
 let outstandingCents = 0;
 let arrivalsThisWeek = 0;
 let inHouseCount = 0;
 let lastSync: SyncLogRow | null = null;
-let monthSummary: MonthSummaryRow = { occupied_nights: 0, revenue_cents: 0, contribution_cents: 0 };
 let error = '';
 
 const now = new Date();
-const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-const monthStartStr = monthStart.toISOString().slice(0, 10);
-const monthEndStr = monthEnd.toISOString().slice(0, 10);
-const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86_400_000);
 const todayStr = now.toISOString().slice(0, 10);
 const upcomingBoundStr = new Date(now.getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
-const within60BoundStr = new Date(now.getTime() + 60 * 86_400_000).toISOString().slice(0, 10);
+const weekBoundStr = new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
 
 if (!db) {
   error = 'D1 is not configured yet. Bind the database as DB and run the migration.';
 } else {
   try {
     const [
-      futureBookingResult, leadsWithDatesResult, leadsWithoutDatesResult, hiddenBookingResult, hiddenLeadResult,
-      newCountResult, weekCountResult, outstandingResult, arrivalsResult, inHouseResult, lastSyncResult, monthSummaryResult,
+      bookingResult, leadsWithDatesResult, leadsWithoutDatesResult,
+      newCountResult, weekCountResult, outstandingResult, arrivalsResult, inHouseResult, lastSyncResult,
     ] = await Promise.all([
-      db.prepare(`SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status, b.channel,
-          COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
-          COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
-        FROM bookings b
-        WHERE b.status NOT IN ('cancelled','completed') AND b.date_from >= date('now')
-        ORDER BY b.date_from ASC`).all<BookingRow>(),
-      db.prepare(`SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, quote_total, quote_currency, estimated_price, guest_intent, created_at
-        FROM leads WHERE status NOT IN ('lost','spam','completed') AND date_from IS NOT NULL
-        ORDER BY date_from ASC`).all<LeadRow>(),
-      db.prepare(`SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, quote_total, quote_currency, estimated_price, guest_intent, created_at
-        FROM leads WHERE status NOT IN ('lost','spam','completed') AND date_from IS NULL
-        ORDER BY created_at DESC`).all<LeadRow>(),
-      db.prepare(`SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status, b.channel,
-          COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
-          COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
-        FROM bookings b WHERE b.status IN ('cancelled','completed')
-        ORDER BY b.date_to DESC LIMIT 100`).all<BookingRow>(),
-      db.prepare(`SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, quote_total, quote_currency, estimated_price, guest_intent, created_at
-        FROM leads WHERE status IN ('lost','spam','completed')
-        ORDER BY created_at DESC LIMIT 100`).all<LeadRow>(),
+      db.prepare(`${BOOKING_SELECT} ORDER BY b.date_from ASC`).all<BookingRow>(),
+      db.prepare(`${LEAD_SELECT} AND date_from IS NOT NULL ORDER BY date_from ASC`).all<LeadRow>(),
+      db.prepare(`${LEAD_SELECT} AND date_from IS NULL ORDER BY created_at DESC`).all<LeadRow>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE status = 'new'`).first<{ count: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE created_at >= datetime('now', '-7 days')`).first<{ count: number }>(),
       db.prepare(`WITH booking_totals AS (
         SELECT b.id,
-          COALESCE((SELECT SUM(c.amount_cents) FROM charges c WHERE c.booking_id = b.id), 0) AS total_cents,
+          (CASE WHEN b.channel = 'airbnb' THEN 0 ELSE COALESCE((SELECT amount_cents FROM charges WHERE booking_id = b.id AND category = 'accommodation' LIMIT 1), 0) END)
+            + (CASE WHEN b.food_confirmed THEN b.food_amount ELSE 0 END)
+            + (CASE WHEN b.transport_confirmed THEN b.transport_amount ELSE 0 END) AS total_cents,
           COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
-        FROM bookings b
+        FROM bookings b WHERE b.status != 'cancelled'
       ) SELECT COALESCE(SUM(MAX(total_cents - paid_cents, 0)), 0) AS outstanding FROM booking_totals`).first<{ outstanding: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from BETWEEN date('now') AND date('now', '+7 days') AND status != 'cancelled'`).first<{ count: number }>(),
-      db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from <= date('now') AND date_to >= date('now') AND status = 'checked_in'`).first<{ count: number }>(),
+      db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from <= date('now') AND date_to >= date('now') AND status IN ('in_house','checked_in')`).first<{ count: number }>(),
       db.prepare(`SELECT synced_at, processed, inserted, updated, skipped, error FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<SyncLogRow>(),
-      db.prepare(`SELECT
-          COALESCE(SUM(MAX(0, CAST(JULIANDAY(MIN(SUBSTR(b.date_to,1,10), ?2)) - JULIANDAY(MAX(SUBSTR(b.date_from,1,10), ?1)) AS INTEGER))), 0) AS occupied_nights,
-          COALESCE(SUM(COALESCE(rev.total_cents, 0)), 0) AS revenue_cents,
-          COALESCE(SUM(COALESCE(rev.total_cents, 0) + COALESCE(b.airbnb_payout_cents, 0) - b.ota_commission_cents - COALESCE(rev.total_cost_cents, 0)), 0) AS contribution_cents
-        FROM bookings b
-        LEFT JOIN (SELECT booking_id, SUM(amount_cents) AS total_cents, SUM(cost_cents) AS total_cost_cents FROM charges GROUP BY booking_id) rev ON rev.booking_id = b.id
-        WHERE b.status != 'cancelled' AND SUBSTR(b.date_from,1,10) < ?2 AND SUBSTR(b.date_to,1,10) > ?1`)
-        .bind(monthStartStr, monthEndStr).first<MonthSummaryRow>(),
     ]);
-    futureBookings = futureBookingResult.results;
+    bookings = bookingResult.results;
     leadsWithDates = leadsWithDatesResult.results;
     leadsWithoutDates = leadsWithoutDatesResult.results;
-    hiddenBookings = hiddenBookingResult.results;
-    hiddenLeads = hiddenLeadResult.results;
     newLeadsCount = newCountResult?.count ?? 0;
     weekLeadsCount = weekCountResult?.count ?? 0;
     outstandingCents = outstandingResult?.outstanding ?? 0;
     arrivalsThisWeek = arrivalsResult?.count ?? 0;
     inHouseCount = inHouseResult?.count ?? 0;
     lastSync = lastSyncResult ?? null;
-    monthSummary = monthSummaryResult ?? { occupied_nights: 0, revenue_cents: 0, contribution_cents: 0 };
   } catch (cause) {
     console.error('[admin] failed to load CRM', cause);
-    error = 'The CRM database could not be read. Confirm that migrations 0001_crm.sql through 0008 have run.';
+    error = 'The CRM database could not be read. Confirm that migrations 0001_crm.sql through 0010 have run.';
   }
 }
-const cpanCents = daysInMonth > 0 ? Math.round(monthSummary.contribution_cents / daysInMonth) : 0;
-const statusLabel = (status: string) => (PIPELINE_LABELS as Record<string, string>)[status] || status;
 
 function bookingToItem(b: BookingRow): ListItem {
-  const outstanding = b.total_cents - b.paid_cents;
+  const totalCents = (b.channel === 'airbnb' ? 0 : b.accommodation_cents)
+    + (b.food_confirmed ? b.food_amount : 0)
+    + (b.transport_confirmed ? b.transport_amount : 0);
+  const balance = totalCents - b.paid_cents;
   const from = b.date_from.slice(0, 10);
   return {
     kind: 'booking', id: b.id, name: b.guest_name, dateFrom: b.date_from, dateTo: b.date_to,
     guests: b.adults + b.children, status: b.status, phone: b.guest_phone,
-    valueLabel: outstanding > 0 ? `Outstanding: ${money(outstanding)}` : 'Paid ✓',
-    valueClass: outstanding > 0 ? 'negative' : 'positive',
+    balanceLabel: totalCents <= 0 ? '—' : balance > 0 ? `Balance: ${money(balance)}` : 'Paid ✓',
+    balanceClass: totalCents > 0 && balance <= 0 ? 'positive' : balance > 0 ? 'negative' : '',
     isUpcoming: from >= todayStr && from <= upcomingBoundStr,
-    isWithin60: from >= todayStr && from <= within60BoundStr,
-    guestIntent: null,
     channel: b.channel,
   };
 }
 function leadToItem(lead: LeadRow): ListItem {
+  const totalCents = lead.accommodation_amount + (lead.food_confirmed ? lead.food_amount : 0) + (lead.transport_confirmed ? lead.transport_amount : 0);
+  const balance = totalCents - lead.paid_cents;
   const from = lead.date_from ? lead.date_from.slice(0, 10) : null;
   return {
     kind: 'lead', id: lead.id, name: lead.guest_name || 'Unnamed inquiry', dateFrom: lead.date_from, dateTo: lead.date_to,
     guests: lead.adults + lead.children, status: lead.status, phone: lead.whatsapp,
-    valueLabel: `Est. value: ${estimateLeadValue(lead)}`, valueClass: '',
+    balanceLabel: totalCents <= 0 ? '—' : balance > 0 ? `Balance: ${money(balance)}` : 'Paid ✓',
+    balanceClass: totalCents > 0 && balance <= 0 ? 'positive' : balance > 0 ? 'negative' : '',
     isUpcoming: !!from && from >= todayStr && from <= upcomingBoundStr,
-    // Leads without a date are always in scope for the "All" view — only a dated lead can fall outside the 60-day window.
-    isWithin60: !from || (from >= todayStr && from <= within60BoundStr),
-    guestIntent: lead.guest_intent,
     channel: null,
   };
 }
@@ -167,28 +140,22 @@ function datesLabel(item: ListItem): string {
   return 'No dates yet';
 }
 
-const activeItems: ListItem[] = [
-  ...futureBookings.map(bookingToItem),
+const items: ListItem[] = [
+  ...bookings.map(bookingToItem),
   ...leadsWithDates.map(leadToItem),
   ...leadsWithoutDates.map(leadToItem),
 ];
-const hiddenItems: ListItem[] = [
-  ...hiddenBookings.map(bookingToItem),
-  ...hiddenLeads.map(leadToItem),
-];
-const weekArrivals = futureBookings.filter((booking) => {
-  const from = booking.date_from.slice(0,10);
-  const weekBound = new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0,10);
-  return from >= todayStr && from <= weekBound;
+const weekArrivals = bookings.filter((booking) => {
+  const from = booking.date_from.slice(0, 10);
+  return from >= todayStr && from <= weekBoundStr;
 });
 
 const FILTERS = [
   { value: 'all', label: 'All' },
   { value: 'bookings', label: 'Bookings' },
   { value: 'leads', label: 'Leads' },
-  { value: 'new', label: 'New' },
-  { value: 'quoted', label: 'Quoted' },
-  { value: 'deposit', label: 'Deposit' },
+  { value: 'deposit', label: 'Deposit Pending' },
+  { value: 'inhouse', label: 'In House' },
   { value: 'upcoming', label: 'Upcoming' },
 ] as const;
 
@@ -236,25 +203,19 @@ const leadError = Astro.url.searchParams.get('leadError');
           <a href="#" data-filter={f.value} class={f.value === 'all' ? 'active' : ''}>{f.label}</a>
         ))}
       </div>
-      <label class="intent-filter" id="intent-filter-label">Lead intent
-        <select id="intent-filter">
-          <option value="">All intents</option>
-          {GUEST_INTENTS.map((intent) => <option value={intent.value}>{intent.label}</option>)}
-        </select>
-      </label>
 
       <div class="card">
         <div class="list" id="unified-list">
-          {activeItems.length === 0 && <p class="muted">Nothing to show yet.</p>}
-          {activeItems.map((item) => (
+          {items.length === 0 && <p class="muted">Nothing to show yet.</p>}
+          {items.map((item) => (
             <div
               class="row clickable-row"
               data-href={`/admin/${item.kind === 'booking' ? 'bookings' : 'leads'}/${item.id}`}
               data-kind={item.kind}
+              data-id={item.id}
               data-status={item.status}
+              data-channel={item.channel || ''}
               data-upcoming={item.isUpcoming ? '1' : '0'}
-              data-within60={item.isWithin60 ? '1' : '0'}
-              data-intent={item.guestIntent || ''}
             >
               <div class="stack" style="min-width:0;flex:1">
                 <div class="actions">
@@ -262,11 +223,11 @@ const leadError = Astro.url.searchParams.get('leadError');
                   {item.channel && <span class={`channel-pill ${channelBadgeClass(item.channel)}`}>{CHANNEL_PILL_LABELS[item.channel as typeof BOOKING_CHANNELS[number]] || item.channel}</span>}
                   <h3>{item.name}</h3>
                 </div>
-                <span class="muted">{datesLabel(item)} · {item.guests} guests</span>
-                <span class={`amount ${item.valueClass}`}>{item.valueLabel}</span>
+                <span class="muted">{datesLabel(item)}{item.guests > 0 && <> · {item.guests} guests</>}</span>
+                <span class={`amount ${item.balanceClass}`}>{item.balanceLabel}</span>
               </div>
               <div class="actions" style="flex-shrink:0">
-                <span class={`badge ${item.status}`}>{statusLabel(item.status)}</span>
+                <button type="button" class="status-badge-btn badge" data-status={item.status} style={`--pill-color:${STATUS_COLORS[normalizeStatus(item.status)]}`}>{STATUS_LABELS[normalizeStatus(item.status)]}</button>
                 {item.phone && <a class="button whatsapp" href={`https://wa.me/${item.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener" title="Open WhatsApp">💬</a>}
               </div>
             </div>
@@ -277,34 +238,10 @@ const leadError = Astro.url.searchParams.get('leadError');
     </>
   )}
 
-  {!error && (
-    <details style="margin-top:20px">
-      <summary>Show completed / lost ({hiddenItems.length}) ▼</summary>
-      {hiddenItems.length === 0 && <p class="muted" style="margin-top:12px">Nothing here yet.</p>}
-      {hiddenItems.length > 0 && (
-        <div class="card" style="margin-top:14px">
-          <div class="list">
-            {hiddenItems.map((item) => (
-              <div class="row clickable-row" data-href={`/admin/${item.kind === 'booking' ? 'bookings' : 'leads'}/${item.id}`}>
-                <div class="stack" style="min-width:0;flex:1">
-                  <div class="actions">
-                    <span class={`type-pill ${item.kind}`}>{item.kind === 'booking' ? 'BOOKING' : 'LEAD'}</span>
-                    <h3>{item.name}</h3>
-                  </div>
-                  <span class="muted">{datesLabel(item)} · {item.guests} guests</span>
-                  <span class={`amount ${item.valueClass}`}>{item.valueLabel}</span>
-                </div>
-                <div class="actions" style="flex-shrink:0">
-                  <span class={`badge ${item.status}`}>{statusLabel(item.status)}</span>
-                  {item.phone && <a class="button whatsapp" href={`https://wa.me/${item.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener" title="Open WhatsApp">💬</a>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </details>
-  )}
+  <div class="status-popover" id="status-popover" hidden>
+    <div id="status-popover-options"></div>
+    <p class="field-error" id="status-popover-error" style="display:none"></p>
+  </div>
 
   <dialog id="add-lead-dialog">
     <form method="POST" action="/admin/api/leads/create">
@@ -343,10 +280,10 @@ const leadError = Astro.url.searchParams.get('leadError');
   </dialog>
 </AdminLayout>
 
-<script>
+<script define:vars={{ STATUS_LABELS, STATUS_COLORS, DIRECT_PIPELINE, AIRBNB_PIPELINE }}>
   document.querySelectorAll('.clickable-row').forEach((row) => {
     row.addEventListener('click', (event) => {
-      if (event.target instanceof Element && event.target.closest('a')) return;
+      if (event.target instanceof Element && event.target.closest('a, button')) return;
       const href = row.getAttribute('data-href');
       if (href) window.location.href = href;
     });
@@ -355,27 +292,20 @@ const leadError = Astro.url.searchParams.get('leadError');
   const filterBar = document.getElementById('filter-bar');
   const listRows = document.querySelectorAll('#unified-list .clickable-row');
   const noMatches = document.getElementById('no-filter-matches');
-  function applyFilter(filter: string) {
+  function applyFilter(filter) {
     let visibleCount = 0;
     listRows.forEach((row) => {
-      const el = row as HTMLElement;
-      const kind = el.dataset.kind;
-      const status = el.dataset.status;
-      const upcoming = el.dataset.upcoming === '1';
-      const within60 = el.dataset.within60 === '1';
-      const selectedIntent = (document.getElementById('intent-filter') as HTMLSelectElement | null)?.value || '';
+      const kind = row.dataset.kind;
+      const status = row.dataset.status;
+      const upcoming = row.dataset.upcoming === '1';
       let show = true;
-      // "All" is bounded to the next 60 days (dated items) + all undated leads.
-      // "Bookings" is every future booking, no cutoff. "Upcoming" is bookings only, next 14 days.
-      if (filter === 'all') show = within60;
+      if (filter === 'all') show = true;
       else if (filter === 'bookings') show = kind === 'booking';
       else if (filter === 'leads') show = kind === 'lead';
-      else if (filter === 'new') show = status === 'new';
-      else if (filter === 'quoted') show = status === 'quoted';
-      else if (filter === 'deposit') show = status === 'deposit_pending' || status === 'deposit';
+      else if (filter === 'deposit') show = status === 'deposit_requested';
+      else if (filter === 'inhouse') show = status === 'in_house' || status === 'checked_in';
       else if (filter === 'upcoming') show = kind === 'booking' && upcoming;
-      if (show && selectedIntent && kind === 'lead') show = el.dataset.intent === selectedIntent;
-      el.style.display = show ? '' : 'none';
+      row.style.display = show ? '' : 'none';
       if (show) visibleCount++;
     });
     if (noMatches) noMatches.style.display = visibleCount === 0 ? '' : 'none';
@@ -385,14 +315,72 @@ const leadError = Astro.url.searchParams.get('leadError');
       event.preventDefault();
       filterBar.querySelectorAll('a[data-filter]').forEach((p) => p.classList.remove('active'));
       pill.classList.add('active');
-      applyFilter((pill as HTMLElement).dataset.filter || 'all');
+      applyFilter(pill.dataset.filter || 'all');
     });
   });
-  document.getElementById('intent-filter')?.addEventListener('change', () => {
-    const active = filterBar?.querySelector('a.active') as HTMLElement | null;
-    applyFilter(active?.dataset.filter || 'all');
-  });
   applyFilter('all');
+
+  // ---- Status popover (tap a row's status badge to change it inline) ----
+  function pipelineFor(kind, channel) {
+    if (kind === 'lead') return DIRECT_PIPELINE;
+    return channel === 'airbnb' ? AIRBNB_PIPELINE : DIRECT_PIPELINE;
+  }
+  const popover = document.getElementById('status-popover');
+  const popoverOptions = document.getElementById('status-popover-options');
+  const popoverError = document.getElementById('status-popover-error');
+  function closePopover() { popover.hidden = true; }
+  function openPopover(btn) {
+    const row = btn.closest('.clickable-row');
+    const kind = row.dataset.kind;
+    const channel = row.dataset.channel;
+    const id = row.dataset.id;
+    const currentStatus = row.dataset.status === 'checked_in' ? 'in_house' : row.dataset.status;
+    popoverOptions.innerHTML = '';
+    popoverError.style.display = 'none';
+    pipelineFor(kind, channel).forEach((status) => {
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'status-pill' + (status === currentStatus ? ' active' : '');
+      opt.style.setProperty('--pill-color', STATUS_COLORS[status]);
+      opt.textContent = STATUS_LABELS[status];
+      opt.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const url = kind === 'lead' ? `/admin/api/leads/${id}/status` : `/admin/api/bookings/${id}/status`;
+        try {
+          const res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+          const data = await res.json();
+          if (!res.ok || !data.success) throw new Error();
+          row.dataset.status = status;
+          btn.dataset.status = status;
+          btn.style.setProperty('--pill-color', STATUS_COLORS[status]);
+          btn.textContent = STATUS_LABELS[status];
+          closePopover();
+        } catch {
+          popoverError.textContent = 'Could not update status.';
+          popoverError.style.display = '';
+        }
+      });
+      popoverOptions.appendChild(opt);
+    });
+    const rect = btn.getBoundingClientRect();
+    popover.style.top = `${rect.bottom + window.scrollY + 6}px`;
+    popover.style.left = `${Math.max(8, Math.min(rect.left + window.scrollX, window.innerWidth - 232))}px`;
+    popover.hidden = false;
+  }
+  document.querySelectorAll('.status-badge-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!popover.hidden && popover.dataset.forBtn === btn.dataset.status + btn.closest('.clickable-row').dataset.id) {
+        closePopover();
+        return;
+      }
+      popover.dataset.forBtn = btn.dataset.status + btn.closest('.clickable-row').dataset.id;
+      openPopover(btn);
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (!popover.hidden && !popover.contains(e.target)) closePopover();
+  });
 
   const dialog = document.getElementById('add-lead-dialog');
   document.getElementById('open-add-lead')?.addEventListener('click', () => {
@@ -416,30 +404,30 @@ const leadError = Astro.url.searchParams.get('leadError');
     dialog.showModal();
   }
 
-  function wireDateValidation(checkinId: string, checkoutId: string, errorId: string, submitId: string) {
-    const checkin = document.getElementById(checkinId) as HTMLInputElement | null;
-    const checkout = document.getElementById(checkoutId) as HTMLInputElement | null;
+  function wireDateValidation(checkinId, checkoutId, errorId, submitId) {
+    const checkin = document.getElementById(checkinId);
+    const checkout = document.getElementById(checkoutId);
     const error = document.getElementById(errorId);
-    const submit = document.getElementById(submitId) as HTMLButtonElement | null;
+    const submit = document.getElementById(submitId);
     if (!checkin || !checkout) return;
 
-    function addDay(dateStr: string): string {
+    function addDay(dateStr) {
       const d = new Date(`${dateStr}T00:00:00Z`);
       d.setUTCDate(d.getUTCDate() + 1);
       return d.toISOString().slice(0, 10);
     }
-    function isInvalid(): boolean {
-      return !!(checkin!.value && checkout!.value && checkout!.value <= checkin!.value);
+    function isInvalid() {
+      return !!(checkin.value && checkout.value && checkout.value <= checkin.value);
     }
     function refresh() {
       const invalid = isInvalid();
-      if (error) (error as HTMLElement).style.display = invalid ? '' : 'none';
+      if (error) error.style.display = invalid ? '' : 'none';
       if (submit) submit.disabled = invalid;
     }
 
     checkin.addEventListener('change', () => {
-      checkout!.min = checkin!.value ? addDay(checkin!.value) : '';
-      if (isInvalid()) checkout!.value = '';
+      checkout.min = checkin.value ? addDay(checkin.value) : '';
+      if (isInvalid()) checkout.value = '';
       refresh();
     });
     checkout.addEventListener('change', refresh);
@@ -478,25 +466,24 @@ const leadError = Astro.url.searchParams.get('leadError');
 
 <style>
   .summary-line { font-weight: 750; margin: 0 0 20px; }
-  .month-summary { margin-top: -14px; color: #615854; font-weight: 700; }
   .arrivals-card { margin:16px 0; border-left:5px solid var(--mint); }
   .arrival-row { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; }
   .arrival-row:first-of-type { border-top:0; }
-  .intent-filter { max-width:220px; margin:-6px 0 14px auto; }
-  .info-tip { display:inline-flex; cursor:help; border-radius:999px; background:#eee8e5; color:var(--brown); width:16px; height:16px; align-items:center; justify-content:center; font-size:11px; font-weight:700; margin-left:4px; }
   .amount.positive { color:#166534; }
   .amount.negative { color:var(--red); }
   #filter-bar { margin-bottom:16px; }
   .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
   .type-pill.booking { background:#57392E; }
   .type-pill.lead { background:#7D98AB; }
+  .status-badge-btn { appearance:none; border:0; cursor:pointer; min-height:32px; }
   .clickable-row { cursor:pointer; margin:0 -20px; padding-left:20px; padding-right:20px; border-radius:8px; }
   .clickable-row:hover { background:#faf7f6; }
   dialog#add-lead-dialog { border: 1px solid var(--line); border-radius: 14px; padding: 22px; max-width: 560px; width: calc(100% - 40px); box-shadow: 0 10px 40px rgb(38 29 26 / 18%); }
   dialog#add-lead-dialog::backdrop { background: rgb(38 29 26 / 35%); }
   .field-error { color: var(--red); font-size: 12px; margin-top: -8px; }
-  details summary { cursor:pointer; font-weight:700; color:var(--brown); padding:10px 0; list-style:none; }
-  details summary::-webkit-details-marker { display:none; }
+  .status-popover { position:absolute; z-index:50; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgb(38 29 26 / 18%); padding:10px; display:flex; flex-direction:column; gap:6px; max-width:220px; }
+  .status-popover[hidden] { display:none; }
+  .status-popover .status-pill { min-height:38px; width:100%; }
   @media(max-width:760px) {
     .dashboard-head { align-items:stretch; flex-direction:column; }
     .dashboard-tools { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; width:100%; }
@@ -505,6 +492,5 @@ const leadError = Astro.url.searchParams.get('leadError');
     .clickable-row .actions { width:auto; }
     .clickable-row .button.whatsapp { min-width:48px; }
     .arrival-row { align-items:flex-start; flex-direction:column; padding:10px 0; }
-    .intent-filter { max-width:none; margin:0 0 14px; }
   }
 </style>

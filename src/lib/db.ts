@@ -25,9 +25,15 @@ interface RuntimeEnv {
   HOSTHUB_RENTAL_ID?: string;
   HOSTHUB_BASE_URL?: string;
   HOSTHUB_ICAL_URL?: string;
-  BOLD_API_KEY?: string;
-  WOMPI_PUBLIC_KEY?: string;
-  WOMPI_PRIVATE_KEY?: string;
+  BOLD_PAYMENT_LINK?: string;
+}
+
+// Evergreen Bold checkout link (lets the guest enter their own amount) — falls back to
+// the known-good production link if the BOLD_PAYMENT_LINK secret isn't set locally.
+export const DEFAULT_BOLD_PAYMENT_LINK = 'https://checkout.bold.co/payment/LNK_XG0X5VREON';
+
+export function boldPaymentLink(env: RuntimeEnv): string {
+  return env.BOLD_PAYMENT_LINK ?? DEFAULT_BOLD_PAYMENT_LINK;
 }
 
 export function getRuntimeEnv(locals: APIContext['locals']): RuntimeEnv {
