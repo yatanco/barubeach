@@ -12,6 +12,60 @@ export interface SyncResult {
 export interface HostHubSyncEnv {
   DB: D1Database;
   HOSTHUB_ICAL_URL?: string;
+  HOSTHUB_API_KEY?: string;
+  HOSTHUB_RENTAL_ID?: string;
+  HOSTHUB_BASE_URL?: string;
+}
+
+interface CalendarEventGuestData {
+  adults: number;
+  children: number;
+  channel: string | null;
+}
+
+// HostHub's channel_type_code values seen/expected: 'booking.com', 'airbnb', plus
+// direct/offline/manual for non-OTA reservations — mapped onto our own enum.
+function mapChannelTypeCode(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const lower = code.toLowerCase();
+  if (lower.includes('airbnb')) return 'airbnb';
+  if (lower.includes('booking')) return 'booking.com';
+  if (lower.includes('direct') || lower.includes('offline') || lower.includes('manual')) return 'direct';
+  return 'other';
+}
+
+// The iCal feed (parsed below) has no guest-count or reliable channel field, but
+// HostHub's JSON calendar-events endpoint does — fetched once per sync and matched
+// back onto iCal events by date range (the only key both sources share). Best-effort:
+// on any failure this just returns an empty map and the sync falls back to the
+// pre-existing iCal-only behavior (default 1 adult / 0 children, guessed channel).
+async function fetchCalendarEventGuestData(env: HostHubSyncEnv): Promise<Map<string, CalendarEventGuestData>> {
+  const map = new Map<string, CalendarEventGuestData>();
+  if (!env.HOSTHUB_API_KEY || !env.HOSTHUB_RENTAL_ID) return map;
+  const baseUrl = env.HOSTHUB_BASE_URL || 'https://app.hosthub.com/api/2019-03-01';
+
+  try {
+    const res = await fetch(`${baseUrl}/rentals/${env.HOSTHUB_RENTAL_ID}/calendar-events?is_visible=true`, {
+      headers: {
+        Authorization: env.HOSTHUB_API_KEY,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) return map;
+    const payload = (await res.json()) as { data?: any[] };
+    for (const event of payload.data ?? []) {
+      if (!event.date_from || !event.date_to) continue;
+      map.set(`${event.date_from}|${event.date_to}`, {
+        adults: Number.isFinite(event.guest_adults) ? event.guest_adults : 1,
+        children: Number.isFinite(event.guest_children) ? event.guest_children : 0,
+        channel: mapChannelTypeCode(event.source?.channel_type_code),
+      });
+    }
+  } catch (cause) {
+    console.error('[hosthub-sync] calendar-events guest-data fetch failed', cause);
+  }
+  return map;
 }
 
 const BLOCKED_SUMMARY = /^(blocked|not available)/i;
@@ -140,6 +194,7 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
     const today = nowIso().slice(0, 10);
     const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
     let loggedEvents = 0;
+    const guestDataByDateRange = await fetchCalendarEventGuestData(env);
 
     for (const rawBlock of blocks) {
       const block = rawBlock.split('END:VEVENT')[0];
@@ -190,25 +245,41 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
           continue;
         }
 
-        const { guestName, channel } = parseReservationSummary(summary, description, xFields);
+        const { guestName, channel: parsedChannel } = parseReservationSummary(summary, description, xFields);
+        const guestData = guestDataByDateRange.get(`${checkIn}|${checkOut}`);
+        // JSON calendar-events' source.channel_type_code is a direct field from HostHub,
+        // more reliable than guessing from iCal SUMMARY text — prefer it when present.
+        const channel = guestData?.channel || parsedChannel;
         const nights = nightsBetween(checkIn, checkOut);
         const status = deriveStatus(checkIn, checkOut, today);
         const now = nowIso();
 
         if (existing) {
           // Only HostHub-owned fields are touched — charges, payments and manually entered
-          // booking fields (guest_intent, notes, etc.) are left untouched on re-sync.
-          await env.DB.prepare(`UPDATE bookings SET guest_name = ?1, date_from = ?2, date_to = ?3, nights = ?4,
-            hosthub_notes = ?5, status = ?6, channel = ?7, updated_at = ?8 WHERE id = ?9`)
-            .bind(guestName, checkIn, checkOut, nights, hosthubNotes, status, channel, now, existing.id)
-            .run();
+          // booking fields (guest_intent, notes, etc.) are left untouched on re-sync. Guest
+          // counts are the exception: only overwritten when the JSON lookup actually found a
+          // match, so a manual correction isn't clobbered back to a stale value on a sync
+          // where the match happens to fail (e.g. the JSON fetch itself failed).
+          if (guestData) {
+            await env.DB.prepare(`UPDATE bookings SET guest_name = ?1, date_from = ?2, date_to = ?3, nights = ?4,
+              hosthub_notes = ?5, status = ?6, channel = ?7, adults = ?8, children = ?9, updated_at = ?10 WHERE id = ?11`)
+              .bind(guestName, checkIn, checkOut, nights, hosthubNotes, status, channel, guestData.adults, guestData.children, now, existing.id)
+              .run();
+          } else {
+            await env.DB.prepare(`UPDATE bookings SET guest_name = ?1, date_from = ?2, date_to = ?3, nights = ?4,
+              hosthub_notes = ?5, status = ?6, channel = ?7, updated_at = ?8 WHERE id = ?9`)
+              .bind(guestName, checkIn, checkOut, nights, hosthubNotes, status, channel, now, existing.id)
+              .run();
+          }
           result.updated++;
         } else {
+          const adults = guestData?.adults ?? 1;
+          const children = guestData?.children ?? 0;
           await env.DB.prepare(`INSERT INTO bookings (
               id, created_at, updated_at, reservation_id, guest_name, date_from, date_to, nights,
               adults, children, status, channel, source, hosthub_notes
-            ) VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, 1, 0, ?8, ?9, 'hosthub_ical', ?10)`)
-            .bind(crypto.randomUUID(), now, uid, guestName, checkIn, checkOut, nights, status, channel, hosthubNotes)
+            ) VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'hosthub_ical', ?12)`)
+            .bind(crypto.randomUUID(), now, uid, guestName, checkIn, checkOut, nights, adults, children, status, channel, hosthubNotes)
             .run();
           result.inserted++;
         }
