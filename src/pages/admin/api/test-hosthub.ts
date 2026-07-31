@@ -13,7 +13,7 @@ interface ProbeResult {
   response: string;
 }
 
-async function probe(url: string, apiKey: string): Promise<ProbeResult> {
+async function probe(url: string, apiKey: string, maxChars = 500): Promise<ProbeResult> {
   try {
     const res = await fetch(url, {
       headers: {
@@ -23,7 +23,7 @@ async function probe(url: string, apiKey: string): Promise<ProbeResult> {
       },
     });
     const text = await res.text();
-    return { url, status: res.status, response: text.slice(0, 500) };
+    return { url, status: res.status, response: text.slice(0, maxChars) };
   } catch (cause) {
     return { url, status: 'error', response: cause instanceof Error ? cause.message : String(cause) };
   }
@@ -39,14 +39,19 @@ export const GET: APIRoute = async ({ locals }) => {
     return Response.json({ error: 'HOSTHUB_API_KEY or HOSTHUB_RENTAL_ID is not configured' }, { status: 503 });
   }
 
-  const urls = [
-    `${baseUrl}/rentals/${rentalId}/reservations`,
-    `${baseUrl}/rentals/${rentalId}/bookings`,
-    `${baseUrl}/reservations?rental_id=${rentalId}`,
-    `${baseUrl}/rentals/${rentalId}/calendar-events?is_visible=true`,
+  // Known first event ID from a prior calendar-events probe — fetching it individually
+  // may surface guest-count fields the list response omits.
+  const sampleEventId = 'a9kq1229v37nxa';
+
+  const targets: { url: string; maxChars?: number }[] = [
+    { url: `${baseUrl}/rentals/${rentalId}/reservations` },
+    { url: `${baseUrl}/rentals/${rentalId}/bookings` },
+    { url: `${baseUrl}/reservations?rental_id=${rentalId}` },
+    { url: `${baseUrl}/rentals/${rentalId}/calendar-events?is_visible=true`, maxChars: 5000 },
+    { url: `${baseUrl}/rentals/${rentalId}/calendar-events/${sampleEventId}`, maxChars: 5000 },
   ];
 
-  const results = await Promise.all(urls.map((url) => probe(url, apiKey)));
+  const results = await Promise.all(targets.map((t) => probe(t.url, apiKey, t.maxChars)));
 
   return Response.json({ results });
 };
