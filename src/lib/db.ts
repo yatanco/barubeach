@@ -22,6 +22,8 @@ interface RuntimeEnv {
   DB?: D1Database;
   LEADS_WEBHOOK_URL?: string;
   HOSTHUB_API_KEY?: string;
+  HOSTHUB_RENTAL_ID?: string;
+  HOSTHUB_BASE_URL?: string;
   HOSTHUB_ICAL_URL?: string;
   BOLD_API_KEY?: string;
   WOMPI_PUBLIC_KEY?: string;
