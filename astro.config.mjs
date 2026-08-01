@@ -10,6 +10,9 @@ export default defineConfig({
   adapter: cloudflare({
     imageService: 'compile',
   }),
+  redirects: {
+    '/es/gallery': '/gallery',
+  },
   // Not used by this project. Setting a driver here (instead of leaving
   // session.driver unset) stops the Cloudflare adapter from auto-enabling
   // its Cloudflare KV session driver, which requires a SESSION KV binding.

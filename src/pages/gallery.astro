@@ -2,54 +2,325 @@
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-const images = [
-  { src: '/images/hero-1.webp', alt: 'Casa Gaviota beach house exterior' },
-  { src: '/images/beach-1.webp', alt: 'Private beach at Casa Gaviota' },
-  { src: '/images/house-1.webp', alt: 'Social area at Casa Gaviota' },
-  { src: '/images/beach-2.webp', alt: 'Beach and ocean view' },
-  { src: '/images/food-1.webp', alt: 'Caribbean food at Casa Gaviota' },
-  { src: '/images/house-2.webp', alt: 'Bedroom at Casa Gaviota' },
-  { src: '/images/daytrip-1.webp', alt: 'Private day trip to Barú' },
-  { src: '/images/beach-3.webp', alt: 'Ocean and coastline' },
-  { src: '/images/house-3.webp', alt: 'Terrace and outdoor space' },
-  { src: '/images/food-2.webp', alt: 'Fresh lunch at Casa Gaviota' },
-  { src: '/images/house-4.webp', alt: 'Private bathroom' },
-  { src: '/images/daytrip-2.webp', alt: 'Arriving by boat' },
-  { src: '/images/hero-2.webp', alt: 'Casa Gaviota from the beach' },
-  { src: '/images/hero-3.webp', alt: 'Sunset at Casa Gaviota' },
+import { Image, getImage } from 'astro:assets';
+
+const photoModules = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/gallery/photos/*.{jpg,jpeg,png,webp}',
+  { eager: true }
+);
+const videoModules = import.meta.glob<string>('../assets/gallery/reels/*.mp4', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+
+type PhotoItem = { type: 'photo'; filename: string; image: ImageMetadata; lightboxSrc: string };
+type VideoItem = { type: 'video'; filename: string; url: string };
+type MediaItem = PhotoItem | VideoItem;
+
+// The original 14 hand-picked marketing photos — shown first, in this curated
+// order, ahead of the bulk Instagram export (which sorts by filename below it).
+const CURATED_ORDER = [
+  'hero-1.webp',
+  'beach-1.webp',
+  'house-1.webp',
+  'beach-2.webp',
+  'food-1.webp',
+  'house-2.webp',
+  'daytrip-1.webp',
+  'beach-3.webp',
+  'house-3.webp',
+  'food-2.webp',
+  'house-4.webp',
+  'daytrip-2.webp',
+  'hero-2.webp',
+  'hero-3.webp',
 ];
+
+const photos: PhotoItem[] = await Promise.all(
+  Object.entries(photoModules).map(async ([path, mod]) => {
+    const image = mod.default;
+    const lightbox = await getImage({
+      src: image,
+      format: 'webp',
+      quality: 80,
+      width: Math.min(1600, image.width),
+    });
+    return {
+      type: 'photo' as const,
+      filename: path.split('/').pop()!,
+      image,
+      lightboxSrc: lightbox.src,
+    };
+  })
+);
+
+const videos: VideoItem[] = Object.entries(videoModules).map(([path, url]) => ({
+  type: 'video' as const,
+  filename: path.split('/').pop()!,
+  url,
+}));
+
+const curatedPhotos = CURATED_ORDER.map((name) =>
+  photos.find((p) => p.filename === name)
+).filter((p): p is PhotoItem => Boolean(p));
+
+const instagramPhotos = photos
+  .filter((p) => !CURATED_ORDER.includes(p.filename))
+  .sort((a, b) => a.filename.localeCompare(b.filename));
+
+const allMedia: MediaItem[] = [
+  ...curatedPhotos,
+  ...instagramPhotos,
+  ...videos.sort((a, b) => a.filename.localeCompare(b.filename)),
+];
+const total = allMedia.length;
 ---
 
 <Layout
-  title="Photos — Casa Gaviota Baru Private Beach House"
-  description="Photos of Casa Gaviota, a private beach house in Barú, Colombia. Beach, house, food, and nature."
+  title="Gallery — Casa Gaviota Barú"
+  description="Photos and videos of Casa Gaviota, a private beach house in Barú, Colombia."
   lang="en"
 >
   <Header lang="en" altHref="/gallery" />
 
-  <section class="py-20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-14">
-        <h1 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">La Casa & La Playa</h1>
-        <p class="text-muted">A private beach house in Barú — simple, natural, and surrounded by sea.</p>
+  <section class="pt-6 pb-16">
+    {total === 0 ? (
+      <div class="py-28 text-center px-6">
+        <p class="text-muted text-lg mb-2">Gallery coming soon</p>
+        <a
+          href="https://instagram.com/casagaviotabaru"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-brown font-medium hover:underline"
+        >
+          @casagaviotabaru
+        </a>
       </div>
-
-      <div data-lightbox="gallery" class="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
-        {images.map(({ src, alt }) => (
-          <div class="break-inside-avoid">
-            <img
-              src={src}
-              alt={alt}
-              class="w-full rounded-xl object-cover shadow-sm hover:shadow-md transition-shadow"
-              loading="lazy"
-              width="500"
-              height="400"
-            />
-          </div>
+    ) : (
+      <div id="gallery-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1">
+        {allMedia.map((item, i) => (
+          item.type === 'photo' ? (
+            <button
+              type="button"
+              class="gallery-item group relative block w-full aspect-square overflow-hidden bg-brown/5 cursor-pointer"
+              data-type="photo"
+              data-lightbox-src={item.lightboxSrc}
+              aria-label={`Open photo ${i + 1} of ${total}`}
+            >
+              <Image
+                src={item.image}
+                alt="Casa Gaviota Barú"
+                width={600}
+                height={600}
+                format="webp"
+                quality={80}
+                loading={i < 8 ? 'eager' : 'lazy'}
+                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              />
+            </button>
+          ) : (
+            <button
+              type="button"
+              class="gallery-item group relative block w-full aspect-square overflow-hidden bg-brown/5 cursor-pointer"
+              data-type="video"
+              data-lightbox-src={item.url}
+              aria-label={`Open video ${i + 1} of ${total}`}
+            >
+              <video
+                class="gallery-video w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                data-src={item.url}
+                muted
+                loop
+                playsinline
+                preload="none"
+              />
+            </button>
+          )
         ))}
       </div>
+    )}
+
+    <div class="mt-16 text-center">
+      <p class="text-muted text-sm">
+        📸 Follow us on Instagram<br />
+        <a
+          href="https://instagram.com/casagaviotabaru"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-brown font-medium hover:underline"
+        >
+          @casagaviotabaru
+        </a>
+      </p>
     </div>
   </section>
 
+  <!-- Lightbox -->
+  <div
+    id="lightbox"
+    class="hidden fixed inset-0 z-[999] bg-black items-center justify-center"
+    aria-hidden="true"
+  >
+    <button
+      id="lightbox-close"
+      type="button"
+      aria-label="Close"
+      class="absolute top-3 right-4 md:top-6 md:right-6 text-white/80 hover:text-white text-4xl leading-none p-2 z-10 cursor-pointer"
+    >
+      &times;
+    </button>
+    <button
+      id="lightbox-prev"
+      type="button"
+      aria-label="Previous"
+      class="absolute left-1 md:left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-5xl leading-none p-3 z-10 cursor-pointer"
+    >
+      &#8249;
+    </button>
+    <button
+      id="lightbox-next"
+      type="button"
+      aria-label="Next"
+      class="absolute right-1 md:right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-5xl leading-none p-3 z-10 cursor-pointer"
+    >
+      &#8250;
+    </button>
+
+    <img id="lightbox-img" class="hidden max-w-[90vw] max-h-[90vh] object-contain" alt="" />
+    <video
+      id="lightbox-video"
+      class="hidden max-w-[90vw] max-h-[90vh] object-contain"
+      controls
+      playsinline
+    />
+
+    <div
+      id="lightbox-counter"
+      class="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 text-white/80 text-sm font-medium"
+    ></div>
+  </div>
+
   <Footer lang="en" />
 </Layout>
+
+<script>
+  function setupGalleryVideos() {
+    const videos = document.querySelectorAll('.gallery-video');
+    if (!videos.length) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const video = entry.target;
+          if (entry.isIntersecting) {
+            if (!video.getAttribute('src') && video.dataset.src) {
+              video.setAttribute('src', video.dataset.src);
+            }
+            video.play().catch(() => {});
+          } else {
+            video.pause();
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    videos.forEach((v) => io.observe(v));
+  }
+
+  function setupLightbox() {
+    const items = Array.from(document.querySelectorAll('.gallery-item'));
+    if (!items.length) return;
+
+    const lightbox = document.getElementById('lightbox');
+    const imgEl = document.getElementById('lightbox-img');
+    const videoEl = document.getElementById('lightbox-video');
+    const counterEl = document.getElementById('lightbox-counter');
+    const closeBtn = document.getElementById('lightbox-close');
+    const prevBtn = document.getElementById('lightbox-prev');
+    const nextBtn = document.getElementById('lightbox-next');
+    if (!lightbox || !imgEl || !videoEl || !counterEl || !closeBtn || !prevBtn || !nextBtn) return;
+
+    let index = 0;
+    let touchX = 0;
+
+    function show(i) {
+      index = ((i % items.length) + items.length) % items.length;
+      const item = items[index];
+      const type = item.dataset.type;
+      const src = item.dataset.lightboxSrc || '';
+
+      videoEl.pause();
+      videoEl.removeAttribute('src');
+      videoEl.load();
+
+      if (type === 'video') {
+        imgEl.classList.add('hidden');
+        videoEl.classList.remove('hidden');
+        videoEl.src = src;
+        videoEl.play().catch(() => {});
+      } else {
+        videoEl.classList.add('hidden');
+        imgEl.classList.remove('hidden');
+        imgEl.src = src;
+      }
+
+      counterEl.textContent = `${index + 1} / ${items.length}`;
+    }
+
+    function open(i) {
+      show(i);
+      lightbox.classList.remove('hidden');
+      lightbox.classList.add('flex');
+      lightbox.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function close() {
+      videoEl.pause();
+      lightbox.classList.add('hidden');
+      lightbox.classList.remove('flex');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    items.forEach((item, i) => {
+      item.addEventListener('click', () => open(i));
+    });
+
+    closeBtn.addEventListener('click', close);
+    prevBtn.addEventListener('click', () => show(index - 1));
+    nextBtn.addEventListener('click', () => show(index + 1));
+
+    lightbox.addEventListener('click', (e) => {
+      const target = e.target;
+      if (target === imgEl || target === videoEl) return;
+      if (target.closest('#lightbox-prev, #lightbox-next, #lightbox-close')) return;
+      close();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (lightbox.classList.contains('hidden')) return;
+      if (e.key === 'Escape') close();
+      if (e.key === 'ArrowRight') show(index + 1);
+      if (e.key === 'ArrowLeft') show(index - 1);
+    });
+
+    lightbox.addEventListener(
+      'touchstart',
+      (e) => {
+        touchX = e.touches[0].clientX;
+      },
+      { passive: true }
+    );
+    lightbox.addEventListener('touchend', (e) => {
+      if (lightbox.classList.contains('hidden')) return;
+      const dx = e.changedTouches[0].clientX - touchX;
+      if (Math.abs(dx) > 40) show(index + (dx < 0 ? 1 : -1));
+    });
+  }
+
+  setupGalleryVideos();
+  setupLightbox();
+</script>
