@@ -5,7 +5,7 @@ import Footer from '../components/Footer.astro';
 import { Image, getImage } from 'astro:assets';
 
 const photoModules = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/gallery/photos/*.{jpg,jpeg,png,webp}',
+  '../assets/gallery/photos/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
   { eager: true }
 );
 const videoModules = import.meta.glob<string>('../assets/gallery/reels/*.mp4', {
