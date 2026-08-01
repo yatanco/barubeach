@@ -48,6 +48,7 @@ const photos = await Promise.all(
 );
 
 const total = photos.length + videos.length;
+const showTabs = photos.length > 0 && videos.length > 0;
 ---
 
 <Layout
@@ -58,76 +59,101 @@ const total = photos.length + videos.length;
   <Header lang="en" altHref="/gallery" />
 
   <main class="gallery-page">
-    {/* PHOTOS SECTION */}
-    {photos.length > 0 && (
-      <section class="gallery-section">
-        <p class="section-label">Photos</p>
-        <div class="gallery-grid" id="photo-grid">
-          {photos.map((photo, index) => (
-            <div
-              class="gallery-item"
-              data-index={index}
-              data-type="photo"
-              data-lightbox-src={photo.lightboxSrc}
-              aria-label={`Open photo ${index + 1} of ${total}`}
-              role="button"
-              tabindex="0"
-            >
-              <Picture
-                src={photo.src}
-                formats={index < 4 ? ['avif', 'webp'] : ['webp']}
-                fallbackFormat="jpeg"
-                widths={index < 4 ? [400, 800, 1200] : [400, 800]}
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                alt="Casa Gaviota Barú"
-                priority={index < 4}
-                layout="constrained"
-                quality={index < 4 ? 90 : 75}
-                style="width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; display: block;"
-              />
-            </div>
-          ))}
-        </div>
-      </section>
+    {/* TABS - only shown when both photos and videos exist */}
+    {showTabs && (
+      <div class="gallery-tabs" role="tablist" aria-label="Gallery media type">
+        <button
+          type="button"
+          class="gallery-tab active"
+          data-tab="photos"
+          role="tab"
+          aria-selected="true"
+          aria-controls="photo-grid"
+        >
+          Photos
+        </button>
+        <button
+          type="button"
+          class="gallery-tab"
+          data-tab="videos"
+          role="tab"
+          aria-selected="false"
+          aria-controls="video-grid"
+        >
+          Videos
+        </button>
+      </div>
     )}
 
-    {/* DIVIDER - only shown when both sections have content */}
-    {photos.length > 0 && videos.length > 0 && <hr class="section-divider" />}
+    {/* PHOTOS GRID */}
+    {photos.length > 0 && (
+      <div
+        class="gallery-grid"
+        id="photo-grid"
+        role={showTabs ? 'tabpanel' : undefined}
+      >
+        {photos.map((photo, index) => (
+          <div
+            class="gallery-item"
+            data-index={index}
+            data-type="photo"
+            data-lightbox-src={photo.lightboxSrc}
+            aria-label={`Open photo ${index + 1} of ${total}`}
+            role="button"
+            tabindex="0"
+          >
+            <Picture
+              src={photo.src}
+              formats={index < 4 ? ['avif', 'webp'] : ['webp']}
+              fallbackFormat="jpeg"
+              widths={index < 4 ? [400, 800, 1200] : [400, 800]}
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              alt="Casa Gaviota Barú"
+              priority={index < 4}
+              layout="constrained"
+              quality={index < 4 ? 90 : 75}
+              style="width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; display: block;"
+            />
+          </div>
+        ))}
+      </div>
+    )}
 
-    {/* VIDEOS SECTION */}
+    {/* VIDEOS GRID */}
     {videos.length > 0 && (
-      <section class="gallery-section">
-        <p class="section-label">Videos</p>
-        <div class="gallery-grid" id="video-grid">
-          {videos.map((video, index) => (
-            <div
-              class="gallery-item video-item"
-              data-index={photos.length + index}
-              data-type="video"
-              data-lightbox-src={video.src}
-              aria-label={`Open video ${photos.length + index + 1} of ${total}`}
-              role="button"
-              tabindex="0"
-            >
-              {/* Thumbnail placeholder — video loads via JS */}
-              <div class="video-placeholder">
-                <svg viewBox="0 0 24 24" fill="white" width="32" height="32">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-              <video
-                class="gallery-video"
-                data-src={video.src}
-                preload="none"
-                muted
-                loop
-                playsinline
-                style="width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; display: none;"
-              />
+      <div
+        class={`gallery-grid ${showTabs ? 'gallery-panel-hidden' : ''}`}
+        id="video-grid"
+        role={showTabs ? 'tabpanel' : undefined}
+      >
+        {videos.map((video, index) => (
+          <div
+            class="gallery-item video-item"
+            data-index={photos.length + index}
+            data-type="video"
+            data-lightbox-src={video.src}
+            aria-label={`Open video ${photos.length + index + 1} of ${total}`}
+            role="button"
+            tabindex="0"
+          >
+            {/* Thumbnail placeholder — video loads via JS */}
+            <div class="video-placeholder">
+              <svg viewBox="0 0 24 24" fill="white" width="32" height="32">
+                <path d="M8 5v14l11-7z" />
+              </svg>
             </div>
-          ))}
-        </div>
-      </section>
+            <video
+              class="gallery-video"
+              data-src={video.src}
+              preload="none"
+              muted
+              loop
+              playsinline
+              style="width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; display: none;"
+            />
+          </div>
+        ))}
+      </div>
     )}
 
     {/* EMPTY STATE */}
@@ -173,21 +199,43 @@ const total = photos.length + videos.length;
     padding: 0;
   }
 
-  .section-label {
-    font-family: var(--font-sans, Inter, sans-serif);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: #b28471;
-    padding: 16px 16px 8px;
-    margin: 0;
+  .gallery-tabs {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding-top: 16px;
+    padding-bottom: 8px;
   }
 
-  .section-divider {
+  .gallery-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 24px;
+    font-family: var(--font-sans, Inter, sans-serif);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: transparent;
+    color: #b28471;
     border: none;
-    border-top: 1px solid #e6c497;
-    margin: 24px 16px;
+    border-bottom: 2px solid #b28471;
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  .gallery-tab.active {
+    background: #57392e;
+    color: #fff;
+    border-bottom-color: transparent;
+    border-radius: 9999px;
+  }
+
+  .gallery-panel-hidden {
+    display: none;
   }
 
   .gallery-grid {
@@ -353,6 +401,48 @@ const total = photos.length + videos.length;
 </style>
 
 <script>
+  // Tabs: only wired up when the tab bar exists (i.e. both photos and videos
+  // are present — otherwise there's nothing to switch between). Selected tab
+  // is reflected in the URL hash (#videos) via pushState/popstate so back
+  // navigation restores the previous tab, per spec.
+  function setupTabs() {
+    const tabBar = document.querySelector('.gallery-tabs');
+    if (!tabBar) return;
+
+    const tabs = Array.from(tabBar.querySelectorAll<HTMLButtonElement>('.gallery-tab'));
+    const panels: Record<string, HTMLElement | null> = {
+      photos: document.getElementById('photo-grid'),
+      videos: document.getElementById('video-grid'),
+    };
+
+    function render(name: string) {
+      tabs.forEach((tab) => {
+        const isActive = tab.dataset.tab === name;
+        tab.classList.toggle('active', isActive);
+        tab.setAttribute('aria-selected', String(isActive));
+      });
+      Object.entries(panels).forEach(([key, panel]) => {
+        panel?.classList.toggle('gallery-panel-hidden', key !== name);
+      });
+    }
+
+    function activate(name: string) {
+      render(name);
+      const url = location.pathname + location.search + (name === 'videos' ? '#videos' : '');
+      history.pushState({ tab: name }, '', url);
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => activate(tab.dataset.tab!));
+    });
+
+    window.addEventListener('popstate', () => {
+      render(location.hash === '#videos' ? 'videos' : 'photos');
+    });
+
+    if (location.hash === '#videos') render('videos');
+  }
+
   // Videos in the grid: only load + autoplay once 50%+ visible.
   function setupGridVideoAutoplay() {
     const videos = document.querySelectorAll<HTMLVideoElement>('.gallery-video');
@@ -503,6 +593,7 @@ const total = photos.length + videos.length;
     });
   }
 
+  setupTabs();
   setupGridVideoAutoplay();
   setupLightbox();
 </script>
