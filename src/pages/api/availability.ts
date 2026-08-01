@@ -1,5 +1,8 @@
 import type { APIContext } from 'astro';
 import type { BlockedRange } from '../../lib/availability';
+// Astro v6 removed `Astro.locals.runtime.env` (see src/lib/db.ts for the same fix).
+// @ts-ignore — no published type declarations for this module in this project
+import { env as cloudflareEnv } from 'cloudflare:workers';
 
 export const prerender = false;
 
@@ -37,8 +40,8 @@ interface Env {
   HOSTHUB_BASE_URL?: string;
 }
 
-function getCFEnv(locals: APIContext['locals']): Env {
-  return (locals as any).runtime?.env ?? {};
+function getCFEnv(_locals: APIContext['locals']): Env {
+  return (cloudflareEnv as Env) ?? {};
 }
 
 function corsHeaders(origin: string) {

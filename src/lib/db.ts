@@ -1,4 +1,10 @@
 import type { APIContext } from 'astro';
+// Astro v6 removed `Astro.locals.runtime.env` — the Cloudflare adapter now throws
+// if it's accessed and points here instead. No published type declarations exist
+// for this module in this project, hence the ts-ignore (matches this file's prior
+// `as any` cast at the same runtime/locals boundary).
+// @ts-ignore
+import { env as cloudflareEnv } from 'cloudflare:workers';
 
 export interface D1Result<T = Record<string, unknown>> {
   success: boolean;
@@ -36,8 +42,8 @@ export function boldPaymentLink(env: RuntimeEnv): string {
   return env.BOLD_PAYMENT_LINK ?? DEFAULT_BOLD_PAYMENT_LINK;
 }
 
-export function getRuntimeEnv(locals: APIContext['locals']): RuntimeEnv {
-  return (locals as any).runtime?.env ?? {};
+export function getRuntimeEnv(_locals: APIContext['locals']): RuntimeEnv {
+  return (cloudflareEnv as RuntimeEnv) ?? {};
 }
 
 export function getDb(locals: APIContext['locals']): D1Database | null {

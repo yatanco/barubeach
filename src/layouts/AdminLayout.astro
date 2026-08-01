@@ -1,4 +1,5 @@
 ---
+import '../styles/global.css';
 interface Props { title: string; }
 const { title } = Astro.props;
 const userEmail = Astro.request.headers.get('Cf-Access-Authenticated-User-Email');
