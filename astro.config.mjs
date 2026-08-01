@@ -10,6 +10,14 @@ export default defineConfig({
   adapter: cloudflare({
     imageService: 'compile',
   }),
+  image: {
+    // Default layout for <Image>/<Picture> (sets fit/position defaults);
+    // can still be overridden per-image. The actual image service stays
+    // whatever the adapter's `imageService: 'compile'` above wires up —
+    // 'astro/assets/services/compile' isn't a real module in this Astro
+    // version, only .../sharp and .../noop exist.
+    layout: 'constrained',
+  },
   redirects: {
     '/es/gallery': '/gallery',
   },

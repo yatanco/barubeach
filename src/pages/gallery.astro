@@ -1,80 +1,53 @@
 ---
+import { Picture, getImage } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { Image, getImage } from 'astro:assets';
 
-const photoModules = import.meta.glob<{ default: ImageMetadata }>(
-  '../assets/gallery/photos/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
+// Import all gallery assets dynamically. Uppercase extensions are included
+// because iOS exports (.JPG, .PNG) land in this folder alongside lowercase
+// Instagram exports, and glob matching is case-sensitive on Cloudflare's
+// (Linux) build filesystem.
+const photoImports = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/gallery/photos/*.{jpg,jpeg,webp,png,JPG,JPEG,WEBP,PNG}',
   { eager: true }
 );
-const videoModules = import.meta.glob<string>('../assets/gallery/reels/*.mp4', {
+const videoImports = import.meta.glob<{ default: string }>('../assets/gallery/reels/*.mp4', {
   eager: true,
-  query: '?url',
-  import: 'default',
 });
 
-type PhotoItem = { type: 'photo'; filename: string; image: ImageMetadata; lightboxSrc: string };
-type VideoItem = { type: 'video'; filename: string; url: string };
-type MediaItem = PhotoItem | VideoItem;
+const photosRaw = Object.entries(photoImports)
+  .map(([path, mod]) => ({
+    type: 'photo' as const,
+    src: mod.default,
+    filename: path.split('/').pop() ?? '',
+  }))
+  // newest Instagram filenames first (they use timestamps)
+  .sort((a, b) => b.filename.localeCompare(a.filename));
 
-// The original 14 hand-picked marketing photos — shown first, in this curated
-// order, ahead of the bulk Instagram export (which sorts by filename below it).
-const CURATED_ORDER = [
-  'hero-1.webp',
-  'beach-1.webp',
-  'house-1.webp',
-  'beach-2.webp',
-  'food-1.webp',
-  'house-2.webp',
-  'daytrip-1.webp',
-  'beach-3.webp',
-  'house-3.webp',
-  'food-2.webp',
-  'house-4.webp',
-  'daytrip-2.webp',
-  'hero-2.webp',
-  'hero-3.webp',
-];
+const videos = Object.entries(videoImports)
+  .map(([path, mod]) => ({
+    type: 'video' as const,
+    src: mod.default,
+    filename: path.split('/').pop() ?? '',
+  }))
+  .sort((a, b) => b.filename.localeCompare(a.filename));
 
-const photos: PhotoItem[] = await Promise.all(
-  Object.entries(photoModules).map(async ([path, mod]) => {
-    const image = mod.default;
+// A single higher-res source per photo for the lightbox (the grid itself
+// only ever needs up to 1200w).
+const photos = await Promise.all(
+  photosRaw.map(async (photo) => {
     const lightbox = await getImage({
-      src: image,
+      src: photo.src,
       format: 'webp',
-      quality: 80,
-      width: Math.min(1600, image.width),
+      quality: 85,
+      width: Math.min(1200, photo.src.width),
     });
-    return {
-      type: 'photo' as const,
-      filename: path.split('/').pop()!,
-      image,
-      lightboxSrc: lightbox.src,
-    };
+    return { ...photo, lightboxSrc: lightbox.src };
   })
 );
 
-const videos: VideoItem[] = Object.entries(videoModules).map(([path, url]) => ({
-  type: 'video' as const,
-  filename: path.split('/').pop()!,
-  url,
-}));
-
-const curatedPhotos = CURATED_ORDER.map((name) =>
-  photos.find((p) => p.filename === name)
-).filter((p): p is PhotoItem => Boolean(p));
-
-const instagramPhotos = photos
-  .filter((p) => !CURATED_ORDER.includes(p.filename))
-  .sort((a, b) => a.filename.localeCompare(b.filename));
-
-const allMedia: MediaItem[] = [
-  ...curatedPhotos,
-  ...instagramPhotos,
-  ...videos.sort((a, b) => a.filename.localeCompare(b.filename)),
-];
-const total = allMedia.length;
+const total = photos.length + videos.length;
 ---
 
 <Layout
@@ -84,144 +57,321 @@ const total = allMedia.length;
 >
   <Header lang="en" altHref="/gallery" />
 
-  <section class="pt-6 pb-16">
-    {total === 0 ? (
-      <div class="py-28 text-center px-6">
-        <p class="text-muted text-lg mb-2">Gallery coming soon</p>
-        <a
-          href="https://instagram.com/casagaviotabaru"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-brown font-medium hover:underline"
-        >
-          @casagaviotabaru
-        </a>
-      </div>
-    ) : (
-      <div id="gallery-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1">
-        {allMedia.map((item, i) => (
-          item.type === 'photo' ? (
-            <button
-              type="button"
-              class="gallery-item group relative block w-full aspect-square overflow-hidden bg-brown/5 cursor-pointer"
+  <main class="gallery-page">
+    {/* PHOTOS SECTION */}
+    {photos.length > 0 && (
+      <section class="gallery-section">
+        <p class="section-label">Photos</p>
+        <div class="gallery-grid" id="photo-grid">
+          {photos.map((photo, index) => (
+            <div
+              class="gallery-item"
+              data-index={index}
               data-type="photo"
-              data-lightbox-src={item.lightboxSrc}
-              aria-label={`Open photo ${i + 1} of ${total}`}
+              data-lightbox-src={photo.lightboxSrc}
+              aria-label={`Open photo ${index + 1} of ${total}`}
+              role="button"
+              tabindex="0"
             >
-              <Image
-                src={item.image}
+              <Picture
+                src={photo.src}
+                formats={index < 4 ? ['avif', 'webp'] : ['webp']}
+                fallbackFormat="jpeg"
+                widths={index < 4 ? [400, 800, 1200] : [400, 800]}
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 alt="Casa Gaviota Barú"
-                width={600}
-                height={600}
-                format="webp"
-                quality={80}
-                loading={i < 8 ? 'eager' : 'lazy'}
-                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                priority={index < 4}
+                layout="constrained"
+                quality={index < 4 ? 90 : 75}
+                style="width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; display: block;"
               />
-            </button>
-          ) : (
-            <button
-              type="button"
-              class="gallery-item group relative block w-full aspect-square overflow-hidden bg-brown/5 cursor-pointer"
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* DIVIDER - only shown when both sections have content */}
+    {photos.length > 0 && videos.length > 0 && <hr class="section-divider" />}
+
+    {/* VIDEOS SECTION */}
+    {videos.length > 0 && (
+      <section class="gallery-section">
+        <p class="section-label">Videos</p>
+        <div class="gallery-grid" id="video-grid">
+          {videos.map((video, index) => (
+            <div
+              class="gallery-item video-item"
+              data-index={photos.length + index}
               data-type="video"
-              data-lightbox-src={item.url}
-              aria-label={`Open video ${i + 1} of ${total}`}
+              data-lightbox-src={video.src}
+              aria-label={`Open video ${photos.length + index + 1} of ${total}`}
+              role="button"
+              tabindex="0"
             >
+              {/* Thumbnail placeholder — video loads via JS */}
+              <div class="video-placeholder">
+                <svg viewBox="0 0 24 24" fill="white" width="32" height="32">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
               <video
-                class="gallery-video w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                data-src={item.url}
+                class="gallery-video"
+                data-src={video.src}
+                preload="none"
                 muted
                 loop
                 playsinline
-                preload="none"
+                style="width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; display: none;"
               />
-            </button>
-          )
-        ))}
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* EMPTY STATE */}
+    {photos.length === 0 && videos.length === 0 && (
+      <div class="empty-state">
+        <p>Gallery coming soon</p>
+        <a href="https://instagram.com/casagaviotabaru" target="_blank" rel="noopener noreferrer">
+          @casagaviotabaru
+        </a>
       </div>
     )}
 
-    <div class="mt-16 text-center">
-      <p class="text-muted text-sm">
-        📸 Follow us on Instagram<br />
-        <a
-          href="https://instagram.com/casagaviotabaru"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-brown font-medium hover:underline"
-        >
-          @casagaviotabaru
+    {/* INSTAGRAM LINK */}
+    {(photos.length > 0 || videos.length > 0) && (
+      <div class="instagram-link">
+        <a href="https://instagram.com/casagaviotabaru" target="_blank" rel="noopener noreferrer">
+          📸 Follow us on Instagram
+          <span>@casagaviotabaru</span>
         </a>
-      </p>
-    </div>
-  </section>
+      </div>
+    )}
+  </main>
 
   <!-- Lightbox -->
-  <div
-    id="lightbox"
-    class="hidden fixed inset-0 z-[999] bg-black items-center justify-center"
-    aria-hidden="true"
-  >
-    <button
-      id="lightbox-close"
-      type="button"
-      aria-label="Close"
-      class="absolute top-3 right-4 md:top-6 md:right-6 text-white/80 hover:text-white text-4xl leading-none p-2 z-10 cursor-pointer"
-    >
-      &times;
-    </button>
-    <button
-      id="lightbox-prev"
-      type="button"
-      aria-label="Previous"
-      class="absolute left-1 md:left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-5xl leading-none p-3 z-10 cursor-pointer"
-    >
-      &#8249;
-    </button>
-    <button
-      id="lightbox-next"
-      type="button"
-      aria-label="Next"
-      class="absolute right-1 md:right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-5xl leading-none p-3 z-10 cursor-pointer"
-    >
-      &#8250;
-    </button>
+  <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Gallery viewer">
+    <button id="lightbox-close" type="button" aria-label="Close" class="lightbox-close">&times;</button>
+    <button id="lightbox-prev" type="button" aria-label="Previous" class="lightbox-nav lightbox-prev">&#8249;</button>
+    <button id="lightbox-next" type="button" aria-label="Next" class="lightbox-nav lightbox-next">&#8250;</button>
 
-    <img id="lightbox-img" class="hidden max-w-[90vw] max-h-[90vh] object-contain" alt="" />
-    <video
-      id="lightbox-video"
-      class="hidden max-w-[90vw] max-h-[90vh] object-contain"
-      controls
-      playsinline
-    />
+    <img id="lightbox-img" class="lightbox-media hidden" alt="" />
+    <video id="lightbox-video" class="lightbox-media hidden" controls playsinline></video>
 
-    <div
-      id="lightbox-counter"
-      class="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 text-white/80 text-sm font-medium"
-    ></div>
+    <div id="lightbox-counter" class="lightbox-counter"></div>
   </div>
 
   <Footer lang="en" />
 </Layout>
 
+<style>
+  .gallery-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .section-label {
+    font-family: var(--font-sans, Inter, sans-serif);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #b28471;
+    padding: 16px 16px 8px;
+    margin: 0;
+  }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid #e6c497;
+    margin: 24px 16px;
+  }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    padding: 0 4px;
+  }
+
+  @media (min-width: 640px) {
+    .gallery-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .gallery-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .gallery-item {
+    position: relative;
+    overflow: hidden;
+    background: #e6c497;
+    cursor: pointer;
+    aspect-ratio: 1/1;
+  }
+
+  .gallery-item:hover img,
+  .gallery-item:hover video {
+    transform: scale(1.03);
+    transition: transform 0.3s ease;
+  }
+
+  .video-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #57392e;
+  }
+
+  .gallery-video {
+    position: absolute;
+    inset: 0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: #b28471;
+  }
+
+  .instagram-link {
+    text-align: center;
+    padding: 48px 20px;
+  }
+
+  .instagram-link a {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+    color: #b28471;
+    text-decoration: none;
+    font-size: 14px;
+  }
+
+  .instagram-link span {
+    font-weight: 600;
+    color: #57392e;
+  }
+
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: #000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lightbox.open {
+    display: flex;
+  }
+
+  .lightbox-media {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+  }
+
+  .lightbox-media.hidden {
+    display: none;
+  }
+
+  .lightbox-close,
+  .lightbox-nav {
+    position: absolute;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    line-height: 1;
+    z-index: 10;
+  }
+
+  .lightbox-close {
+    top: 12px;
+    right: 16px;
+    font-size: 2.5rem;
+    padding: 10px;
+  }
+
+  .lightbox-nav {
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 3.5rem;
+    padding: 12px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .lightbox-prev {
+    left: 4px;
+  }
+
+  .lightbox-next {
+    right: 4px;
+  }
+
+  .lightbox-close:hover,
+  .lightbox-nav:hover {
+    color: #fff;
+  }
+
+  .lightbox-counter {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  @media (min-width: 768px) {
+    .lightbox-close {
+      top: 24px;
+      right: 24px;
+    }
+    .lightbox-prev {
+      left: 16px;
+    }
+    .lightbox-next {
+      right: 16px;
+    }
+    .lightbox-counter {
+      bottom: 24px;
+    }
+  }
+</style>
+
 <script>
-  function setupGalleryVideos() {
-    const videos = document.querySelectorAll('.gallery-video');
+  // Videos in the grid: only load + autoplay once 50%+ visible.
+  function setupGridVideoAutoplay() {
+    const videos = document.querySelectorAll<HTMLVideoElement>('.gallery-video');
     if (!videos.length) return;
 
     const io = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          const video = entry.target;
+        for (const entry of entries) {
+          const video = entry.target as HTMLVideoElement;
+          const placeholder = video.previousElementSibling as HTMLElement | null;
           if (entry.isIntersecting) {
-            if (!video.getAttribute('src') && video.dataset.src) {
-              video.setAttribute('src', video.dataset.src);
-            }
+            if (!video.src && video.dataset.src) video.src = video.dataset.src;
+            placeholder?.style.setProperty('display', 'none');
+            video.style.display = 'block';
             video.play().catch(() => {});
           } else {
             video.pause();
           }
-        });
+        }
       },
       { threshold: 0.5 }
     );
@@ -229,64 +379,76 @@ const total = allMedia.length;
     videos.forEach((v) => io.observe(v));
   }
 
+  // Full-screen lightbox: photos and videos share one continuous sequence,
+  // in DOM order (photos section first, then videos section).
   function setupLightbox() {
-    const items = Array.from(document.querySelectorAll('.gallery-item'));
+    const items = Array.from(document.querySelectorAll<HTMLElement>('.gallery-item'));
     if (!items.length) return;
 
     const lightbox = document.getElementById('lightbox');
-    const imgEl = document.getElementById('lightbox-img');
-    const videoEl = document.getElementById('lightbox-video');
+    const imgEl = document.getElementById('lightbox-img') as HTMLImageElement | null;
+    const videoEl = document.getElementById('lightbox-video') as HTMLVideoElement | null;
     const counterEl = document.getElementById('lightbox-counter');
-    const closeBtn = document.getElementById('lightbox-close');
-    const prevBtn = document.getElementById('lightbox-prev');
-    const nextBtn = document.getElementById('lightbox-next');
+    const closeBtn = document.getElementById('lightbox-close') as HTMLButtonElement | null;
+    const prevBtn = document.getElementById('lightbox-prev') as HTMLButtonElement | null;
+    const nextBtn = document.getElementById('lightbox-next') as HTMLButtonElement | null;
     if (!lightbox || !imgEl || !videoEl || !counterEl || !closeBtn || !prevBtn || !nextBtn) return;
+
+    const focusable = [prevBtn, nextBtn, closeBtn];
 
     let index = 0;
     let touchX = 0;
+    let lastTrigger: HTMLElement | null = null;
 
-    function show(i) {
+    function show(i: number) {
       index = ((i % items.length) + items.length) % items.length;
       const item = items[index];
       const type = item.dataset.type;
       const src = item.dataset.lightboxSrc || '';
 
-      videoEl.pause();
-      videoEl.removeAttribute('src');
-      videoEl.load();
+      videoEl!.pause();
+      videoEl!.removeAttribute('src');
+      videoEl!.load();
 
       if (type === 'video') {
-        imgEl.classList.add('hidden');
-        videoEl.classList.remove('hidden');
-        videoEl.src = src;
-        videoEl.play().catch(() => {});
+        imgEl!.classList.add('hidden');
+        videoEl!.classList.remove('hidden');
+        videoEl!.src = src;
+        videoEl!.play().catch(() => {});
       } else {
-        videoEl.classList.add('hidden');
-        imgEl.classList.remove('hidden');
-        imgEl.src = src;
+        videoEl!.classList.add('hidden');
+        imgEl!.classList.remove('hidden');
+        imgEl!.src = src;
       }
 
-      counterEl.textContent = `${index + 1} / ${items.length}`;
+      counterEl!.textContent = `${index + 1} / ${items.length}`;
     }
 
-    function open(i) {
+    function open(i: number, trigger: HTMLElement) {
+      lastTrigger = trigger;
       show(i);
-      lightbox.classList.remove('hidden');
-      lightbox.classList.add('flex');
-      lightbox.setAttribute('aria-hidden', 'false');
+      lightbox!.classList.add('open');
+      lightbox!.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
+      closeBtn!.focus();
     }
 
     function close() {
-      videoEl.pause();
-      lightbox.classList.add('hidden');
-      lightbox.classList.remove('flex');
-      lightbox.setAttribute('aria-hidden', 'true');
+      videoEl!.pause();
+      lightbox!.classList.remove('open');
+      lightbox!.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
+      lastTrigger?.focus();
     }
 
     items.forEach((item, i) => {
-      item.addEventListener('click', () => open(i));
+      item.addEventListener('click', () => open(i, item));
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open(i, item);
+        }
+      });
     });
 
     closeBtn.addEventListener('click', close);
@@ -294,17 +456,37 @@ const total = allMedia.length;
     nextBtn.addEventListener('click', () => show(index + 1));
 
     lightbox.addEventListener('click', (e) => {
-      const target = e.target;
+      const target = e.target as HTMLElement;
       if (target === imgEl || target === videoEl) return;
       if (target.closest('#lightbox-prev, #lightbox-next, #lightbox-close')) return;
       close();
     });
 
     document.addEventListener('keydown', (e) => {
-      if (lightbox.classList.contains('hidden')) return;
-      if (e.key === 'Escape') close();
-      if (e.key === 'ArrowRight') show(index + 1);
-      if (e.key === 'ArrowLeft') show(index - 1);
+      if (!lightbox!.classList.contains('open')) return;
+
+      if (e.key === 'Escape') {
+        close();
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        show(index + 1);
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        show(index - 1);
+        return;
+      }
+
+      // Focus trap: cycle Tab/Shift+Tab between the three controls.
+      if (e.key === 'Tab') {
+        const active = document.activeElement;
+        const currentIdx = focusable.indexOf(active as HTMLButtonElement);
+        e.preventDefault();
+        const dir = e.shiftKey ? -1 : 1;
+        const nextIdx = ((currentIdx === -1 ? 0 : currentIdx) + dir + focusable.length) % focusable.length;
+        focusable[nextIdx].focus();
+      }
     });
 
     lightbox.addEventListener(
@@ -315,12 +497,12 @@ const total = allMedia.length;
       { passive: true }
     );
     lightbox.addEventListener('touchend', (e) => {
-      if (lightbox.classList.contains('hidden')) return;
+      if (!lightbox!.classList.contains('open')) return;
       const dx = e.changedTouches[0].clientX - touchX;
-      if (Math.abs(dx) > 40) show(index + (dx < 0 ? 1 : -1));
+      if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1));
     });
   }
 
-  setupGalleryVideos();
+  setupGridVideoAutoplay();
   setupLightbox();
 </script>
