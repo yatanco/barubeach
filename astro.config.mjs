@@ -1,23 +1,15 @@
-import { defineConfig, sessionDrivers } from 'astro/config';
+import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
-import tailwindcss from '@tailwindcss/vite';
+import tailwind from '@astrojs/tailwind';
 
 export default defineConfig({
   site: 'https://casagaviota.com',
   output: 'static',
-  // Astro 7 changed the compressHTML default from `true` to `'jsx'`, which
-  // strips whitespace using JSX rules instead of HTML-aware ones — that can
-  // silently delete spaces between inline elements. Pin it to restore the
-  // pre-v7 behavior everywhere on the site.
-  compressHTML: true,
   adapter: cloudflare({
     imageService: 'compile',
   }),
-  vite: {
-    plugins: [tailwindcss()],
-  },
   image: {
     // Default layout for <Image>/<Picture> (sets fit/position defaults);
     // can still be overridden per-image. The actual image service stays
@@ -33,7 +25,7 @@ export default defineConfig({
   // session.driver unset) stops the Cloudflare adapter from auto-enabling
   // its Cloudflare KV session driver, which requires a SESSION KV binding.
   session: {
-    driver: sessionDrivers.memory(),
+    driver: 'memory',
   },
   integrations: [
     react(),
@@ -46,5 +38,6 @@ export default defineConfig({
         },
       },
     }),
+    tailwind(),
   ],
 });
