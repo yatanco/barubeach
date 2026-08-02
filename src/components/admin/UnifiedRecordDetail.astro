@@ -54,6 +54,17 @@ const costTransportCents = isBooking ? (record.cost_transport_cents ?? 0) : 0;
 const revenueForContributionCents = (isAirbnb ? airbnbPayoutCents : accommodationCents) + foodCents + transportCents;
 const netContributionCents = revenueForContributionCents - commissionCents - costStaffCents - costFoodCents - costTransportCents;
 const perNightCents = nights > 0 ? Math.round(netContributionCents / nights) : 0;
+const perGuestCents = guests > 0 ? Math.round(netContributionCents / guests) : 0;
+
+// --- Three-column financial summary (bookings only) ---------------------------
+// Note: bookingBalanceDueCents deliberately differs from the leads-only
+// balanceDueCents below — Revenue here includes the Airbnb payout (so an
+// Airbnb booking shows a real balance until the operator logs that payout
+// as a "Airbnb"-method payment in the Received column, same reconciliation
+// workflow as any other channel), whereas the old totalToCollectCents used
+// by leads' kept Payments-received section deliberately excludes it.
+const revenueTotalCents = revenueForContributionCents - commissionCents;
+const costsTotalCents = costStaffCents + costFoodCents + costTransportCents;
 
 // --- Payments received ---------------------------------------------------------
 interface PaymentRow { id: string; amount_cents: number; method: string | null; paid_at: string; }
@@ -63,6 +74,7 @@ const paymentsResult = isBooking
 const payments = paymentsResult.results;
 const totalReceivedCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
 const balanceDueCents = totalToCollectCents - totalReceivedCents;
+const bookingBalanceDueCents = revenueTotalCents - totalReceivedCents;
 
 // --- HostHub / last sync (bookings only) --------------------------------------
 const lastSync = isBooking && record.source === 'hosthub_ical'
@@ -152,80 +164,186 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
     </div>
   </section>
 
-  <section class="card urd-section">
-    <h2>Totals</h2>
-    <div class="row"><span>Total to collect</span><strong class="amount" id="total-to-collect">{money(totalToCollectCents)}</strong></div>
-    <div class="row"><span>Deposit (50%)</span><strong class="amount" id="deposit-preview">{money(defaultDepositCents)}</strong></div>
-    {isBookingCom && <>
-      <div class="row">
-        <span>Commission rate</span>
-        <span class="rc-cell" id="commission-rate-cell">
-          <span class="rc-display amount">{commissionRate}%</span>
-          <input class="rc-input" type="text" inputmode="decimal" id="commission-rate-input" value={commissionRate} style="display:none" />
-        </span>
-      </div>
-      <div class="row"><span>Commission (18% VAT incl.)</span><strong class="amount" id="commission-amount">{money(commissionCents)}</strong></div>
-      <div class="row"><strong>Net to you</strong><strong class="amount" id="net-to-you">{money(netToYouCents)}</strong></div>
-    </>}
-  </section>
+  {!isBooking && (
+    <>
+      <section class="card urd-section">
+        <h2>Totals</h2>
+        <div class="row"><span>Total to collect</span><strong class="amount" id="total-to-collect">{money(totalToCollectCents)}</strong></div>
+        <div class="row"><span>Deposit (50%)</span><strong class="amount" id="deposit-preview">{money(defaultDepositCents)}</strong></div>
+        {isBookingCom && <>
+          <div class="row">
+            <span>Commission rate</span>
+            <span class="rc-cell" id="commission-rate-cell">
+              <span class="rc-display amount">{commissionRate}%</span>
+              <input class="rc-input" type="text" inputmode="decimal" id="commission-rate-input" value={commissionRate} style="display:none" />
+            </span>
+          </div>
+          <div class="row"><span>Commission (18% VAT incl.)</span><strong class="amount" id="commission-amount">{money(commissionCents)}</strong></div>
+          <div class="row"><strong>Net to you</strong><strong class="amount" id="net-to-you">{money(netToYouCents)}</strong></div>
+        </>}
+      </section>
 
-  {totalToCollectCents > 0 && (
-    <section class="card urd-section">
-      <h2>Collect deposit</h2>
-      <label>Deposit (COP)
-        <input type="text" inputmode="numeric" id="deposit-input" value={defaultDepositCents / 100} />
-      </label>
-      {boldLinkIsFallback && <p class="muted" style="font-size:12px;margin-top:-6px">⚠️ BOLD_PAYMENT_LINK secret not set — using fallback link.</p>}
-      <button type="button" class="secondary" id="copy-deposit-btn" style="margin-top:8px">📋 Copy WhatsApp message</button>
-      <div class="inline-feedback" id="deposit-feedback"></div>
-    </section>
+      {totalToCollectCents > 0 && (
+        <section class="card urd-section">
+          <h2>Collect deposit</h2>
+          <label>Deposit (COP)
+            <input type="text" inputmode="numeric" id="deposit-input" value={defaultDepositCents / 100} />
+          </label>
+          {boldLinkIsFallback && <p class="muted" style="font-size:12px;margin-top:-6px">⚠️ BOLD_PAYMENT_LINK secret not set — using fallback link.</p>}
+          <button type="button" class="secondary" id="copy-deposit-btn" style="margin-top:8px">📋 Copy WhatsApp message</button>
+          <div class="inline-feedback" id="deposit-feedback"></div>
+        </section>
+      )}
+
+      <section class="card urd-section">
+        <h2>Payments received</h2>
+        <div class="payments-list" id="payments-list">
+          {payments.length === 0 && <p class="muted" id="no-payments">No payments recorded yet.</p>}
+          {payments.map((p) => (
+            <div class="row payment-row" data-payment-id={p.id}>
+              <span>{shortDate(p.paid_at)} · {p.method || '—'}</span>
+              <div class="actions">
+                <strong class="amount">{money(p.amount_cents)}</strong>
+                <button type="button" class="secondary payment-remove" data-id={p.id}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button type="button" class="secondary" id="add-payment-btn" style="margin-top:10px">+ Add payment</button>
+        <form class="form-grid" id="add-payment-form" style="display:none;margin-top:12px">
+          <label>Amount (COP)<input type="text" inputmode="numeric" id="payment-amount" required /></label>
+          <label>Method
+            <select id="payment-method">
+              {PAYMENT_METHODS.map((m) => <option value={m}>{m}</option>)}
+            </select>
+          </label>
+          <label class="span-2">Date<input type="date" id="payment-date" value={new Date().toISOString().slice(0, 10)} /></label>
+          <div class="span-2 actions">
+            <button type="button" class="secondary" id="payment-cancel-btn">Cancel</button>
+            <button type="button" id="payment-save-btn">Save</button>
+          </div>
+        </form>
+        <p class="field-error" id="payment-error" style="display:none"></p>
+        <div class="row" style="margin-top:6px"><span>Total received</span><strong class="amount">{money(totalReceivedCents)}</strong></div>
+        <div class="row"><strong>Balance due</strong><strong class={`amount ${balanceDueCents > 0 ? 'negative' : 'positive'}`}>{money(Math.max(0, balanceDueCents))}</strong></div>
+      </section>
+    </>
   )}
 
-  <section class="card urd-section">
-    <h2>Payments received</h2>
-    <div class="payments-list" id="payments-list">
-      {payments.length === 0 && <p class="muted" id="no-payments">No payments recorded yet.</p>}
-      {payments.map((p) => (
-        <div class="row payment-row" data-payment-id={p.id}>
-          <span>{shortDate(p.paid_at)} · {p.method || '—'}</span>
-          <div class="actions">
-            <strong class="amount">{money(p.amount_cents)}</strong>
-            <button type="button" class="secondary payment-remove" data-id={p.id}>✕</button>
-          </div>
-        </div>
-      ))}
-    </div>
-    <button type="button" class="secondary" id="add-payment-btn" style="margin-top:10px">+ Add payment</button>
-    <form class="form-grid" id="add-payment-form" style="display:none;margin-top:12px">
-      <label>Amount (COP)<input type="text" inputmode="numeric" id="payment-amount" required /></label>
-      <label>Method
-        <select id="payment-method">
-          {PAYMENT_METHODS.map((m) => <option value={m}>{m}</option>)}
-        </select>
-      </label>
-      <label class="span-2">Date<input type="date" id="payment-date" value={new Date().toISOString().slice(0, 10)} /></label>
-      <div class="span-2 actions">
-        <button type="button" class="secondary" id="payment-cancel-btn">Cancel</button>
-        <button type="button" id="payment-save-btn">Save</button>
-      </div>
-    </form>
-    <p class="field-error" id="payment-error" style="display:none"></p>
-    <div class="row" style="margin-top:6px"><span>Total received</span><strong class="amount">{money(totalReceivedCents)}</strong></div>
-    <div class="row"><strong>Balance due</strong><strong class={`amount ${balanceDueCents > 0 ? 'negative' : 'positive'}`}>{money(Math.max(0, balanceDueCents))}</strong></div>
-  </section>
-
   {isBooking && (
-    <details class="urd-section">
-      <summary>▶ Variable costs</summary>
-      <section class="card" style="margin-top:10px">
-        <label>Staff (COP)<input type="text" inputmode="numeric" id="cost-staff-input" value={costStaffCents / 100 || ''} /></label>
-        <label style="margin-top:10px">Food cost (COP)<input type="text" inputmode="numeric" id="cost-food-input" value={costFoodCents / 100 || ''} /></label>
-        <label style="margin-top:10px">Transport cost (COP)<input type="text" inputmode="numeric" id="cost-transport-input" value={costTransportCents / 100 || ''} /></label>
-        <div class="inline-feedback" id="costs-feedback"></div>
-        <div class="row" style="margin-top:10px"><strong>Net contribution</strong><strong class="amount" id="net-contribution">{money(netContributionCents)}</strong></div>
-        <div class="row"><span>Per night</span><strong class="amount" id="per-night">{money(perNightCents)}</strong></div>
-      </section>
-    </details>
+    <section class="card urd-section financial-card">
+      <div class="fin-columns">
+        <div class="fin-col">
+          <h3 class="fin-col-header">Revenue</h3>
+          <div class="fin-lines">
+            <div class="fin-line">
+              <span class="fin-label">{isAirbnb ? 'Airbnb payout' : 'Accommodation'}</span>
+              <span class="fin-value-group">
+                <span class="fin-value" id="rev-accommodation-display">{money(isAirbnb ? airbnbPayoutCents : accommodationCents)}</span>
+                <input class="fin-input" type="text" inputmode="numeric" id="rev-accommodation-input" value={(isAirbnb ? airbnbPayoutCents : accommodationCents) / 100 || ''} style="display:none" />
+                <button type="button" class="fin-edit-btn" id="rev-accommodation-edit" aria-label="Edit amount">✏️</button>
+              </span>
+            </div>
+            {foodCents > 0 && (
+              <div class="fin-line">
+                <span class="fin-label">Food</span>
+                <span class="fin-value-group">
+                  <span class="fin-value" id="rev-food-display">{money(foodCents)}</span>
+                  <input class="fin-input" type="text" inputmode="numeric" id="rev-food-input" value={foodCents / 100} style="display:none" />
+                  <button type="button" class="fin-edit-btn" id="rev-food-edit" aria-label="Edit amount">✏️</button>
+                </span>
+              </div>
+            )}
+            {transportCents > 0 && (
+              <div class="fin-line">
+                <span class="fin-label">Transport</span>
+                <span class="fin-value-group">
+                  <span class="fin-value" id="rev-transport-display">{money(transportCents)}</span>
+                  <input class="fin-input" type="text" inputmode="numeric" id="rev-transport-input" value={transportCents / 100} style="display:none" />
+                  <button type="button" class="fin-edit-btn" id="rev-transport-edit" aria-label="Edit amount">✏️</button>
+                </span>
+              </div>
+            )}
+            {isBookingCom && commissionCents > 0 && (
+              <div class="fin-line">
+                <span class="fin-label">BK commission ({commissionRate}%)</span>
+                <span class="fin-value-group">
+                  <span class="fin-value negative" id="rev-commission-display">-{money(commissionCents)}</span>
+                  <input class="fin-input" type="text" inputmode="decimal" id="rev-commission-rate-input" value={commissionRate} style="display:none" placeholder="rate %" />
+                  <button type="button" class="fin-edit-btn" id="rev-commission-edit" aria-label="Edit commission rate">✏️</button>
+                </span>
+              </div>
+            )}
+          </div>
+          <div class="fin-total"><span>Total</span><strong id="revenue-total">{money(revenueTotalCents)}</strong></div>
+        </div>
+
+        <div class="fin-col">
+          <h3 class="fin-col-header">Received</h3>
+          <div class="fin-lines payments-list" id="payments-list">
+            {payments.length === 0 && <p class="muted fin-empty" id="no-payments">No payments yet.</p>}
+            {payments.map((p) => (
+              <div class="fin-line payment-row" data-payment-id={p.id}>
+                <span class="fin-label">{shortDate(p.paid_at)} · {p.method || '—'}</span>
+                <span class="fin-value-group">
+                  <strong class="fin-value">{money(p.amount_cents)}</strong>
+                  <button type="button" class="fin-remove-btn payment-remove" data-id={p.id} aria-label="Remove payment">✕</button>
+                </span>
+              </div>
+            ))}
+          </div>
+          <button type="button" class="secondary fin-add-btn" id="add-payment-btn">+ Add payment</button>
+          <form class="fin-add-form" id="add-payment-form" style="display:none">
+            <input type="text" inputmode="numeric" id="payment-amount" placeholder="Amount COP" required />
+            <select id="payment-method">
+              {PAYMENT_METHODS.map((m) => <option value={m}>{m}</option>)}
+            </select>
+            <input type="date" id="payment-date" value={new Date().toISOString().slice(0, 10)} />
+            <div class="fin-add-actions">
+              <button type="button" class="secondary" id="payment-cancel-btn">Cancel</button>
+              <button type="button" id="payment-save-btn">Save</button>
+            </div>
+          </form>
+          <p class="field-error" id="payment-error" style="display:none"></p>
+          <div class="fin-total"><span>Total</span><strong id="received-total">{money(totalReceivedCents)}</strong></div>
+        </div>
+
+        <div class="fin-col">
+          <h3 class="fin-col-header">Costs</h3>
+          <div class="fin-lines">
+            <div class="fin-line">
+              <span class="fin-label">Staff</span>
+              <input class="fin-input" type="text" inputmode="numeric" id="cost-staff-input" value={costStaffCents / 100 || ''} placeholder="0" />
+            </div>
+            <div class="fin-line">
+              <span class="fin-label">Food</span>
+              <input class="fin-input" type="text" inputmode="numeric" id="cost-food-input" value={costFoodCents / 100 || ''} placeholder="0" />
+            </div>
+            <div class="fin-line">
+              <span class="fin-label">Transport</span>
+              <input class="fin-input" type="text" inputmode="numeric" id="cost-transport-input" value={costTransportCents / 100 || ''} placeholder="0" />
+            </div>
+          </div>
+          <div class="inline-feedback" id="costs-feedback"></div>
+          <div class="fin-total"><span>Total</span><strong id="costs-total">{money(costsTotalCents)}</strong></div>
+        </div>
+      </div>
+
+      <div class="fin-summary">
+        <div class="fin-summary-row">
+          <span>Balance due</span>
+          <span class="fin-summary-value-group">
+            <strong class={`amount ${bookingBalanceDueCents > 0 ? 'negative' : 'positive'}`}>{money(Math.max(0, bookingBalanceDueCents))}</strong>
+            {bookingBalanceDueCents > 0 && <button type="button" class="secondary" id="copy-balance-btn">📋 Copy WhatsApp message</button>}
+          </span>
+        </div>
+        {boldLinkIsFallback && bookingBalanceDueCents > 0 && <p class="muted fin-fallback-note">⚠️ BOLD_PAYMENT_LINK secret not set — using fallback link.</p>}
+        <div class="inline-feedback" id="balance-feedback"></div>
+        <div class="fin-summary-row"><span>Net contribution</span><strong class="amount">{money(netContributionCents)}</strong></div>
+        <div class="fin-summary-row"><span>Per night</span><strong class="amount">{money(perNightCents)}</strong></div>
+        <div class="fin-summary-row"><span>Per guest</span><strong class="amount">{money(perGuestCents)}</strong></div>
+      </div>
+    </section>
   )}
 
   <section class="card urd-section">
@@ -290,9 +408,43 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   details > summary { cursor:pointer; font-weight:700; color:var(--brown); padding:10px 0; list-style:none; }
   details > summary::-webkit-details-marker { display:none; }
   .payment-row { padding:10px 0; }
+
+  .financial-card { padding:20px; }
+  .fin-columns { display:grid; grid-template-columns:repeat(3,1fr); gap:0; }
+  .fin-col { padding:0 18px; min-width:0; }
+  .fin-col:first-child { padding-left:0; }
+  .fin-col:last-child { padding-right:0; }
+  .fin-col + .fin-col { border-left:1px solid #E6C497; }
+  .fin-col-header { margin:0 0 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#B28471; }
+  .fin-lines { display:grid; gap:10px; margin-bottom:10px; }
+  .fin-line { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; }
+  .fin-label { color:var(--ink); min-width:0; }
+  .fin-value-group { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .fin-value { font-variant-numeric:tabular-nums; font-weight:600; }
+  .fin-value.negative { color:var(--red); }
+  .fin-edit-btn { appearance:none; border:0; background:none; padding:2px; min-height:auto; cursor:pointer; font-size:12px; opacity:.55; }
+  .fin-edit-btn:hover { opacity:1; }
+  .fin-input { max-width:110px; min-height:34px; padding:4px 8px; text-align:right; font-size:13px; }
+  .fin-remove-btn { appearance:none; border:0; background:none; color:var(--red); cursor:pointer; padding:2px 4px; min-height:auto; font-size:13px; }
+  .fin-total { display:flex; align-items:center; justify-content:space-between; padding-top:10px; border-top:1px solid #E6C497; font-weight:750; color:#57392E; }
+  .fin-empty { font-size:12px; margin:0; }
+  .fin-add-btn { width:100%; margin-top:4px; font-size:13px; min-height:38px; }
+  .fin-add-form { display:grid; gap:8px; margin-top:10px; }
+  .fin-add-actions { display:flex; gap:8px; justify-content:flex-end; }
+  .fin-summary { margin-top:18px; padding-top:16px; border-top:1px solid #E6C497; display:grid; gap:10px; }
+  .fin-summary-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .fin-summary-value-group { display:flex; align-items:center; gap:10px; }
+  .fin-fallback-note { font-size:12px; margin:-4px 0 0; }
+  @media(max-width:760px) {
+    .fin-columns { grid-template-columns:1fr; }
+    .fin-col { padding:14px 0; }
+    .fin-col:first-child { padding-top:0; }
+    .fin-col:last-child { padding-bottom:0; }
+    .fin-col + .fin-col { border-left:0; border-top:1px solid #E6C497; }
+  }
 </style>
 
-<script define:vars={{ apiBase, kind, boldLink, guestName: record.guest_name, dateFrom: record.date_from, dateTo: record.date_to, isBookingCom, accommodationCents, foodCentsInit: foodCents, transportCentsInit: transportCents, isAirbnb }}>
+<script define:vars={{ apiBase, kind, boldLink, guestName: record.guest_name, dateFrom: record.date_from, dateTo: record.date_to, isBookingCom, accommodationCents, foodCentsInit: foodCents, transportCentsInit: transportCents, isAirbnb, balanceDueCents: bookingBalanceDueCents }}>
   function pesosFromInput(str) {
     const n = Number(String(str).replace(/[^0-9]/g, ''));
     return Number.isFinite(n) ? n : 0;
@@ -446,6 +598,95 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
     });
   }
   document.querySelectorAll('.extras-row').forEach(wireExtraRow);
+
+  // ---- Revenue column inline edits (bookings only — new elements, separate
+  // from the Accommodation/Food & transport inputs above; editing here always
+  // reloads so every number in the new card stays consistent) ----
+  function wireRevenueEdit(displayId, inputId, editBtnId, onSave) {
+    const display = document.getElementById(displayId);
+    const input = document.getElementById(inputId);
+    const editBtn = document.getElementById(editBtnId);
+    if (!display || !input || !editBtn) return;
+    function reveal() {
+      display.style.display = 'none';
+      input.style.display = '';
+      input.focus();
+      input.select();
+    }
+    editBtn.addEventListener('click', reveal);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+    input.addEventListener('blur', async () => {
+      const ok = await onSave(input.value);
+      if (ok) {
+        window.location.reload();
+      } else {
+        display.style.display = '';
+        input.style.display = 'none';
+      }
+    });
+  }
+
+  wireRevenueEdit('rev-accommodation-display', 'rev-accommodation-input', 'rev-accommodation-edit', async (value) => {
+    const pesos = pesosFromInput(value);
+    try {
+      const body = isAirbnb ? { airbnbPayout: pesos } : { amount: pesos };
+      const res = await fetch(`${apiBase}/accommodation`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      return res.ok && data.success;
+    } catch { return false; }
+  });
+
+  wireRevenueEdit('rev-food-display', 'rev-food-input', 'rev-food-edit', async (value) => {
+    const pesos = pesosFromInput(value);
+    try {
+      const res = await fetch(`${apiBase}/extras`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field: 'food', amount: pesos }) });
+      const data = await res.json();
+      return res.ok && data.success;
+    } catch { return false; }
+  });
+
+  wireRevenueEdit('rev-transport-display', 'rev-transport-input', 'rev-transport-edit', async (value) => {
+    const pesos = pesosFromInput(value);
+    try {
+      const res = await fetch(`${apiBase}/extras`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field: 'transport', amount: pesos }) });
+      const data = await res.json();
+      return res.ok && data.success;
+    } catch { return false; }
+  });
+
+  wireRevenueEdit('rev-commission-display', 'rev-commission-rate-input', 'rev-commission-edit', async (value) => {
+    const rate = Number(String(value).replace(/[^0-9.]/g, '')) || 0;
+    try {
+      const res = await fetch(`${apiBase}/commission-rate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rate }) });
+      return res.ok;
+    } catch { return false; }
+  });
+
+  // ---- Copy WhatsApp message for outstanding balance (bookings) ----
+  document.getElementById('copy-balance-btn')?.addEventListener('click', async () => {
+    const lines = [`Hola ${guestName || ''}! 🌴`, ''];
+    if (dateFrom && dateTo) {
+      lines.push(`Para confirmar tu reserva del ${shortDateEs(dateFrom)}`, `al ${shortDateEs(dateTo)}:`, '');
+    } else {
+      lines.push('Para confirmar tu reserva:', '');
+    }
+    lines.push(
+      `💳 Saldo pendiente: ${formatCOP(balanceDueCents / 100)}`,
+      '',
+      'Ingresa ese monto aquí y paga con',
+      'tarjeta, PSE o Nequi:',
+      boldLink,
+      '',
+      '¡Gracias! 🌊',
+    );
+    const btn = document.getElementById('copy-balance-btn');
+    const feedback = document.getElementById('balance-feedback');
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      flash(feedback, true);
+      if (btn) { const original = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => { if (btn) btn.textContent = original; }, 1500); }
+    } catch { flash(feedback, false); }
+  });
 
   // ---- Totals (live recompute) ----
   const commissionRateInput = document.getElementById('commission-rate-input');
