@@ -1,0 +1,18 @@
+---
+// QR code for on-site use points to:
+// EN: https://casagaviota.com/drinks
+// ES: https://casagaviota.com/es/drinks
+// Print and laminate for guest tables
+import Layout from '../layouts/Layout.astro';
+import Drinks from '../components/Drinks.astro';
+---
+
+<Layout
+  title="Drinks — Casa Gaviota Barú"
+  description="Cold drinks available at Casa Gaviota, private beach house in Barú, Colombia."
+  lang="en"
+  altHref="/es/drinks"
+  hideBookingWidgets
+>
+  <Drinks lang="en" />
+</Layout>

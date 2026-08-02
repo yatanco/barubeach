@@ -19,11 +19,6 @@ const waText = isES
   : 'Hola! Me gustaría pedir algo del menú.';
 const waHref = waLink(waText);
 const waLabel = isES ? 'Pedir por WhatsApp →' : 'Order on WhatsApp →';
-
-function formatCOP(price: number | null): string | null {
-  if (price === null) return null;
-  return `$${price.toLocaleString('es-CO')} COP`;
-}
 ---
 
 <div class="max-w-md mx-auto px-5 pt-10 pb-32">
@@ -86,35 +81,16 @@ function formatCOP(price: number | null): string | null {
     <p class="text-xs text-muted italic text-center mt-4">{food.note}</p>
   </section>
 
-  <div class="border-t border-sand/60 mb-10"></div>
-
-  <!-- DRINKS -->
-  <section>
-    {drinks.categories.map(category => (
-      <div class="mb-9">
-        <h2 class="font-serif text-xl font-semibold text-brown mb-3">{category[t].name}</h2>
-        <div class="divide-y divide-sand/40">
-          {category.items.map(item => (
-            <div class="flex items-start justify-between gap-4 py-3">
-              <div>
-                <p class="text-sm font-medium text-ink">{item[t]}</p>
-                {(isES ? item.description_es : item.description_en) && (
-                  <p class="text-xs text-muted italic mt-0.5">
-                    {isES ? item.description_es : item.description_en}
-                  </p>
-                )}
-              </div>
-              {formatCOP(item.price) && (
-                <p class="text-sm font-semibold text-brown whitespace-nowrap">{formatCOP(item.price)}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    ))}
-  </section>
-
   <p class="text-xs text-muted italic text-center mt-4">{drinks.note[t]}</p>
+
+  <div class="text-center mt-6">
+    <a
+      href={isES ? '/es/drinks' : '/drinks'}
+      class="text-sm text-terracotta hover:text-brown font-medium underline underline-offset-4"
+    >
+      {isES ? 'Ver nuestra carta de bebidas →' : 'See our drinks menu →'}
+    </a>
+  </div>
 </div>
 
 <!-- Sticky bottom WhatsApp order button -->

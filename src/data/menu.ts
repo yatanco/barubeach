@@ -13,6 +13,22 @@ export interface MenuCategory {
   items: MenuItem[];
 }
 
+export interface DrinkItem {
+  en: string;
+  es: string;
+  price_unit: number;
+  price_6pack: number | null;
+  description_en?: string;
+  description_es?: string;
+}
+
+export interface DrinkCategory {
+  id: string;
+  en: { name: string };
+  es: { name: string };
+  items: DrinkItem[];
+}
+
 export interface FoodPackageMeal {
   title: string;
   subtitle?: string;
@@ -39,63 +55,6 @@ export const menuData = {
       en: 'Additional payments: bank transfer or card.',
       es: 'Pagos adicionales: transferencia o tarjeta.',
     },
-    categories: [
-      {
-        id: 'non-alcoholic',
-        en: { name: 'Non-Alcoholic' },
-        es: { name: 'Bebidas No Alcohólicas' },
-        items: [
-          { en: 'Still water', es: 'Agua sin gas', price: 8000 },
-          { en: 'Fruit juice of the day', es: 'Jugo del día', price: 10000 },
-          { en: 'Coca-Cola (Original / Zero)', es: 'Coca-Cola (Original y Zero)', price: 10000 },
-        ],
-      },
-      {
-        id: 'beers',
-        en: { name: 'Beers' },
-        es: { name: 'Cervezas' },
-        items: [
-          { en: 'Club Colombia', es: 'Cerveza Club Colombia', price: 12000 },
-          { en: 'Corona', es: 'Cerveza Corona', price: 12000 },
-          { en: 'Corona Zero', es: 'Corona Zero', price: 12000 },
-        ],
-      },
-      {
-        id: 'cocktails',
-        en: { name: 'Cocktails' },
-        es: { name: 'Cócteles' },
-        items: [
-          {
-            en: 'Cuba Libre',
-            es: 'Cuba Libre',
-            price: 25000,
-            description_en: 'Rum, lemon, Coca-Cola',
-            description_es: 'Ron, zumo de limón y Coca-Cola',
-          },
-          {
-            en: 'Gin & Tonic',
-            es: 'Gin Tonic',
-            price: 25000,
-            description_en: 'Gin, tonic water',
-            description_es: 'Ginebra y agua tónica',
-          },
-        ],
-      },
-      {
-        id: 'spirits',
-        en: { name: 'Spirits' },
-        es: { name: 'Licores' },
-        items: [
-          {
-            en: 'Ron Medellín',
-            es: 'Ron Medellín',
-            price: 100000,
-            description_en: '375ml bottle',
-            description_es: 'Botella 375ml',
-          },
-        ],
-      },
-    ] as MenuCategory[],
   },
   foodPackage: {
     en: {
@@ -179,6 +138,125 @@ export const menuData = {
       },
     } as FoodPackageContent,
   },
+};
+
+export const drinksData = {
+  en: {
+    title: 'Drinks',
+    subtitle: 'Isla Barú · Colombia',
+    description: "Cold drinks available at the house. Ask Manuel — we'll bring it to your hammock.",
+    note: 'Prices in COP. Payment at end of stay or via transfer.',
+    whatsappText: 'Hola! Estamos en Casa Gaviota y queremos pedir: ',
+  },
+  es: {
+    title: 'Bebidas',
+    subtitle: 'Isla Barú · Colombia',
+    description: 'Bebidas frías disponibles en la casa. Pídeselo a Manuel — te lo llevamos a la hamaca.',
+    note: 'Precios en COP. Pago al final de la estadía o por transferencia.',
+    whatsappText: 'Hola! Estamos en Casa Gaviota y queremos pedir: ',
+  },
+  categories: [
+    {
+      id: 'cervezas',
+      en: { name: 'Beers' },
+      es: { name: 'Cervezas' },
+      items: [
+        {
+          en: 'Budweiser',
+          es: 'Budweiser',
+          price_unit: 6000,
+          price_6pack: 32000,
+          description_en: '269ml',
+          description_es: '269ml',
+        },
+        {
+          en: 'Club Colombia Dorada',
+          es: 'Club Colombia Dorada',
+          price_unit: 8000,
+          price_6pack: 44000,
+          description_en: '330ml',
+          description_es: '330ml',
+        },
+        {
+          en: 'Coronita Extra',
+          es: 'Coronita Extra',
+          price_unit: 7500,
+          price_6pack: 40000,
+          description_en: '210ml',
+          description_es: '210ml',
+        },
+      ],
+    },
+    {
+      id: 'non-alcoholic',
+      en: { name: 'Non-Alcoholic' },
+      es: { name: 'Sin Alcohol' },
+      items: [
+        {
+          en: 'Still water',
+          es: 'Agua sin gas',
+          price_unit: 5000,
+          price_6pack: null,
+          description_en: 'Served cold',
+          description_es: 'Servida fría',
+        },
+        {
+          en: 'Coca-Cola',
+          es: 'Coca-Cola',
+          price_unit: 6000,
+          price_6pack: null,
+          description_en: 'Original / Zero',
+          description_es: 'Original / Zero',
+        },
+        {
+          en: 'Juice of the day',
+          es: 'Jugo del día',
+          price_unit: 7000,
+          price_6pack: null,
+          description_en: 'Fresh fruit',
+          description_es: 'Fruta fresca',
+        },
+      ],
+    },
+    {
+      id: 'cocktails',
+      en: { name: 'Cocktails' },
+      es: { name: 'Cócteles' },
+      items: [
+        {
+          en: 'Cuba Libre',
+          es: 'Cuba Libre',
+          price_unit: 18000,
+          price_6pack: null,
+          description_en: 'Rum, lemon, Coca-Cola',
+          description_es: 'Ron, limón, Coca-Cola',
+        },
+        {
+          en: 'Gin & Tonic',
+          es: 'Gin Tonic',
+          price_unit: 18000,
+          price_6pack: null,
+          description_en: 'Gin, tonic water',
+          description_es: 'Ginebra, agua tónica',
+        },
+      ],
+    },
+    {
+      id: 'spirits',
+      en: { name: 'Spirits' },
+      es: { name: 'Licores' },
+      items: [
+        {
+          en: 'Ron Medellín',
+          es: 'Ron Medellín',
+          price_unit: 80000,
+          price_6pack: null,
+          description_en: '375ml bottle',
+          description_es: 'Botella 375ml',
+        },
+      ],
+    },
+  ] as DrinkCategory[],
 };
 
 // Phase 2: add food items as they are defined
