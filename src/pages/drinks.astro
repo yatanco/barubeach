@@ -3,16 +3,26 @@
 // EN: https://casagaviota.com/drinks
 // ES: https://casagaviota.com/es/drinks
 // Print and laminate for guest tables
+//
+// Also reachable with ?booking=<reservation id> (linked from
+// /admin/bookings/[id]'s "Copy drinks link" button), which prefills the
+// guest's name and tags their order to that booking. Reading that query
+// param means this page must be server-rendered, not static — see prerender
+// below.
 import Layout from '../layouts/Layout.astro';
 import Drinks from '../components/Drinks.astro';
+
+export const prerender = false;
+
+const bookingId = Astro.url.searchParams.get('booking');
 ---
 
 <Layout
   title="Drinks — Casa Gaviota Barú"
   description="Cold drinks available at Casa Gaviota, private beach house in Barú, Colombia."
   lang="en"
-  altHref="/es/drinks"
+  altHref={bookingId ? `/es/drinks?booking=${encodeURIComponent(bookingId)}` : '/es/drinks'}
   hideBookingWidgets
 >
-  <Drinks lang="en" />
+  <Drinks lang="en" bookingId={bookingId} />
 </Layout>

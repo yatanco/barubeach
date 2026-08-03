@@ -24,6 +24,9 @@ interface LeadRow {
 interface SyncLogRow {
   synced_at: string; processed: number; inserted: number; updated: number; skipped: number; error: string | null;
 }
+interface DrinksOrderRow {
+  id: number; booking_id: string | null; guest_name: string; items: string; total: number; status: string; created_at: string;
+}
 interface ListItem {
   kind: 'booking' | 'lead';
   id: string;
@@ -59,6 +62,7 @@ let outstandingCents = 0;
 let arrivalsThisWeek = 0;
 let inHouseCount = 0;
 let lastSync: SyncLogRow | null = null;
+let drinksOrders: DrinksOrderRow[] = [];
 let error = '';
 
 const now = new Date();
@@ -103,6 +107,18 @@ if (!db) {
   } catch (cause) {
     console.error('[admin] failed to load CRM', cause);
     error = 'The CRM database could not be read. Confirm that migrations 0001_crm.sql through 0010 have run.';
+  }
+
+  // Isolated from the query batch above: drinks_orders is a newer table
+  // (migration 0011) that may not exist yet in every environment — a missing
+  // table here should hide the Drinks tab, not take down the whole dashboard.
+  try {
+    const drinksOrdersResult = await db.prepare(
+      `SELECT id, booking_id, guest_name, items, total, status, created_at FROM drinks_orders WHERE status != 'cancelled' ORDER BY created_at DESC`,
+    ).all<DrinksOrderRow>();
+    drinksOrders = drinksOrdersResult.results;
+  } catch (cause) {
+    console.error('[admin] failed to load drinks orders', cause);
   }
 }
 
@@ -157,7 +173,24 @@ const FILTERS = [
   { value: 'deposit', label: 'Deposit Pending' },
   { value: 'inhouse', label: 'In House' },
   { value: 'upcoming', label: 'Upcoming' },
+  { value: 'drinks', label: '🍹 Drinks' },
 ] as const;
+
+// drinks_orders.total / items[].price are stored as plain COP pesos, not
+// cents like the rest of this schema — format directly rather than money().
+function pesos(amount: number): string {
+  return `$${Math.round(amount).toLocaleString('es-CO')}`;
+}
+const drinksOrderItems = drinksOrders.map((order) => ({
+  ...order,
+  parsedItems: JSON.parse(order.items) as { name: string; qty: number; price: number }[],
+}));
+const DRINKS_STATUS_COLORS: Record<string, string> = {
+  pending: '#F59E0B',
+  confirmed: '#3B82F6',
+  delivered: '#22C55E',
+  cancelled: '#6B7280',
+};
 
 const notice = Astro.url.searchParams.get('saved');
 const leadAdded = Astro.url.searchParams.get('leadAdded');
@@ -204,7 +237,7 @@ const leadError = Astro.url.searchParams.get('leadError');
         ))}
       </div>
 
-      <div class="card">
+      <div class="card" id="unified-list-card">
         <div class="list" id="unified-list">
           {items.length === 0 && <p class="muted">Nothing to show yet.</p>}
           {items.map((item) => (
@@ -233,6 +266,28 @@ const leadError = Astro.url.searchParams.get('leadError');
             </div>
           ))}
           <p class="muted" id="no-filter-matches" style="display:none">No items match this filter.</p>
+        </div>
+      </div>
+
+      <div class="card" id="drinks-list-card" style="display:none">
+        <div class="list">
+          {drinksOrderItems.length === 0 && <p class="muted">No drinks orders yet.</p>}
+          {drinksOrderItems.map((order) => (
+            <div class="row drinks-order-row" data-order-id={order.id} style="flex-direction:column;align-items:stretch;gap:6px">
+              <div class="actions" style="justify-content:space-between">
+                <div class="stack" style="gap:2px">
+                  <strong>{order.guest_name}</strong>
+                  {order.booking_id && <a href={`/admin/bookings/${order.booking_id}`} class="muted" style="font-size:12px">Booking: {order.booking_id}</a>}
+                </div>
+                <span class="badge" style={`--pill-color:${DRINKS_STATUS_COLORS[order.status] || '#6B7280'}`}>{order.status}</span>
+              </div>
+              <span class="muted">{shortDate(order.created_at)} · {pesos(order.total)} COP</span>
+              <span class="muted" style="font-size:12px">Items: {order.parsedItems.map((i) => `${i.name} ×${i.qty}`).join(', ')}</span>
+              {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                <button type="button" class="secondary drinks-mark-delivered" data-id={order.id} style="align-self:flex-start;margin-top:4px">Mark delivered ✓</button>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </>
@@ -292,7 +347,16 @@ const leadError = Astro.url.searchParams.get('leadError');
   const filterBar = document.getElementById('filter-bar');
   const listRows = document.querySelectorAll('#unified-list .clickable-row');
   const noMatches = document.getElementById('no-filter-matches');
+  const unifiedListCard = document.getElementById('unified-list-card');
+  const drinksListCard = document.getElementById('drinks-list-card');
   function applyFilter(filter) {
+    if (filter === 'drinks') {
+      if (unifiedListCard) unifiedListCard.style.display = 'none';
+      if (drinksListCard) drinksListCard.style.display = '';
+      return;
+    }
+    if (unifiedListCard) unifiedListCard.style.display = '';
+    if (drinksListCard) drinksListCard.style.display = 'none';
     let visibleCount = 0;
     listRows.forEach((row) => {
       const kind = row.dataset.kind;
@@ -319,6 +383,24 @@ const leadError = Astro.url.searchParams.get('leadError');
     });
   });
   applyFilter('all');
+
+  document.querySelectorAll('.drinks-mark-delivered').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/admin/api/drinks-orders/${btn.dataset.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'delivered' }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error();
+        window.location.reload();
+      } catch {
+        btn.disabled = false;
+      }
+    });
+  });
 
   // ---- Status popover (tap a row's status badge to change it inline) ----
   function pipelineFor(kind, channel) {

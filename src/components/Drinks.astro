@@ -1,28 +1,32 @@
 ---
 import { drinksData } from '../data/menu';
-import WhatsAppIcon from './icons/WhatsAppIcon.astro';
-import { waLink } from '../lib/whatsapp';
+import DrinksOrder from './DrinksOrder.tsx';
 
 interface Props {
   lang?: 'en' | 'es';
+  bookingId?: string | null;
 }
 
-const { lang = 'en' } = Astro.props;
+const { lang = 'en', bookingId = null } = Astro.props;
 const isES = lang === 'es';
 const t = isES ? 'es' : 'en';
 
 const page = drinksData[t];
-const categories = drinksData.categories;
 
-const waHref = waLink(page.whatsappText);
-const waLabel = isES ? 'Pedir por WhatsApp →' : 'Order on WhatsApp →';
-
-function formatCOP(price: number): string {
-  return `$${price.toLocaleString('es-CO')} COP`;
-}
+const categories = drinksData.categories.map((category) => ({
+  id: category.id,
+  name: category[t].name,
+  items: category.items.map((item) => ({
+    id: `${category.id}:${item.en}`,
+    name: item[t],
+    description: isES ? item.description_es : item.description_en,
+    price: item.price_unit,
+    price6pack: item.price_6pack ?? undefined,
+  })),
+}));
 ---
 
-<div class="max-w-md mx-auto px-5 pt-10 pb-32">
+<div class="max-w-md mx-auto px-5 pt-10 pb-48">
   <div class="text-center mb-10">
     <img src="/images/logo.png" alt="Casa Gaviota Baru" class="h-14 w-auto mx-auto mb-5" />
     <p class="text-terracotta text-xs uppercase tracking-widest font-medium mb-2">
@@ -34,39 +38,7 @@ function formatCOP(price: number): string {
     <p class="text-sm text-ink/60">{page.description}</p>
   </div>
 
-  <section>
-    {categories.map(category => (
-      <div class="mb-9">
-        <h2 class="font-serif text-xl font-semibold text-brown mb-3">{category[t].name}</h2>
-        <div class="divide-y divide-sand/40">
-          {category.items.map(item => (
-            <div class="flex items-start justify-between gap-4 py-3">
-              <div>
-                <p class="text-sm font-medium text-ink">{item[t]}</p>
-                {(isES ? item.description_es : item.description_en) && (
-                  <p class="text-xs text-muted italic mt-0.5">
-                    {isES ? item.description_es : item.description_en}
-                  </p>
-                )}
-              </div>
-              <div class="text-right whitespace-nowrap">
-                <p class="text-sm font-semibold text-brown">{formatCOP(item.price_unit)}</p>
-                {item.price_6pack !== null && (
-                  <p class="text-xs text-muted mt-0.5">
-                    {isES ? 'Six-pack' : '6-pack'}: {formatCOP(item.price_6pack)}
-                    <br />
-                    <span class="text-terracotta">
-                      ({isES ? 'ahorras' : 'saves'} {formatCOP(item.price_unit * 6 - item.price_6pack)})
-                    </span>
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    ))}
-  </section>
+  <DrinksOrder lang={lang} bookingId={bookingId} manuelNumber="573178029492" categories={categories} client:load />
 
   <p class="text-xs text-muted italic text-center mt-4">{page.note}</p>
 
@@ -90,14 +62,3 @@ function formatCOP(price: number): string {
     </a>
   </div>
 </div>
-
-<!-- Sticky bottom WhatsApp order button -->
-<a
-  href={waHref}
-  target="_blank"
-  rel="noopener noreferrer"
-  class="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-center gap-2 bg-whatsapp text-white font-semibold py-4 text-center shadow-[0_-2px_10px_rgba(0,0,0,0.1)]"
->
-  <WhatsAppIcon class="w-5 h-5 flex-shrink-0" />
-  {waLabel}
-</a>

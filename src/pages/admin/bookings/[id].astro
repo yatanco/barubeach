@@ -2,14 +2,125 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import UnifiedRecordDetail from '../../../components/admin/UnifiedRecordDetail.astro';
 import { requireDb } from '../../../lib/db';
+import { shortDate } from '../../../lib/crm';
+
+// drinks_orders.total / items[].price are stored as plain COP pesos (set by
+// the guest-facing /drinks flow), not cents like the rest of this schema —
+// so format directly instead of using crm.ts's cents-based money().
+function pesos(amount: number): string {
+  return `$${Math.round(amount).toLocaleString('es-CO')}`;
+}
 
 export const prerender = false;
 
 const db = requireDb(Astro.locals);
 const booking = await db.prepare('SELECT * FROM bookings WHERE id = ?1').bind(Astro.params.id).first<any>();
 if (!booking) return Astro.redirect('/admin');
+
+interface DrinksOrderRow {
+  id: number;
+  guest_name: string;
+  items: string;
+  total: number;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+const drinksOrdersResult = await db.prepare(
+  'SELECT id, guest_name, items, total, status, notes, created_at FROM drinks_orders WHERE booking_id = ?1 ORDER BY created_at DESC',
+).bind(booking.id).all<DrinksOrderRow>();
+const drinksOrders = drinksOrdersResult.results.map((order) => ({
+  ...order,
+  items: JSON.parse(order.items) as { name: string; qty: number; price: number }[],
+}));
+
+const drinksLink = `https://casagaviota.com/es/drinks?booking=${encodeURIComponent(booking.id)}`;
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#F59E0B',
+  confirmed: '#3B82F6',
+  delivered: '#22C55E',
+  cancelled: '#6B7280',
+};
 ---
 <AdminLayout title={booking.guest_name || 'Booking'}>
-  <p><a href="/admin">← Dashboard</a></p>
+  <div class="actions" style="justify-content:space-between;margin-bottom:10px">
+    <p style="margin:0"><a href="/admin">← Dashboard</a></p>
+    <button type="button" class="secondary" id="copy-drinks-link-btn">🍹 Copy drinks link</button>
+  </div>
   <UnifiedRecordDetail kind="booking" record={booking} />
+
+  <section class="card urd-section" style="margin-top:18px">
+    <h2>🍹 Drinks orders</h2>
+    {drinksOrders.length === 0 ? (
+      <>
+        <p class="muted">No drinks orders yet.</p>
+        <p class="muted" style="margin-top:-8px">Send the drinks link to your guest to start.</p>
+        <button type="button" class="secondary" id="copy-drinks-link-btn-2" style="margin-top:10px">🍹 Copy drinks link</button>
+      </>
+    ) : (
+      <div class="list">
+        {drinksOrders.map((order) => (
+          <div class="row drinks-order-row" data-order-id={order.id} style="flex-direction:column;align-items:stretch;gap:8px">
+            <div class="actions" style="justify-content:space-between">
+              <span class="muted">{shortDate(order.created_at)}</span>
+              <span class="badge" style={`--pill-color:${STATUS_COLORS[order.status] || '#6B7280'}`}>{order.status}</span>
+            </div>
+            <ul style="margin:0;padding-left:18px">
+              {order.items.map((item) => (
+                <li>{item.name} × {item.qty} — {pesos(item.price * item.qty)}</li>
+              ))}
+            </ul>
+            {order.notes && <p class="muted" style="margin:0">📝 {order.notes}</p>}
+            <div class="actions" style="justify-content:space-between">
+              <strong class="amount">Total: {pesos(order.total)} COP</strong>
+              {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                <div class="actions">
+                  <button type="button" class="secondary drinks-mark-delivered" data-id={order.id}>Mark as delivered ✓</button>
+                  <button type="button" class="secondary drinks-cancel" data-id={order.id}>Cancel ×</button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </section>
 </AdminLayout>
+
+<script define:vars={{ drinksLink }}>
+  async function copyDrinksLink(btn) {
+    const original = btn.textContent;
+    try {
+      await navigator.clipboard.writeText(drinksLink);
+      btn.textContent = 'Copied! ✓';
+    } catch {
+      btn.textContent = 'Could not copy';
+    }
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  }
+  document.getElementById('copy-drinks-link-btn')?.addEventListener('click', (e) => copyDrinksLink(e.currentTarget));
+  document.getElementById('copy-drinks-link-btn-2')?.addEventListener('click', (e) => copyDrinksLink(e.currentTarget));
+
+  async function updateOrderStatus(id, status, btn) {
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/admin/api/drinks-orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error();
+      window.location.reload();
+    } catch {
+      btn.disabled = false;
+    }
+  }
+  document.querySelectorAll('.drinks-mark-delivered').forEach((btn) => {
+    btn.addEventListener('click', (e) => updateOrderStatus(btn.dataset.id, 'delivered', e.currentTarget));
+  });
+  document.querySelectorAll('.drinks-cancel').forEach((btn) => {
+    btn.addEventListener('click', (e) => updateOrderStatus(btn.dataset.id, 'cancelled', e.currentTarget));
+  });
+</script>
