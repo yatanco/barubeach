@@ -33,7 +33,8 @@ const T = {
     waFailed: "WhatsApp didn't open? Copy this message and send it to Manuel:",
     copy: 'Copy',
     copied: 'Copied ✓',
-    savePrefix: 'you save',
+    savePrefix: 'save',
+    sixPackApplied: '6-pack price applied',
     guest: 'Guest',
     booking: 'Booking',
     order: 'Order',
@@ -52,6 +53,7 @@ const T = {
     copy: 'Copiar',
     copied: 'Copiado ✓',
     savePrefix: 'ahorrás',
+    sixPackApplied: 'Precio de six-pack aplicado',
     guest: 'Huésped',
     booking: 'Reserva',
     order: 'Pedido',
@@ -69,6 +71,17 @@ function subtotal(item: DrinkItem, qty: number): number {
   if (qty <= 0) return 0;
   if (item.price6pack && qty >= 6) return item.price6pack + item.price * (qty - 6);
   return item.price * qty;
+}
+
+// e.g. "Budweiser ×7 (6-pack + 1)" once the 6-pack price kicks in, so the
+// order summary (and the WhatsApp message sent to Manuel) show the pricing
+// breakdown, not just a flat quantity.
+function orderLineLabel(item: DrinkItem, qty: number): string {
+  if (item.price6pack && qty >= 6) {
+    const extra = qty - 6;
+    return `${item.name} ×${qty} (6-pack${extra > 0 ? ` + ${extra}` : ''})`;
+  }
+  return `${item.name} × ${qty}`;
 }
 
 export default function DrinksOrder({ lang, bookingId, manuelNumber = '573178029492', categories }: DrinksOrderProps) {
@@ -113,7 +126,7 @@ export default function DrinksOrder({ lang, bookingId, manuelNumber = '573178029
     if (bookingId) lines.push(`${t.booking}: ${bookingId}`);
     lines.push('', `${t.order}:`);
     selectedItems.forEach(({ item, qty }) => {
-      lines.push(`• ${item.name} × ${qty} — ${formatCOP(subtotal(item, qty))}`);
+      lines.push(`• ${orderLineLabel(item, qty)} — ${formatCOP(subtotal(item, qty))}`);
     });
     lines.push('', `${t.total}: ${formatCOP(total)} COP`);
     if (notes.trim()) lines.push(`${t.note}: ${notes.trim()}`);
@@ -182,7 +195,7 @@ export default function DrinksOrder({ lang, bookingId, manuelNumber = '573178029
           <div className="divide-y divide-sand/40">
             {category.items.map((item) => {
               const qty = quantities[item.id] || 0;
-              const showSixPack = !!item.price6pack && qty >= 6;
+              const sixPackApplied = !!item.price6pack && qty >= 6;
               const savings = item.price6pack ? item.price * 6 - item.price6pack : 0;
               return (
                 <div key={item.id} className="flex items-start justify-between gap-4 py-3">
@@ -190,10 +203,19 @@ export default function DrinksOrder({ lang, bookingId, manuelNumber = '573178029
                     <p className="text-sm font-medium text-ink">{item.name}</p>
                     {item.description && <p className="text-xs text-muted italic mt-0.5">{item.description}</p>}
                     <p className="text-xs text-brown/70 mt-1">{formatCOP(item.price)} COP</p>
-                    {showSixPack && (
-                      <p className="inline-block text-xs font-medium text-brown bg-sand rounded-full px-2.5 py-1 mt-1.5">
-                        6-pack: {formatCOP(item.price6pack!)} ({t.savePrefix} {formatCOP(savings)})
-                      </p>
+                    {item.price6pack != null && (
+                      sixPackApplied ? (
+                        <p
+                          className="inline-block mt-1.5"
+                          style={{ background: '#E6C497', color: '#57392E', fontSize: '12px', borderRadius: '4px', padding: '2px 8px' }}
+                        >
+                          🎉 {t.sixPackApplied} — {formatCOP(item.price6pack)}
+                        </p>
+                      ) : (
+                        <p className="mt-1" style={{ color: '#B28471', fontSize: '12px' }}>
+                          6-pack: {formatCOP(item.price6pack)} — {t.savePrefix} {formatCOP(savings)}
+                        </p>
+                      )
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -258,7 +280,7 @@ export default function DrinksOrder({ lang, bookingId, manuelNumber = '573178029
             <p className="font-semibold mb-1">{t.yourOrder}: {formatCOP(total)} COP</p>
             <ul className="text-xs text-white/85 mb-3 space-y-0.5">
               {selectedItems.map(({ item, qty }) => (
-                <li key={item.id}>{item.name} × {qty} — {formatCOP(subtotal(item, qty))}</li>
+                <li key={item.id}>{orderLineLabel(item, qty)} — {formatCOP(subtotal(item, qty))}</li>
               ))}
             </ul>
             <input
