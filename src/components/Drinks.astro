@@ -36,6 +36,14 @@ const categories = drinksData.categories.map((category) => ({
       {page.title}
     </h1>
     <p class="text-sm text-ink/60">{page.description}</p>
+    <p
+      class="inline-block"
+      style={{ background: '#E6C497', color: '#57392E', borderRadius: '6px', padding: '6px 12px', fontSize: '13px', margin: '8px 0 16px 0' }}
+    >
+      {isES
+        ? '🍺 Pide 6 o más de la misma cerveza y te aplicamos el precio de six-pack.'
+        : "🍺 Order 6 or more of the same beer and we'll apply the six-pack price."}
+    </p>
   </div>
 
   <DrinksOrder lang={lang} bookingId={bookingId} manuelNumber="573178029492" categories={categories} client:load />
