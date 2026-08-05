@@ -22,6 +22,15 @@
 - `lost` uses an × marker and dashed outline; `cancelled` uses a slash marker and solid muted-red outline, distinguishing the two terminal red states.
 - Status values and transition logic remain unchanged.
 
+### Dashboard and lists
+
+- Filter pills now remain in one horizontal, momentum-scrolling row on mobile, with a sticky row below the sticky header and an unmistakable dark active state.
+- Added counts to every filter using records already fetched for the page; no query was added or changed.
+- Reordered list-card hierarchy to guest name → type/channel → dates and guest count → balance, with status/actions alongside or below on mobile.
+- Tightened rows for 20+ item scanning while preserving 44px action targets and added hover, press, and keyboard focus feedback.
+- Added tailored empty states for the unified, filtered, completed, drinks, and arrivals views.
+- Added a lightweight skeleton during the existing HostHub sync request and an aria-live confirmation chip; sync behavior itself is unchanged.
+
 ## Logic-boundary TODOs
 
 - Intent exists on the Add Lead form, but the dashboard's existing list query does not fetch `guest_intent`. Showing intent on list cards would require a data/query change, so it was deliberately not added here. A future logic-approved pass can expose the already-stored field to the presentational list item.

@@ -234,6 +234,16 @@ const FILTERS = [
   { value: 'upcoming', label: 'Upcoming' },
   { value: 'drinks', label: '🍹 Drinks' },
 ] as const;
+const filterCounts: Record<typeof FILTERS[number]['value'], number> = {
+  all: items.length,
+  bookings: items.filter((item) => item.kind === 'booking').length,
+  leads: items.filter((item) => item.kind === 'lead').length,
+  deposit: items.filter((item) => item.status === 'deposit_requested').length,
+  inhouse: items.filter((item) => item.status === 'in_house' || item.status === 'checked_in').length,
+  completed: completedBookingItems.length,
+  upcoming: items.filter((item) => item.kind === 'booking' && item.isUpcoming).length,
+  drinks: drinksOrders.length,
+};
 
 // drinks_orders.total / items[].price are stored as plain COP pesos, not
 // cents like the rest of this schema — format directly rather than money().
@@ -267,10 +277,10 @@ const leadError = Astro.url.searchParams.get('leadError');
       </button>
     </div>
   </div>
-  <p class="muted">Hosthub owns reservations. This dashboard owns follow-up, charges and payments.</p>
-  <p class="muted" style="margin-top:-8px;font-size:12px">
+  <p class="muted dashboard-intro">HostHub owns reservations. This dashboard owns follow-up, charges and payments.</p>
+  <p class="muted sync-line">
     <span id="last-sync-info">Last sync: {lastSync ? `${timeAgo(lastSync.synced_at)} · ${lastSync.processed} reservations` : 'never'}</span>
-    <span id="sync-feedback"></span>
+    <span id="sync-feedback" role="status" aria-live="polite"></span>
   </p>
   {error && <div class="alert">{error}</div>}
   {notice && <div class="alert">Saved successfully.</div>}
@@ -322,7 +332,9 @@ const leadError = Astro.url.searchParams.get('leadError');
     <>
       <div class="pipeline" id="filter-bar">
         {FILTERS.map((f) => (
-          <a href="#" data-filter={f.value} class={f.value === 'all' ? 'active' : ''}>{f.label}</a>
+          <a href="#" data-filter={f.value} class={f.value === 'all' ? 'active' : ''} aria-current={f.value === 'all' ? 'page' : undefined}>
+            <span>{f.label}</span><span class="count">{filterCounts[f.value]}</span>
+          </a>
         ))}
       </div>
 
@@ -333,8 +345,11 @@ const leadError = Astro.url.searchParams.get('leadError');
       </div>
 
       <div class="card" id="unified-list-card">
+        <div class="sync-skeleton" id="sync-skeleton" hidden aria-hidden="true">
+          {[1,2,3,4].map(() => <div class="skeleton-row"><span></span><span></span></div>)}
+        </div>
         <div class="list" id="unified-list">
-          {items.length === 0 && <p class="muted">Nothing to show yet.</p>}
+          {items.length === 0 && <div class="empty-state"><span aria-hidden="true">⌁</span><strong>No bookings or leads yet</strong><p>New inquiries and synced reservations will appear here.</p></div>}
           {items.map((item) => (
             <div
               class="row clickable-row"
@@ -347,31 +362,31 @@ const leadError = Astro.url.searchParams.get('leadError');
               data-created-at={item.createdAt || ''}
               data-date-from={item.dateFrom || ''}
             >
-              <div class="stack" style="min-width:0;flex:1">
-                <div class="actions">
+              <div class="stack record-main">
+                <h3>{item.name}</h3>
+                <div class="actions record-tags">
                   <span class={`type-pill ${item.kind}`}>{item.kind === 'booking' ? 'BOOKING' : 'LEAD'}</span>
                   {item.channel && <span class={`channel-pill ${channelBadgeClass(item.channel)}`}>{CHANNEL_PILL_LABELS[item.channel as typeof BOOKING_CHANNELS[number]] || item.channel}</span>}
-                  <h3>{item.name}</h3>
                 </div>
-                <span class="muted">
+                <span class="muted record-meta">
                   {item.avail && <span class={`avail-dot avail-${item.avail}`} title={item.avail === 'hard' ? 'Dates unavailable — hard conflict' : item.avail === 'soft' ? 'Other leads interested in these dates' : 'Dates available'}></span>}
                   {datesLabel(item)}{item.guests > 0 && <> · {item.guests} guests</>}
                 </span>
                 <span class={`amount ${item.balanceClass}`}>{item.balanceLabel}</span>
               </div>
-              <div class="actions" style="flex-shrink:0">
+              <div class="actions record-actions">
                 <button type="button" class="status-badge-btn badge" data-status={item.status} style={`--pill-color:${STATUS_COLORS[normalizeStatus(item.status)]}`}>{STATUS_LABELS[normalizeStatus(item.status)]}</button>
                 {item.phone && <a class="button whatsapp" href={`https://wa.me/${item.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener" title="Open WhatsApp">💬</a>}
               </div>
             </div>
           ))}
-          <p class="muted" id="no-filter-matches" style="display:none">No items match this filter.</p>
+          <div class="empty-state" id="no-filter-matches" style="display:none"><span aria-hidden="true">⌁</span><strong>Nothing in this view</strong><p>Try another filter or add a new lead.</p></div>
         </div>
       </div>
 
       <div class="card" id="completed-list-card" style="display:none">
         <div class="list" id="completed-list">
-          {completedBookingItems.length === 0 && <p class="muted">No completed bookings yet.</p>}
+          {completedBookingItems.length === 0 && <div class="empty-state"><span aria-hidden="true">✓</span><strong>No completed stays yet</strong><p>Finished bookings will collect here.</p></div>}
           {completedBookingItems.map((item) => (
             <div
               class="row clickable-row"
@@ -381,16 +396,16 @@ const leadError = Astro.url.searchParams.get('leadError');
               data-status={item.status}
               data-channel={item.channel || ''}
             >
-              <div class="stack" style="min-width:0;flex:1">
-                <div class="actions">
+              <div class="stack record-main">
+                <h3>{item.name}</h3>
+                <div class="actions record-tags">
                   <span class="type-pill booking">BOOKING</span>
                   {item.channel && <span class={`channel-pill ${channelBadgeClass(item.channel)}`}>{CHANNEL_PILL_LABELS[item.channel as typeof BOOKING_CHANNELS[number]] || item.channel}</span>}
-                  <h3>{item.name}</h3>
                 </div>
-                <span class="muted">{datesLabel(item)}{item.guests > 0 && <> · {item.guests} guests</>}</span>
+                <span class="muted record-meta">{datesLabel(item)}{item.guests > 0 && <> · {item.guests} guests</>}</span>
                 <span class={`amount ${item.balanceClass}`}>{item.balanceLabel}</span>
               </div>
-              <div class="actions" style="flex-shrink:0">
+              <div class="actions record-actions">
                 <button type="button" class="status-badge-btn badge" data-status={item.status} style={`--pill-color:${STATUS_COLORS[normalizeStatus(item.status)]}`}>{STATUS_LABELS[normalizeStatus(item.status)]}</button>
                 {item.phone && <a class="button whatsapp" href={`https://wa.me/${item.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener" title="Open WhatsApp">💬</a>}
               </div>
@@ -401,7 +416,7 @@ const leadError = Astro.url.searchParams.get('leadError');
 
       <div class="card" id="drinks-list-card" style="display:none">
         <div class="list">
-          {drinksOrderItems.length === 0 && <p class="muted">No drinks orders yet.</p>}
+          {drinksOrderItems.length === 0 && <div class="empty-state"><span aria-hidden="true">🍹</span><strong>No drinks orders</strong><p>Guest drink orders will appear here.</p></div>}
           {drinksOrderItems.map((order) => (
             <div class="row drinks-order-row" data-order-id={order.id} style="flex-direction:column;align-items:stretch;gap:6px">
               <div class="actions" style="justify-content:space-between">
@@ -562,6 +577,8 @@ const leadError = Astro.url.searchParams.get('leadError');
       event.preventDefault();
       filterBar.querySelectorAll('a[data-filter]').forEach((p) => p.classList.remove('active'));
       pill.classList.add('active');
+      filterBar.querySelectorAll('a[data-filter]').forEach((p) => p.removeAttribute('aria-current'));
+      pill.setAttribute('aria-current', 'page');
       applyFilter(pill.dataset.filter || 'all');
     });
   });
@@ -617,6 +634,7 @@ const leadError = Astro.url.searchParams.get('leadError');
       const opt = document.createElement('button');
       opt.type = 'button';
       opt.className = 'status-pill' + (status === currentStatus ? ' active' : '');
+      opt.dataset.status = status;
       opt.style.setProperty('--pill-color', STATUS_COLORS[status]);
       opt.textContent = STATUS_LABELS[status];
       opt.addEventListener('click', async (e) => {
@@ -718,6 +736,8 @@ const leadError = Astro.url.searchParams.get('leadError');
   const syncBtnIcon = syncBtn?.querySelector('.btn-icon');
   const syncBtnLabel = syncBtn?.querySelector('.btn-label');
   const syncFeedback = document.getElementById('sync-feedback');
+  const syncSkeleton = document.getElementById('sync-skeleton');
+  const visibleList = document.getElementById('unified-list');
   syncBtn?.addEventListener('click', async () => {
     if (!(syncBtn instanceof HTMLButtonElement)) return;
     syncBtn.disabled = true;
@@ -726,6 +746,8 @@ const leadError = Astro.url.searchParams.get('leadError');
     if (syncBtnIcon) syncBtnIcon.textContent = '⏳';
     if (syncBtnLabel) syncBtnLabel.textContent = 'Syncing…';
     if (syncFeedback) syncFeedback.textContent = '';
+    if (syncSkeleton) syncSkeleton.hidden = false;
+    if (visibleList) { visibleList.style.display = 'none'; visibleList.setAttribute('aria-busy', 'true'); }
     try {
       const res = await fetch('/admin/api/sync-hosthub');
       const data = await res.json();
@@ -739,6 +761,8 @@ const leadError = Astro.url.searchParams.get('leadError');
       if (syncFeedback) syncFeedback.textContent = ' · Sync failed';
     } finally {
       syncBtn.disabled = false;
+      if (syncSkeleton) syncSkeleton.hidden = true;
+      if (visibleList) { visibleList.style.display = ''; visibleList.removeAttribute('aria-busy'); }
       if (syncBtnIcon && originalIcon != null) syncBtnIcon.textContent = originalIcon;
       if (syncBtnLabel && originalLabel != null) syncBtnLabel.textContent = originalLabel;
     }
@@ -746,7 +770,10 @@ const leadError = Astro.url.searchParams.get('leadError');
 </script>
 
 <style>
-  .summary-line { font-weight: 750; margin: 0 0 20px; }
+  .dashboard-intro { margin-bottom:12px; }
+  .sync-line { margin:-6px 0 16px; font-size:12px; }
+  #sync-feedback:not(:empty) { display:inline-flex; margin-left:6px; padding:3px 8px; border-radius:999px; background:#e4f3ee; color:#17614f; font-weight:750; }
+  .summary-line { font-weight:750; margin:0 0 18px; color:#584a44; font-variant-numeric:tabular-nums; }
   .arrivals-card { margin:16px 0; border-left:5px solid var(--mint); }
   .arrival-row { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; }
   .arrival-row:first-of-type { border-top:0; }
@@ -759,20 +786,37 @@ const leadError = Astro.url.searchParams.get('leadError');
   .followup-arrow { margin-left:auto; flex-shrink:0; }
   .amount.positive { color:#166534; }
   .amount.negative { color:var(--red); }
-  #filter-bar { margin-bottom:16px; }
+  #filter-bar { position:sticky; top:62px; z-index:20; margin:0 -8px 16px; padding:10px 8px; background:rgb(247 244 241 / 94%); backdrop-filter:blur(10px); }
   .avail-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
   .avail-dot.avail-clear { background:#22C55E; }
   .avail-dot.avail-soft { background:#F59E0B; }
   .avail-dot.avail-hard { background:#EF4444; }
   .leads-sort-toggle { display:flex; align-items:center; gap:8px; margin:-10px 0 16px; }
-  .sort-pill { appearance:none; cursor:pointer; border:1px solid var(--line); border-radius:999px; padding:5px 12px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
+  .sort-pill { appearance:none; cursor:pointer; min-height:36px; border:1px solid var(--line); border-radius:999px; padding:5px 12px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
   .sort-pill.active { background:var(--brown); color:#fff; border-color:var(--brown); }
   .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
   .type-pill.booking { background:#57392E; }
   .type-pill.lead { background:#7D98AB; }
-  .status-badge-btn { appearance:none; border:0; cursor:pointer; min-height:32px; }
-  .clickable-row { cursor:pointer; margin:0 -20px; padding-left:20px; padding-right:20px; border-radius:8px; }
-  .clickable-row:hover { background:#faf7f6; }
+  .status-badge-btn { appearance:none; cursor:pointer; min-height:36px; }
+  .record-main { min-width:0; flex:1; gap:4px; }
+  .record-main h3 { order:0; font-size:17px; font-weight:800; }
+  .record-tags { order:1; gap:5px; }
+  .record-meta { order:2; font-size:13px; }
+  .record-main > .amount { order:3; font-size:12px; }
+  .record-actions { flex-shrink:0; }
+  .clickable-row { cursor:pointer; min-height:86px; margin:0 -18px; padding-left:18px; padding-right:18px; border-radius:10px; transition:background-color 160ms ease,box-shadow 160ms ease,transform 160ms ease; }
+  .clickable-row:hover { background:#f8f1ed; box-shadow:inset 3px 0 var(--terracotta); }
+  .clickable-row:active { transform:scale(.995); background:#f2e8e3; }
+  .empty-state { display:grid; justify-items:center; gap:4px; padding:30px 16px; color:#716762; text-align:center; }
+  .empty-state > span { display:grid; place-items:center; width:40px; height:40px; margin-bottom:4px; border-radius:50%; background:#f1e7e2; color:var(--terracotta); font-size:20px; }
+  .empty-state strong { color:var(--ink); font-size:15px; }
+  .empty-state p { margin:0; font-size:13px; }
+  .sync-skeleton { display:grid; gap:12px; }
+  .sync-skeleton[hidden] { display:none; }
+  .skeleton-row { display:grid; gap:8px; min-height:70px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .skeleton-row span { display:block; width:42%; height:16px; border-radius:6px; background:linear-gradient(90deg,#eee5e0 25%,#f8f3f0 50%,#eee5e0 75%); background-size:200% 100%; animation:shimmer 1.2s infinite linear; }
+  .skeleton-row span + span { width:68%; height:12px; }
+  @keyframes shimmer { to { background-position:-200% 0; } }
   dialog#add-lead-dialog { border: 1px solid var(--line); border-radius: 14px; padding: 22px; max-width: 560px; width: calc(100% - 40px); box-shadow: 0 10px 40px rgb(38 29 26 / 18%); }
   dialog#add-lead-dialog::backdrop { background: rgb(38 29 26 / 35%); }
   .field-error { color: var(--red); font-size: 12px; margin-top: -8px; }
@@ -794,25 +838,26 @@ const leadError = Astro.url.searchParams.get('leadError');
     /* Filter pills: horizontal scroll with a pinned "All" pill and a fade
        hint at the trailing edge, instead of wrapping to multiple lines. */
     #filter-bar {
-      position:sticky; top:0; z-index:5; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
-      background:var(--bg); margin:0 0 16px; padding:8px 0;
+      top:56px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      margin:0 -12px 12px; padding:8px 12px;
     }
     #filter-bar.has-scroll-fade {
       -webkit-mask-image:linear-gradient(to right, black calc(100% - 28px), transparent 100%);
       mask-image:linear-gradient(to right, black calc(100% - 28px), transparent 100%);
     }
     #filter-bar a { flex:0 0 auto; }
-    #filter-bar a:first-child { position:sticky; left:0; z-index:1; }
+    #filter-bar a:first-child { position:sticky; left:0; z-index:1; box-shadow:4px 0 8px var(--bg); }
 
     /* Row padding: tighter, but the row itself (name + dates + balance +
        status/whatsapp actions stacked) stays well above the 44px minimum. */
-    .card { padding:14px; }
     .row { padding:10px 0; }
 
     /* Status pill row: keep it left-aligned under the name instead of
        hugging the right edge, and let long guest names wrap. */
     .clickable-row { flex-direction:column; align-items:flex-start; }
-    .clickable-row > .actions { justify-content:flex-start; flex-wrap:wrap; }
+    .clickable-row > .actions { width:100%; justify-content:space-between; flex-wrap:wrap; }
+    .clickable-row .record-actions .status-badge-btn { flex:0 1 auto; }
+    .clickable-row .record-actions .button.whatsapp { flex:0 0 44px; min-width:44px; }
     .clickable-row .stack h3 { overflow-wrap:anywhere; }
   }
   @media(max-width:400px) {
