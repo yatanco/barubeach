@@ -228,6 +228,7 @@ const completedBookingItems: ListItem[] = completedBookings.map(bookingToItem);
 
 const FILTERS = [
   { value: 'all', label: 'All' },
+  { value: 'followup', label: 'Follow up' },
   { value: 'bookings', label: 'Bookings' },
   { value: 'leads', label: 'Leads' },
   { value: 'deposit', label: 'Deposit Pending' },
@@ -238,6 +239,7 @@ const FILTERS = [
 ] as const;
 const filterCounts: Record<typeof FILTERS[number]['value'], number> = {
   all: items.length,
+  followup: items.filter((item) => item.urgency !== null).length,
   bookings: items.filter((item) => item.kind === 'booking').length,
   leads: items.filter((item) => item.kind === 'lead').length,
   deposit: items.filter((item) => item.status === 'deposit_requested').length,
@@ -558,6 +560,7 @@ const leadError = Astro.url.searchParams.get('leadError');
       const upcoming = row.dataset.upcoming === '1';
       let show = true;
       if (filter === 'all') show = true;
+      else if (filter === 'followup') show = row.dataset.urgent === '1';
       else if (filter === 'bookings') show = kind === 'booking';
       else if (filter === 'leads') show = kind === 'lead';
       else if (filter === 'deposit') show = status === 'deposit_requested';
