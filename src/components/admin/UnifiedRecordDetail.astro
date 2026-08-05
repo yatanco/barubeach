@@ -1,5 +1,6 @@
 ---
 import { requireDb, boldPaymentLink, getRuntimeEnv } from '../../lib/db';
+import { getPriceLabsQuote } from '../../lib/pricelabs';
 import {
   money, shortDate, timeAgo, waLinkTo, nightsBetween, channelBadgeClass,
   STATUS_LABELS, STATUS_COLORS, pipelineFor, normalizeStatus,
@@ -23,6 +24,15 @@ const nights = nightsBetween(record.date_from, record.date_to);
 const guests = (record.adults || 0) + (record.children || 0);
 const channel: string | null = isBooking ? record.channel : null;
 const isAirbnb = channel === 'airbnb';
+
+// --- PriceLabs rate lookup (informational only — does not affect quoting) ----
+const checkinISO: string | null = record.date_from ? record.date_from.slice(0, 10) : null;
+const checkoutISO: string | null = record.date_to ? record.date_to.slice(0, 10) : null;
+const priceLabsQuote = (checkinISO && checkoutISO && nights > 0)
+  ? await getPriceLabsQuote(env, checkinISO, checkoutISO)
+  : null;
+const priceLabsMoney = (amount: number, currency: string) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
 
 // --- Accommodation ---------------------------------------------------------
 let accommodationCents = 0;
@@ -105,6 +115,18 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
           {record.date_from && record.date_to ? <>{shortDate(record.date_from)} → {shortDate(record.date_to)} · {nights} nights</> : 'No dates yet'}
           {guests > 0 && <> · {guests} guests</>}
         </p>
+        {checkinISO && checkoutISO && nights > 0 && (
+          priceLabsQuote ? (
+            <div class="pricelabs-note">
+              <span>💡 PriceLabs suggests: <strong>{priceLabsMoney(priceLabsQuote.avgPricePerNight, priceLabsQuote.currency)}/night avg</strong> · <strong>{priceLabsMoney(priceLabsQuote.totalPrice, priceLabsQuote.currency)} total</strong> for these dates · min stay: {priceLabsQuote.minStay} {priceLabsQuote.minStay === 1 ? 'night' : 'nights'}</span>
+              {nights < priceLabsQuote.minStay && (
+                <p class="pricelabs-warning">⚠️ Requested stay ({nights} {nights === 1 ? 'night' : 'nights'}) is below PriceLabs' recommended minimum ({priceLabsQuote.minStay} nights) for these dates.</p>
+              )}
+            </div>
+          ) : (
+            <p class="muted pricelabs-note">Pricing lookup unavailable</p>
+          )
+        )}
       </div>
       <a id="wa-btn" class="button whatsapp" href={phone ? waLinkTo(phone) : '#'} target="_blank" rel="noopener" style={phone ? '' : 'display:none'}>💬 WhatsApp</a>
     </div>
@@ -429,6 +451,8 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   .record-kicker { gap:5px; margin-bottom:7px; }
   .header-top h1 { margin:0; font-size:clamp(27px,4vw,36px); }
   .dates-line { margin:5px 0 0; font-size:14px; font-weight:600; }
+  .pricelabs-note { font-size:13px; margin:6px 0 0; }
+  .pricelabs-warning { color:#92400E; background:#FEF3C7; border-radius:8px; padding:8px 10px; margin:6px 0 0; font-size:12px; font-weight:600; }
   .availability-badge { border-radius:10px; padding:10px 14px; font-weight:700; font-size:13px; margin:-4px 0 16px; }
   .availability-badge.clear { background:#dff8f1; color:#116149; }
   .availability-badge.soft { background:#fff4e5; color:#7a4b00; cursor:pointer; }

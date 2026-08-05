@@ -13,6 +13,12 @@ HOSTHUB_BASE_URL = "https://app.hosthub.com/api/2019-03-01"
 HOSTHUB_RENTAL_ID = "m4jmlqny2d"
 PUBLIC_BASE_URL = "https://casagaviota.com"
 
+# PriceLabs Customer API — not sensitive, just identifiers (the API key below
+# is the secret). PriceLabs identifies this listing by its HostHub rental ID,
+# same value as HOSTHUB_RENTAL_ID above.
+PRICELABS_LISTING_ID = "m4jmlqny2d"
+PRICELABS_PMS = "hosthub"
+
 # Secrets — never committed, set via:
 #   wrangler secret put HOSTHUB_API_KEY
 #   wrangler secret put LEADS_WEBHOOK_URL
@@ -20,6 +26,7 @@ PUBLIC_BASE_URL = "https://casagaviota.com"
 #   wrangler secret put BOLD_API_KEY
 #   wrangler secret put WOMPI_PUBLIC_KEY
 #   wrangler secret put WOMPI_PRIVATE_KEY
+#   wrangler secret put PRICELABS_API_KEY
 
 # CRM database — add this binding after creating the database in Cloudflare:
 # [[d1_databases]]

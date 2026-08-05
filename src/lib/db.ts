@@ -18,14 +18,23 @@ export interface D1Database {
   batch<T = Record<string, unknown>>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
 }
 
+interface KVNamespace {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+}
+
 interface RuntimeEnv {
   DB?: D1Database;
+  CACHE?: KVNamespace;
   LEADS_WEBHOOK_URL?: string;
   HOSTHUB_API_KEY?: string;
   HOSTHUB_RENTAL_ID?: string;
   HOSTHUB_BASE_URL?: string;
   HOSTHUB_ICAL_URL?: string;
   BOLD_PAYMENT_LINK?: string;
+  PRICELABS_API_KEY?: string;
+  PRICELABS_LISTING_ID?: string;
+  PRICELABS_PMS?: string;
 }
 
 // Evergreen Bold checkout link (lets the guest enter their own amount) — falls back to
