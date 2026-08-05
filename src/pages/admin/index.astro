@@ -5,6 +5,10 @@ import {
   money, shortDate, timeAgo, GUEST_INTENTS, channelBadgeClass, CHANNEL_PILL_LABELS, BOOKING_CHANNELS,
   STATUS_LABELS, STATUS_COLORS, DIRECT_PIPELINE, AIRBNB_PIPELINE, normalizeStatus,
 } from '../../lib/crm';
+import {
+  HARD_CONFLICT_CANDIDATES_SQL, SOFT_CONFLICT_CANDIDATES_SQL, mapConflictRow, findConflicts,
+  type ConflictInfo,
+} from '../../lib/crm-availability';
 
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'no-store');
@@ -40,6 +44,8 @@ interface ListItem {
   balanceClass: string;
   isUpcoming: boolean;
   channel: string | null;
+  createdAt: string | null;
+  avail: 'clear' | 'soft' | 'hard' | null;
 }
 
 const BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status, b.channel,
@@ -51,11 +57,19 @@ const LEAD_SELECT = `SELECT id, guest_name, whatsapp, date_from, date_to, adults
     accommodation_amount, food_amount, food_confirmed, transport_amount, transport_confirmed,
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.lead_id = leads.id), 0) AS paid_cents
   FROM leads WHERE status NOT IN ('lost','cancelled','completed') AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)`;
+const COMPLETED_BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status, b.channel,
+    b.food_amount, b.food_confirmed, b.transport_amount, b.transport_confirmed,
+    COALESCE((SELECT amount_cents FROM charges WHERE booking_id = b.id AND category = 'accommodation' LIMIT 1), 0) AS accommodation_cents,
+    COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
+  FROM bookings b WHERE b.status = 'completed' OR (b.date_to < date('now') AND b.status NOT IN ('cancelled','lost'))
+  ORDER BY b.date_to DESC`;
 
 const db = getDb(Astro.locals);
 let bookings: BookingRow[] = [];
-let leadsWithDates: LeadRow[] = [];
-let leadsWithoutDates: LeadRow[] = [];
+let completedBookings: BookingRow[] = [];
+let leads: LeadRow[] = [];
+let hardConflictCandidates: ConflictInfo[] = [];
+let softConflictCandidates: ConflictInfo[] = [];
 let newLeadsCount = 0;
 let weekLeadsCount = 0;
 let outstandingCents = 0;
@@ -75,12 +89,15 @@ if (!db) {
 } else {
   try {
     const [
-      bookingResult, leadsWithDatesResult, leadsWithoutDatesResult,
+      bookingResult, completedBookingResult, leadsResult,
+      hardConflictCandidatesResult, softConflictCandidatesResult,
       newCountResult, weekCountResult, outstandingResult, arrivalsResult, inHouseResult, lastSyncResult,
     ] = await Promise.all([
       db.prepare(`${BOOKING_SELECT} ORDER BY b.date_from ASC`).all<BookingRow>(),
-      db.prepare(`${LEAD_SELECT} AND date_from IS NOT NULL ORDER BY date_from ASC`).all<LeadRow>(),
-      db.prepare(`${LEAD_SELECT} AND date_from IS NULL ORDER BY created_at DESC`).all<LeadRow>(),
+      db.prepare(COMPLETED_BOOKING_SELECT).all<BookingRow>(),
+      db.prepare(`${LEAD_SELECT} ORDER BY created_at DESC`).all<LeadRow>(),
+      db.prepare(HARD_CONFLICT_CANDIDATES_SQL).all<any>(),
+      db.prepare(SOFT_CONFLICT_CANDIDATES_SQL).all<any>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE status = 'new'`).first<{ count: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE created_at >= datetime('now', '-7 days')`).first<{ count: number }>(),
       db.prepare(`WITH booking_totals AS (
@@ -96,8 +113,10 @@ if (!db) {
       db.prepare(`SELECT synced_at, processed, inserted, updated, skipped, error FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<SyncLogRow>(),
     ]);
     bookings = bookingResult.results;
-    leadsWithDates = leadsWithDatesResult.results;
-    leadsWithoutDates = leadsWithoutDatesResult.results;
+    completedBookings = completedBookingResult.results;
+    leads = leadsResult.results;
+    hardConflictCandidates = hardConflictCandidatesResult.results.map(mapConflictRow);
+    softConflictCandidates = softConflictCandidatesResult.results.map(mapConflictRow);
     newLeadsCount = newCountResult?.count ?? 0;
     weekLeadsCount = weekCountResult?.count ?? 0;
     outstandingCents = outstandingResult?.outstanding ?? 0;
@@ -135,6 +154,8 @@ function bookingToItem(b: BookingRow): ListItem {
     balanceClass: totalCents > 0 && balance <= 0 ? 'positive' : balance > 0 ? 'negative' : '',
     isUpcoming: from >= todayStr && from <= upcomingBoundStr,
     channel: b.channel,
+    createdAt: null,
+    avail: null,
   };
 }
 function leadToItem(lead: LeadRow): ListItem {
@@ -148,6 +169,8 @@ function leadToItem(lead: LeadRow): ListItem {
     balanceClass: totalCents > 0 && balance <= 0 ? 'positive' : balance > 0 ? 'negative' : '',
     isUpcoming: !!from && from >= todayStr && from <= upcomingBoundStr,
     channel: null,
+    createdAt: lead.created_at,
+    avail: null,
   };
 }
 function datesLabel(item: ListItem): string {
@@ -158,13 +181,19 @@ function datesLabel(item: ListItem): string {
 
 const items: ListItem[] = [
   ...bookings.map(bookingToItem),
-  ...leadsWithDates.map(leadToItem),
-  ...leadsWithoutDates.map(leadToItem),
+  ...leads.map(leadToItem),
 ];
+items.forEach((item) => {
+  if (!item.dateFrom || !item.dateTo) return;
+  const hard = findConflicts(hardConflictCandidates, item.dateFrom, item.dateTo, item.kind === 'booking' ? item.id : '');
+  const soft = findConflicts(softConflictCandidates, item.dateFrom, item.dateTo, item.kind === 'lead' ? item.id : '');
+  item.avail = hard.length > 0 ? 'hard' : soft.length > 0 ? 'soft' : 'clear';
+});
 const weekArrivals = bookings.filter((booking) => {
   const from = booking.date_from.slice(0, 10);
   return from >= todayStr && from <= weekBoundStr;
 });
+const completedBookingItems: ListItem[] = completedBookings.map(bookingToItem);
 
 const FILTERS = [
   { value: 'all', label: 'All' },
@@ -172,6 +201,7 @@ const FILTERS = [
   { value: 'leads', label: 'Leads' },
   { value: 'deposit', label: 'Deposit Pending' },
   { value: 'inhouse', label: 'In House' },
+  { value: 'completed', label: 'Completed' },
   { value: 'upcoming', label: 'Upcoming' },
   { value: 'drinks', label: '🍹 Drinks' },
 ] as const;
@@ -200,8 +230,12 @@ const leadError = Astro.url.searchParams.get('leadError');
   <div class="actions dashboard-head" style="justify-content:space-between;margin-bottom:6px">
     <h1>Bookings & inquiries</h1>
     <div class="actions dashboard-tools">
-      <button type="button" class="secondary" id="open-add-lead">Add Lead</button>
-      <button type="button" class="secondary" id="sync-hosthub-btn">🔄 Sync HostHub</button>
+      <button type="button" class="secondary" id="open-add-lead" aria-label="Add Lead">
+        <span class="btn-icon" aria-hidden="true">➕</span><span class="btn-label">Add Lead</span>
+      </button>
+      <button type="button" class="secondary" id="sync-hosthub-btn" aria-label="Sync HostHub">
+        <span class="btn-icon" aria-hidden="true">🔄</span><span class="btn-label">Sync HostHub</span>
+      </button>
     </div>
   </div>
   <p class="muted">Hosthub owns reservations. This dashboard owns follow-up, charges and payments.</p>
@@ -237,6 +271,12 @@ const leadError = Astro.url.searchParams.get('leadError');
         ))}
       </div>
 
+      <div class="leads-sort-toggle" id="leads-sort-toggle" style="display:none">
+        <span class="muted" style="font-size:12px">Sort:</span>
+        <button type="button" data-sort="created" class="sort-pill">Newest inquiry</button>
+        <button type="button" data-sort="checkin" class="sort-pill">Soonest check-in</button>
+      </div>
+
       <div class="card" id="unified-list-card">
         <div class="list" id="unified-list">
           {items.length === 0 && <p class="muted">Nothing to show yet.</p>}
@@ -249,10 +289,46 @@ const leadError = Astro.url.searchParams.get('leadError');
               data-status={item.status}
               data-channel={item.channel || ''}
               data-upcoming={item.isUpcoming ? '1' : '0'}
+              data-created-at={item.createdAt || ''}
+              data-date-from={item.dateFrom || ''}
             >
               <div class="stack" style="min-width:0;flex:1">
                 <div class="actions">
                   <span class={`type-pill ${item.kind}`}>{item.kind === 'booking' ? 'BOOKING' : 'LEAD'}</span>
+                  {item.channel && <span class={`channel-pill ${channelBadgeClass(item.channel)}`}>{CHANNEL_PILL_LABELS[item.channel as typeof BOOKING_CHANNELS[number]] || item.channel}</span>}
+                  <h3>{item.name}</h3>
+                </div>
+                <span class="muted">
+                  {item.avail && <span class={`avail-dot avail-${item.avail}`} title={item.avail === 'hard' ? 'Dates unavailable — hard conflict' : item.avail === 'soft' ? 'Other leads interested in these dates' : 'Dates available'}></span>}
+                  {datesLabel(item)}{item.guests > 0 && <> · {item.guests} guests</>}
+                </span>
+                <span class={`amount ${item.balanceClass}`}>{item.balanceLabel}</span>
+              </div>
+              <div class="actions" style="flex-shrink:0">
+                <button type="button" class="status-badge-btn badge" data-status={item.status} style={`--pill-color:${STATUS_COLORS[normalizeStatus(item.status)]}`}>{STATUS_LABELS[normalizeStatus(item.status)]}</button>
+                {item.phone && <a class="button whatsapp" href={`https://wa.me/${item.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener" title="Open WhatsApp">💬</a>}
+              </div>
+            </div>
+          ))}
+          <p class="muted" id="no-filter-matches" style="display:none">No items match this filter.</p>
+        </div>
+      </div>
+
+      <div class="card" id="completed-list-card" style="display:none">
+        <div class="list" id="completed-list">
+          {completedBookingItems.length === 0 && <p class="muted">No completed bookings yet.</p>}
+          {completedBookingItems.map((item) => (
+            <div
+              class="row clickable-row"
+              data-href={`/admin/bookings/${item.id}`}
+              data-kind={item.kind}
+              data-id={item.id}
+              data-status={item.status}
+              data-channel={item.channel || ''}
+            >
+              <div class="stack" style="min-width:0;flex:1">
+                <div class="actions">
+                  <span class="type-pill booking">BOOKING</span>
                   {item.channel && <span class={`channel-pill ${channelBadgeClass(item.channel)}`}>{CHANNEL_PILL_LABELS[item.channel as typeof BOOKING_CHANNELS[number]] || item.channel}</span>}
                   <h3>{item.name}</h3>
                 </div>
@@ -265,7 +341,6 @@ const leadError = Astro.url.searchParams.get('leadError');
               </div>
             </div>
           ))}
-          <p class="muted" id="no-filter-matches" style="display:none">No items match this filter.</p>
         </div>
       </div>
 
@@ -349,14 +424,67 @@ const leadError = Astro.url.searchParams.get('leadError');
   const noMatches = document.getElementById('no-filter-matches');
   const unifiedListCard = document.getElementById('unified-list-card');
   const drinksListCard = document.getElementById('drinks-list-card');
+  const completedListCard = document.getElementById('completed-list-card');
+  const leadsSortToggle = document.getElementById('leads-sort-toggle');
+  const unifiedList = document.getElementById('unified-list');
+
+  const LEADS_SORT_KEY = 'admin-leads-sort';
+  function getLeadsSort() {
+    return localStorage.getItem(LEADS_SORT_KEY) === 'checkin' ? 'checkin' : 'created';
+  }
+  function sortLeadRows(mode) {
+    if (!unifiedList) return;
+    const leadRows = Array.from(unifiedList.querySelectorAll('.clickable-row[data-kind="lead"]'));
+    leadRows.sort((a, b) => {
+      if (mode === 'checkin') {
+        const aDate = a.dataset.dateFrom || '';
+        const bDate = b.dataset.dateFrom || '';
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return 1;
+        if (!bDate) return -1;
+        return aDate < bDate ? -1 : aDate > bDate ? 1 : 0;
+      }
+      const aCreated = a.dataset.createdAt || '';
+      const bCreated = b.dataset.createdAt || '';
+      return aCreated < bCreated ? 1 : aCreated > bCreated ? -1 : 0;
+    });
+    leadRows.forEach((row) => unifiedList.appendChild(row));
+  }
+  function setLeadsSortUI(mode) {
+    leadsSortToggle?.querySelectorAll('button[data-sort]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.sort === mode);
+    });
+  }
+  leadsSortToggle?.querySelectorAll('button[data-sort]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.sort;
+      localStorage.setItem(LEADS_SORT_KEY, mode);
+      setLeadsSortUI(mode);
+      sortLeadRows(mode);
+    });
+  });
+  setLeadsSortUI(getLeadsSort());
+  sortLeadRows(getLeadsSort());
+
   function applyFilter(filter) {
     if (filter === 'drinks') {
       if (unifiedListCard) unifiedListCard.style.display = 'none';
       if (drinksListCard) drinksListCard.style.display = '';
+      if (completedListCard) completedListCard.style.display = 'none';
+      if (leadsSortToggle) leadsSortToggle.style.display = 'none';
+      return;
+    }
+    if (filter === 'completed') {
+      if (unifiedListCard) unifiedListCard.style.display = 'none';
+      if (drinksListCard) drinksListCard.style.display = 'none';
+      if (completedListCard) completedListCard.style.display = '';
+      if (leadsSortToggle) leadsSortToggle.style.display = 'none';
       return;
     }
     if (unifiedListCard) unifiedListCard.style.display = '';
     if (drinksListCard) drinksListCard.style.display = 'none';
+    if (completedListCard) completedListCard.style.display = 'none';
+    if (leadsSortToggle) leadsSortToggle.style.display = filter === 'leads' ? '' : 'none';
     let visibleCount = 0;
     listRows.forEach((row) => {
       const kind = row.dataset.kind;
@@ -383,6 +511,17 @@ const leadError = Astro.url.searchParams.get('leadError');
     });
   });
   applyFilter('all');
+
+  // Only show the trailing scroll fade on #filter-bar when there's actually
+  // more to scroll to — avoids implying hidden content when everything fits.
+  function updateFilterBarFade() {
+    if (!filterBar) return;
+    const hasMore = filterBar.scrollWidth - filterBar.clientWidth - filterBar.scrollLeft > 4;
+    filterBar.classList.toggle('has-scroll-fade', hasMore);
+  }
+  filterBar?.addEventListener('scroll', updateFilterBarFade);
+  window.addEventListener('resize', updateFilterBarFade);
+  updateFilterBarFade();
 
   document.querySelectorAll('.drinks-mark-delivered').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -521,12 +660,16 @@ const leadError = Astro.url.searchParams.get('leadError');
   wireDateValidation('lead-date-from', 'lead-date-to', 'lead-date-error', 'add-lead-save-btn');
 
   const syncBtn = document.getElementById('sync-hosthub-btn');
+  const syncBtnIcon = syncBtn?.querySelector('.btn-icon');
+  const syncBtnLabel = syncBtn?.querySelector('.btn-label');
   const syncFeedback = document.getElementById('sync-feedback');
   syncBtn?.addEventListener('click', async () => {
     if (!(syncBtn instanceof HTMLButtonElement)) return;
     syncBtn.disabled = true;
-    const original = syncBtn.textContent;
-    syncBtn.textContent = '⏳ Syncing…';
+    const originalIcon = syncBtnIcon?.textContent;
+    const originalLabel = syncBtnLabel?.textContent;
+    if (syncBtnIcon) syncBtnIcon.textContent = '⏳';
+    if (syncBtnLabel) syncBtnLabel.textContent = 'Syncing…';
     if (syncFeedback) syncFeedback.textContent = '';
     try {
       const res = await fetch('/admin/api/sync-hosthub');
@@ -541,7 +684,8 @@ const leadError = Astro.url.searchParams.get('leadError');
       if (syncFeedback) syncFeedback.textContent = ' · Sync failed';
     } finally {
       syncBtn.disabled = false;
-      syncBtn.textContent = original;
+      if (syncBtnIcon && originalIcon != null) syncBtnIcon.textContent = originalIcon;
+      if (syncBtnLabel && originalLabel != null) syncBtnLabel.textContent = originalLabel;
     }
   });
 </script>
@@ -554,6 +698,13 @@ const leadError = Astro.url.searchParams.get('leadError');
   .amount.positive { color:#166534; }
   .amount.negative { color:var(--red); }
   #filter-bar { margin-bottom:16px; }
+  .avail-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .avail-dot.avail-clear { background:#22C55E; }
+  .avail-dot.avail-soft { background:#F59E0B; }
+  .avail-dot.avail-hard { background:#EF4444; }
+  .leads-sort-toggle { display:flex; align-items:center; gap:8px; margin:-10px 0 16px; }
+  .sort-pill { appearance:none; cursor:pointer; border:1px solid var(--line); border-radius:999px; padding:5px 12px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
+  .sort-pill.active { background:var(--brown); color:#fff; border-color:var(--brown); }
   .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
   .type-pill.booking { background:#57392E; }
   .type-pill.lead { background:#7D98AB; }
@@ -566,6 +717,8 @@ const leadError = Astro.url.searchParams.get('leadError');
   .status-popover { position:absolute; z-index:50; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgb(38 29 26 / 18%); padding:10px; display:flex; flex-direction:column; gap:6px; max-width:220px; }
   .status-popover[hidden] { display:none; }
   .status-popover .status-pill { min-height:38px; width:100%; }
+  .btn-icon { margin-right:6px; }
+  #open-add-lead .btn-icon { display:none; }
   @media(max-width:760px) {
     .dashboard-head { align-items:stretch; flex-direction:column; }
     .dashboard-tools { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; width:100%; }
@@ -574,5 +727,37 @@ const leadError = Astro.url.searchParams.get('leadError');
     .clickable-row .actions { width:auto; }
     .clickable-row .button.whatsapp { min-width:48px; }
     .arrival-row { align-items:flex-start; flex-direction:column; padding:10px 0; }
+  }
+  @media(max-width:640px) {
+    /* Filter pills: horizontal scroll with a pinned "All" pill and a fade
+       hint at the trailing edge, instead of wrapping to multiple lines. */
+    #filter-bar {
+      position:sticky; top:0; z-index:5; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      background:var(--bg); margin:0 0 16px; padding:8px 0;
+    }
+    #filter-bar.has-scroll-fade {
+      -webkit-mask-image:linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+      mask-image:linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    }
+    #filter-bar a { flex:0 0 auto; }
+    #filter-bar a:first-child { position:sticky; left:0; z-index:1; }
+
+    /* Row padding: tighter, but the row itself (name + dates + balance +
+       status/whatsapp actions stacked) stays well above the 44px minimum. */
+    .card { padding:14px; }
+    .row { padding:10px 0; }
+
+    /* Status pill row: keep it left-aligned under the name instead of
+       hugging the right edge, and let long guest names wrap. */
+    .clickable-row { flex-direction:column; align-items:flex-start; }
+    .clickable-row > .actions { justify-content:flex-start; flex-wrap:wrap; }
+    .clickable-row .stack h3 { overflow-wrap:anywhere; }
+  }
+  @media(max-width:400px) {
+    .dashboard-tools { display:flex !important; justify-content:flex-end; }
+    .dashboard-tools button { width:44px; flex:0 0 auto; padding-inline:0; }
+    .dashboard-tools .btn-label { display:none; }
+    #open-add-lead .btn-icon { display:inline; }
+    .btn-icon { margin-right:0; }
   }
 </style>

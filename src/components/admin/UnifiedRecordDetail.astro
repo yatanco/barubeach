@@ -6,6 +6,7 @@ import {
   BOOKING_CHANNELS, BOOKING_CHANNEL_LABELS, CHANNEL_PILL_LABELS, DEFAULT_COMMISSION_RATE,
   PAYMENT_METHODS,
 } from '../../lib/crm';
+import { checkAvailability } from '../../lib/crm-availability';
 
 interface Props {
   kind: 'lead' | 'booking';
@@ -81,6 +82,8 @@ const lastSync = isBooking && record.source === 'hosthub_ical'
   ? await db.prepare(`SELECT synced_at FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<{ synced_at: string }>()
   : null;
 
+const availability = await checkAvailability(db, record.date_from, record.date_to, kind, record.id);
+
 const pipeline = pipelineFor(channel);
 const currentStatus = normalizeStatus(record.status);
 const boldLink = boldPaymentLink(env);
@@ -102,6 +105,24 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
     {record.date_from && record.date_to ? <>{shortDate(record.date_from)} → {shortDate(record.date_to)} · {nights} nights</> : 'No dates yet'}
     {guests > 0 && <> · {guests} guests</>}
   </p>
+
+  {record.date_from && record.date_to && (
+    availability.hardConflicts.length > 0 ? (
+      <div class="availability-badge hard">
+        🔴 Dates unavailable — booked: {availability.hardConflicts.map((c) => `${c.guestName || 'Unnamed'} (${STATUS_LABELS[normalizeStatus(c.status)]})`).join(', ')}
+      </div>
+    ) : availability.softConflicts.length > 0 ? (
+      <details class="availability-badge soft">
+        <summary>🟡 {availability.softConflicts.length} other lead{availability.softConflicts.length > 1 ? 's' : ''} interested in these dates</summary>
+        <ul>
+          {availability.softConflicts.map((c) => <li>{c.guestName || 'Unnamed inquiry'} — {STATUS_LABELS[normalizeStatus(c.status)]}</li>)}
+        </ul>
+      </details>
+    ) : (
+      <div class="availability-badge clear">🟢 Dates available</div>
+    )
+  )}
+
   <label class="phone-field">Phone
     <input type="tel" id="phone-input" value={phone || ''} placeholder="+57 300 000 0000" />
   </label>
@@ -384,6 +405,13 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   .header-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
   .header-top h1 { margin:0; }
   .dates-line { margin-bottom:12px; }
+  .availability-badge { border-radius:10px; padding:10px 14px; font-weight:700; font-size:13px; margin:-4px 0 16px; }
+  .availability-badge.clear { background:#dff8f1; color:#116149; }
+  .availability-badge.soft { background:#fff4e5; color:#7a4b00; cursor:pointer; }
+  .availability-badge.soft summary { list-style:none; padding:0; color:inherit; }
+  .availability-badge.soft summary::-webkit-details-marker { display:none; }
+  .availability-badge.soft ul { margin:8px 0 0; padding-left:18px; font-weight:500; }
+  .availability-badge.hard { background:#fee4e2; color:var(--red); }
   .phone-field { max-width:280px; }
   .urd-section { margin-top:18px; }
   .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }

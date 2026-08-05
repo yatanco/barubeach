@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
 import tailwind from '@astrojs/tailwind';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)));
 
 export default defineConfig({
   site: 'https://casagaviota.com',
@@ -26,6 +29,12 @@ export default defineConfig({
   // its Cloudflare KV session driver, which requires a SESSION KV binding.
   session: {
     driver: 'memory',
+  },
+  vite: {
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
+      __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    },
   },
   integrations: [
     react(),
