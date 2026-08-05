@@ -3,7 +3,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../lib/db';
 import {
   money, shortDate, timeAgo, GUEST_INTENTS, channelBadgeClass, CHANNEL_PILL_LABELS, BOOKING_CHANNELS,
-  STATUS_LABELS, STATUS_COLORS, DIRECT_PIPELINE, AIRBNB_PIPELINE, normalizeStatus,
+  STATUS_LABELS, STATUS_COLORS, DIRECT_PIPELINE, AIRBNB_PIPELINE, LEAD_PIPELINE, normalizeStatus,
 } from '../../lib/crm';
 import {
   HARD_CONFLICT_CANDIDATES_SQL, SOFT_CONFLICT_CANDIDATES_SQL, mapConflictRow, findConflicts,
@@ -30,6 +30,12 @@ interface SyncLogRow {
 }
 interface DrinksOrderRow {
   id: number; booking_id: string | null; guest_name: string; items: string; total: number; status: string; created_at: string;
+}
+interface UrgentNewLeadRow {
+  id: string; guest_name: string | null; whatsapp: string | null; created_at: string;
+}
+interface FollowupDueLeadRow {
+  id: string; guest_name: string | null; whatsapp: string | null; next_followup_date: string; last_contact_date: string | null;
 }
 interface ListItem {
   kind: 'booking' | 'lead';
@@ -63,6 +69,19 @@ const COMPLETED_BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.da
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
   FROM bookings b WHERE b.status = 'completed' OR (b.date_to < date('now') AND b.status NOT IN ('cancelled','lost'))
   ORDER BY b.date_to DESC`;
+// "Follow up today" (home screen): untouched 'new' leads waiting 4+ hours are
+// flagged as urgent (higher priority than any scheduled follow-up, since
+// nobody has replied to them at all yet); 'replied' leads get the separate
+// Day 3 / Day 7 cadence via next_followup_date, set by the status API
+// (new -> replied) and POST .../log-followup.
+const URGENT_NEW_LEADS_SELECT = `SELECT id, guest_name, whatsapp, created_at FROM leads
+  WHERE status = 'new' AND created_at <= datetime('now','-4 hours')
+    AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)
+  ORDER BY created_at ASC`;
+const FOLLOWUP_DUE_LEADS_SELECT = `SELECT id, guest_name, whatsapp, next_followup_date, last_contact_date FROM leads
+  WHERE status = 'replied' AND next_followup_date IS NOT NULL AND next_followup_date <= date('now')
+    AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)
+  ORDER BY next_followup_date ASC`;
 
 const db = getDb(Astro.locals);
 let bookings: BookingRow[] = [];
@@ -70,6 +89,8 @@ let completedBookings: BookingRow[] = [];
 let leads: LeadRow[] = [];
 let hardConflictCandidates: ConflictInfo[] = [];
 let softConflictCandidates: ConflictInfo[] = [];
+let urgentNewLeads: UrgentNewLeadRow[] = [];
+let followupDueLeads: FollowupDueLeadRow[] = [];
 let newLeadsCount = 0;
 let weekLeadsCount = 0;
 let outstandingCents = 0;
@@ -91,6 +112,7 @@ if (!db) {
     const [
       bookingResult, completedBookingResult, leadsResult,
       hardConflictCandidatesResult, softConflictCandidatesResult,
+      urgentNewLeadsResult, followupDueLeadsResult,
       newCountResult, weekCountResult, outstandingResult, arrivalsResult, inHouseResult, lastSyncResult,
     ] = await Promise.all([
       db.prepare(`${BOOKING_SELECT} ORDER BY b.date_from ASC`).all<BookingRow>(),
@@ -98,6 +120,8 @@ if (!db) {
       db.prepare(`${LEAD_SELECT} ORDER BY created_at DESC`).all<LeadRow>(),
       db.prepare(HARD_CONFLICT_CANDIDATES_SQL).all<any>(),
       db.prepare(SOFT_CONFLICT_CANDIDATES_SQL).all<any>(),
+      db.prepare(URGENT_NEW_LEADS_SELECT).all<UrgentNewLeadRow>(),
+      db.prepare(FOLLOWUP_DUE_LEADS_SELECT).all<FollowupDueLeadRow>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE status = 'new'`).first<{ count: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE created_at >= datetime('now', '-7 days')`).first<{ count: number }>(),
       db.prepare(`WITH booking_totals AS (
@@ -117,6 +141,8 @@ if (!db) {
     leads = leadsResult.results;
     hardConflictCandidates = hardConflictCandidatesResult.results.map(mapConflictRow);
     softConflictCandidates = softConflictCandidatesResult.results.map(mapConflictRow);
+    urgentNewLeads = urgentNewLeadsResult.results;
+    followupDueLeads = followupDueLeadsResult.results;
     newLeadsCount = newCountResult?.count ?? 0;
     weekLeadsCount = weekCountResult?.count ?? 0;
     outstandingCents = outstandingResult?.outstanding ?? 0;
@@ -177,6 +203,9 @@ function datesLabel(item: ListItem): string {
   if (item.dateFrom && item.dateTo) return `${shortDate(item.dateFrom)} → ${shortDate(item.dateTo)}`;
   if (item.dateFrom) return shortDate(item.dateFrom);
   return 'No dates yet';
+}
+function hoursSince(iso: string): number {
+  return Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / 3_600_000));
 }
 
 const items: ListItem[] = [
@@ -250,6 +279,32 @@ const leadError = Astro.url.searchParams.get('leadError');
   {!error && (
     <p class="summary-line">{newLeadsCount} new leads · {weekLeadsCount} this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding</p>
   )}
+  {!error && (urgentNewLeads.length > 0 || followupDueLeads.length > 0) && (
+    <section class="card followup-card">
+      <h2>Follow up today</h2>
+      {urgentNewLeads.map((lead) => (
+        <a class="followup-row urgent" href={`/admin/leads/${lead.id}`}>
+          <span class="followup-dot"></span>
+          <span class="stack" style="gap:2px;min-width:0">
+            <strong>{lead.guest_name || 'Unnamed inquiry'}</strong>
+            <span class="muted">New inquiry · {hoursSince(lead.created_at)}h untouched</span>
+          </span>
+          <span class="followup-arrow">→</span>
+        </a>
+      ))}
+      {followupDueLeads.map((lead) => (
+        <a class="followup-row due" href={`/admin/leads/${lead.id}`}>
+          <span class="followup-dot"></span>
+          <span class="stack" style="gap:2px;min-width:0">
+            <strong>{lead.guest_name || 'Unnamed inquiry'}</strong>
+            <span class="muted">Follow-up due · last contacted {lead.last_contact_date ? shortDate(lead.last_contact_date) : '—'}</span>
+          </span>
+          <span class="followup-arrow">→</span>
+        </a>
+      ))}
+    </section>
+  )}
+
   {!error && (
     <section class="card arrivals-card">
       <h2>Arriving this week</h2>
@@ -410,7 +465,7 @@ const leadError = Astro.url.searchParams.get('leadError');
   </dialog>
 </AdminLayout>
 
-<script define:vars={{ STATUS_LABELS, STATUS_COLORS, DIRECT_PIPELINE, AIRBNB_PIPELINE }}>
+<script define:vars={{ STATUS_LABELS, STATUS_COLORS, DIRECT_PIPELINE, AIRBNB_PIPELINE, LEAD_PIPELINE }}>
   document.querySelectorAll('.clickable-row').forEach((row) => {
     row.addEventListener('click', (event) => {
       if (event.target instanceof Element && event.target.closest('a, button')) return;
@@ -543,7 +598,7 @@ const leadError = Astro.url.searchParams.get('leadError');
 
   // ---- Status popover (tap a row's status badge to change it inline) ----
   function pipelineFor(kind, channel) {
-    if (kind === 'lead') return DIRECT_PIPELINE;
+    if (kind === 'lead') return LEAD_PIPELINE;
     return channel === 'airbnb' ? AIRBNB_PIPELINE : DIRECT_PIPELINE;
   }
   const popover = document.getElementById('status-popover');
@@ -695,6 +750,13 @@ const leadError = Astro.url.searchParams.get('leadError');
   .arrivals-card { margin:16px 0; border-left:5px solid var(--mint); }
   .arrival-row { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; }
   .arrival-row:first-of-type { border-top:0; }
+  .followup-card { margin:16px 0; border-left:5px solid #F59E0B; }
+  .followup-row { min-height:52px; display:flex; align-items:center; gap:10px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; padding:8px 0; }
+  .followup-row:first-of-type { border-top:0; padding-top:0; }
+  .followup-dot { flex-shrink:0; width:9px; height:9px; border-radius:50%; }
+  .followup-row.urgent .followup-dot { background:#EF4444; }
+  .followup-row.due .followup-dot { background:#F59E0B; }
+  .followup-arrow { margin-left:auto; flex-shrink:0; }
   .amount.positive { color:#166534; }
   .amount.negative { color:var(--red); }
   #filter-bar { margin-bottom:16px; }

@@ -84,7 +84,7 @@ const lastSync = isBooking && record.source === 'hosthub_ical'
 
 const availability = await checkAvailability(db, record.date_from, record.date_to, kind, record.id);
 
-const pipeline = pipelineFor(channel);
+const pipeline = pipelineFor(kind, channel);
 const currentStatus = normalizeStatus(record.status);
 const boldLink = boldPaymentLink(env);
 const boldLinkIsFallback = !env.BOLD_PAYMENT_LINK;
@@ -139,6 +139,22 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
     </div>
     <div class="inline-feedback" id="status-feedback"></div>
   </section>
+
+  {!isBooking && record.status === 'replied' && (
+    <section class="card urd-section">
+      <h2>Follow-up</h2>
+      <div class="row">
+        <span>Last contacted</span>
+        <strong>{record.last_contact_date ? shortDate(record.last_contact_date) : '—'}</strong>
+      </div>
+      <div class="row">
+        <span>Next follow-up suggested</span>
+        <strong id="next-followup-display">{record.next_followup_date ? shortDate(record.next_followup_date) : '—'}</strong>
+      </div>
+      <button type="button" class="secondary" id="log-followup-btn" style="margin-top:8px">✅ Log follow-up (today)</button>
+      <div class="inline-feedback" id="followup-feedback"></div>
+    </section>
+  )}
 
   <section class="card urd-section">
     <h2>Accommodation</h2>
@@ -526,6 +542,9 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
         const res = await fetch(`${apiBase}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
         const data = await res.json();
         if (!res.ok || !data.success) throw new Error(data.error || 'Could not update status');
+        // Leads reload — a status change can reveal/hide the Follow-up
+        // card (only shown for 'replied') and last_contact_date it sets.
+        if (kind === 'lead') { window.location.reload(); return; }
         document.querySelectorAll('#status-pills .status-pill').forEach((p) => p.classList.toggle('active', p === pill));
         flash(statusFeedback, true);
       } catch (error) {
@@ -534,6 +553,22 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
         document.querySelectorAll('#status-pills button').forEach((b) => { b.disabled = false; });
       }
     });
+  });
+
+  // ---- Follow-up (leads, 'replied' stage only) ----
+  document.getElementById('log-followup-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const feedback = document.getElementById('followup-feedback');
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${apiBase}/log-followup`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Could not log follow-up');
+      window.location.reload();
+    } catch (error) {
+      btn.disabled = false;
+      if (feedback) { feedback.classList.add('error'); feedback.textContent = error instanceof Error ? error.message : 'Could not log follow-up'; }
+    }
   });
 
   // ---- Accommodation ----

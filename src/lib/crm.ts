@@ -2,7 +2,7 @@
 // 'checked_in' is a legacy value still written directly by hosthub-sync.ts (not touched
 // by this task); it is treated everywhere as a display/pipeline synonym for 'in_house'.
 export const UNIFIED_STATUSES = [
-  'new', 'quoted', 'deposit_requested', 'deposit_paid',
+  'new', 'replied', 'quoted', 'deposit_requested', 'deposit_paid',
   'confirmed', 'upsell_pending', 'upsell_confirmed',
   'in_house', 'balance_requested', 'completed',
   'lost', 'cancelled',
@@ -12,6 +12,7 @@ export type StoredStatus = UnifiedStatus | 'checked_in';
 
 export const STATUS_LABELS: Record<StoredStatus, string> = {
   new: 'New',
+  replied: 'Replied',
   quoted: 'Quoted',
   deposit_requested: 'Deposit Requested',
   deposit_paid: 'Deposit Paid',
@@ -28,6 +29,7 @@ export const STATUS_LABELS: Record<StoredStatus, string> = {
 
 export const STATUS_COLORS: Record<StoredStatus, string> = {
   new: '#6B7280',
+  replied: '#06B6D4',
   quoted: '#3B82F6',
   deposit_requested: '#F59E0B',
   deposit_paid: '#8B5CF6',
@@ -42,11 +44,12 @@ export const STATUS_COLORS: Record<StoredStatus, string> = {
   cancelled: '#EF4444',
 };
 
-// Tap-through pill sequence shown on the detail page, chosen by channel.
-// Direct/Booking.com (and leads, which are never Airbnb-channel) start at 'new';
-// Airbnb bookings arrive pre-confirmed via HostHub sync and skip straight to 'confirmed'.
-// 'confirmed' is included here too (not just on AIRBNB_PIPELINE) because
-// hosthub-sync.ts's deriveStatus() is channel-agnostic — a direct or
+// Tap-through pill sequence shown on the detail page. Bookings are chosen by
+// channel; leads always use LEAD_PIPELINE regardless of channel (a lead has
+// none yet). Direct/Booking.com bookings start at 'new'; Airbnb bookings
+// arrive pre-confirmed via HostHub sync and skip straight to 'confirmed'.
+// 'confirmed' is included on DIRECT_PIPELINE too (not just AIRBNB_PIPELINE)
+// because hosthub-sync.ts's deriveStatus() is channel-agnostic — a direct or
 // booking.com reservation synced from HostHub can land in 'confirmed' just
 // from its dates, same as an Airbnb one.
 export const DIRECT_PIPELINE = [
@@ -59,9 +62,20 @@ export const AIRBNB_PIPELINE = [
   'in_house', 'balance_requested', 'completed',
   'cancelled',
 ] as const;
-export const LEAD_PIPELINE = DIRECT_PIPELINE;
+// Lead-only pipeline — deliberately decoupled from DIRECT_PIPELINE (used by
+// direct/booking.com bookings) so adding 'replied' here doesn't also surface
+// it as a selectable status on bookings. 'confirmed' is intentionally
+// omitted: a lead converts into a real booking row before that stage applies
+// (see the "Confirm booking" flow), so leads jump straight from
+// deposit_paid to in_house.
+export const LEAD_PIPELINE = [
+  'new', 'replied', 'quoted', 'deposit_requested', 'deposit_paid',
+  'in_house', 'balance_requested', 'completed',
+  'lost', 'cancelled',
+] as const;
 
-export function pipelineFor(channel: string | null | undefined): readonly UnifiedStatus[] {
+export function pipelineFor(kind: 'lead' | 'booking', channel: string | null | undefined): readonly UnifiedStatus[] {
+  if (kind === 'lead') return LEAD_PIPELINE;
   return channel === 'airbnb' ? AIRBNB_PIPELINE : DIRECT_PIPELINE;
 }
 
@@ -74,7 +88,7 @@ export function normalizeStatus(status: string): UnifiedStatus {
 // Statuses shown on the dashboard's active-pipeline view (i.e. not yet arrived/departed
 // and not a dead end) — used to distinguish "in progress" records from completed/lost/cancelled.
 export const OPEN_STATUSES = [
-  'new', 'quoted', 'deposit_requested', 'deposit_paid',
+  'new', 'replied', 'quoted', 'deposit_requested', 'deposit_paid',
   'confirmed', 'upsell_pending', 'upsell_confirmed',
   'in_house', 'checked_in', 'balance_requested',
 ] as const;
@@ -149,6 +163,12 @@ export function timeAgo(value: string | null | undefined): string {
 export function waLinkTo(phone: string, text?: string): string {
   const digits = phone.replace(/\D/g, '');
   return text ? `https://wa.me/${digits}?text=${encodeURIComponent(text)}` : `https://wa.me/${digits}`;
+}
+
+export function addDaysIso(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr.slice(0, 10)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 export function nightsBetween(dateFrom: string | null | undefined, dateTo: string | null | undefined): number {
