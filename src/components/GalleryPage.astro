@@ -21,6 +21,18 @@ const photoImports = import.meta.glob<{ default: ImageMetadata }>(
 const videoImports = import.meta.glob<{ default: string }>('../assets/gallery/reels/*.mp4', {
   eager: true,
 });
+// Poster frames generated via `npm run generate:posters` (scripts/generate-video-posters.mjs),
+// matched to their video by filename. Re-run that script after adding new videos.
+const posterImports = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/gallery/reels-posters/*.{jpg,jpeg,JPG,JPEG}',
+  { eager: true }
+);
+const posterByBase = new Map(
+  Object.entries(posterImports).map(([path, mod]) => [
+    (path.split('/').pop() ?? '').replace(/\.(jpe?g)$/i, ''),
+    mod.default,
+  ])
+);
 
 const photosRaw = Object.entries(photoImports)
   .map(([path, mod]) => ({
@@ -31,13 +43,27 @@ const photosRaw = Object.entries(photoImports)
   // newest Instagram filenames first (they use timestamps)
   .sort((a, b) => b.filename.localeCompare(a.filename));
 
-const videos = Object.entries(videoImports)
+const videosRaw = Object.entries(videoImports)
   .map(([path, mod]) => ({
     type: 'video' as const,
     src: mod.default,
     filename: path.split('/').pop() ?? '',
   }))
   .sort((a, b) => b.filename.localeCompare(a.filename));
+
+const videos = await Promise.all(
+  videosRaw.map(async (video) => {
+    const posterMeta = posterByBase.get(video.filename.replace(/\.mp4$/i, ''));
+    if (!posterMeta) return { ...video, poster: undefined };
+    const poster = await getImage({
+      src: posterMeta,
+      format: 'webp',
+      quality: 80,
+      width: Math.min(640, posterMeta.width),
+    });
+    return { ...video, poster: poster.src };
+  })
+);
 
 // A single higher-res source per photo for the lightbox (the grid itself
 // only ever needs up to 1200w).
@@ -132,21 +158,22 @@ const total = activeTab === 'photos' ? photos.length : videos.length;
             role="button"
             tabindex="0"
           >
-            {/* Thumbnail placeholder — video loads via JS */}
-            <div class="video-placeholder">
-              <svg viewBox="0 0 24 24" fill="white" width="32" height="32">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
             <video
               class="gallery-video"
               data-src={video.src}
+              poster={video.poster}
               preload="none"
               muted
               loop
               playsinline
-              style="width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; display: none;"
+              style="width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; display: block;"
             />
+            {/* Play affordance over the poster frame — hidden once grid playback starts */}
+            <div class="video-play-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="white" width="32" height="32">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
           </div>
         ))}
       </div>
@@ -264,18 +291,23 @@ const total = activeTab === 'photos' ? photos.length : videos.length;
     transition: transform 0.3s ease;
   }
 
-  .video-placeholder {
+  .video-play-icon {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #57392e;
+    pointer-events: none;
+  }
+
+  .video-play-icon svg {
+    filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.5));
   }
 
   .gallery-video {
     position: absolute;
     inset: 0;
+    background: #57392e;
   }
 
   .empty-state {
@@ -403,11 +435,10 @@ const total = activeTab === 'photos' ? photos.length : videos.length;
       (entries) => {
         for (const entry of entries) {
           const video = entry.target as HTMLVideoElement;
-          const placeholder = video.previousElementSibling as HTMLElement | null;
+          const playIcon = video.nextElementSibling as HTMLElement | null;
           if (entry.isIntersecting) {
             if (!video.src && video.dataset.src) video.src = video.dataset.src;
-            placeholder?.style.setProperty('display', 'none');
-            video.style.display = 'block';
+            playIcon?.style.setProperty('display', 'none');
             video.play().catch(() => {});
           } else {
             video.pause();
