@@ -497,7 +497,9 @@ const leadError = Astro.url.searchParams.get('leadError');
   }
   function sortLeadRows(mode) {
     if (!unifiedList) return;
-    const leadRows = Array.from(unifiedList.querySelectorAll('.clickable-row[data-kind="lead"]'));
+    // Urgent rows keep the server's severity order (most untouched/overdue
+    // first) regardless of this toggle — only non-urgent leads get resorted.
+    const leadRows = Array.from(unifiedList.querySelectorAll('.clickable-row[data-kind="lead"][data-urgent="0"]'));
     leadRows.sort((a, b) => {
       if (mode === 'checkin') {
         const aDate = a.dataset.dateFrom || '';
