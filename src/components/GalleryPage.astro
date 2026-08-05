@@ -1,8 +1,14 @@
 ---
 import { Picture, getImage } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
+import Header from './Header.astro';
+import Footer from './Footer.astro';
+
+interface Props {
+  activeTab: 'photos' | 'videos';
+}
+
+const { activeTab } = Astro.props;
 
 // Import all gallery assets dynamically. Uppercase extensions are included
 // because iOS exports (.JPG, .PNG) land in this folder alongside lowercase
@@ -47,50 +53,40 @@ const photos = await Promise.all(
   })
 );
 
-const total = photos.length + videos.length;
-const showTabs = photos.length > 0 && videos.length > 0;
+const total = activeTab === 'photos' ? photos.length : videos.length;
 ---
 
 <Layout
-  title="Gallery — Casa Gaviota Barú"
-  description="Photos and videos of Casa Gaviota, a private beach house in Barú, Colombia."
+  title={`${activeTab === 'photos' ? 'Photos' : 'Videos'} — Casa Gaviota Barú`}
+  description={`${activeTab === 'photos' ? 'Photos' : 'Videos'} of Casa Gaviota, a private beach house in Barú, Colombia.`}
   lang="en"
 >
   <Header lang="en" altHref="/gallery" />
 
   <main class="gallery-page">
-    {/* TABS - only shown when both photos and videos exist */}
-    {showTabs && (
-      <div class="gallery-tabs" role="tablist" aria-label="Gallery media type">
-        <button
-          type="button"
-          class="gallery-tab active"
-          data-tab="photos"
-          role="tab"
-          aria-selected="true"
-          aria-controls="photo-grid"
+    <nav class="gallery-tabs" aria-label="Gallery media type">
+        <a
+          href="/photos/"
+          class={`gallery-tab ${activeTab === 'photos' ? 'active' : ''}`}
+          aria-current={activeTab === 'photos' ? 'page' : undefined}
         >
           Photos
-        </button>
-        <button
-          type="button"
-          class="gallery-tab"
-          data-tab="videos"
-          role="tab"
-          aria-selected="false"
-          aria-controls="video-grid"
+        </a>
+        <a
+          href="/videos/"
+          class={`gallery-tab ${activeTab === 'videos' ? 'active' : ''}`}
+          aria-current={activeTab === 'videos' ? 'page' : undefined}
         >
           Videos
-        </button>
-      </div>
-    )}
+        </a>
+    </nav>
 
     {/* PHOTOS GRID */}
-    {photos.length > 0 && (
+    {activeTab === 'photos' && photos.length > 0 && (
       <div
         class="gallery-grid"
         id="photo-grid"
-        role={showTabs ? 'tabpanel' : undefined}
+        aria-label="Photos"
       >
         {photos.map((photo, index) => (
           <div
@@ -120,19 +116,19 @@ const showTabs = photos.length > 0 && videos.length > 0;
     )}
 
     {/* VIDEOS GRID */}
-    {videos.length > 0 && (
+    {activeTab === 'videos' && videos.length > 0 && (
       <div
-        class={`gallery-grid ${showTabs ? 'gallery-panel-hidden' : ''}`}
+        class="gallery-grid"
         id="video-grid"
-        role={showTabs ? 'tabpanel' : undefined}
+        aria-label="Videos"
       >
         {videos.map((video, index) => (
           <div
             class="gallery-item video-item"
-            data-index={photos.length + index}
+            data-index={index}
             data-type="video"
             data-lightbox-src={video.src}
-            aria-label={`Open video ${photos.length + index + 1} of ${total}`}
+            aria-label={`Open video ${index + 1} of ${total}`}
             role="button"
             tabindex="0"
           >
@@ -157,9 +153,9 @@ const showTabs = photos.length > 0 && videos.length > 0;
     )}
 
     {/* EMPTY STATE */}
-    {photos.length === 0 && videos.length === 0 && (
+    {((activeTab === 'photos' && photos.length === 0) || (activeTab === 'videos' && videos.length === 0)) && (
       <div class="empty-state">
-        <p>Gallery coming soon</p>
+        <p>No {activeTab} yet</p>
         <a href="https://instagram.com/casagaviotabaru" target="_blank" rel="noopener noreferrer">
           @casagaviotabaru
         </a>
@@ -167,7 +163,7 @@ const showTabs = photos.length > 0 && videos.length > 0;
     )}
 
     {/* INSTAGRAM LINK */}
-    {(photos.length > 0 || videos.length > 0) && (
+    {((activeTab === 'photos' && photos.length > 0) || (activeTab === 'videos' && videos.length > 0)) && (
       <div class="instagram-link">
         <a href="https://instagram.com/casagaviotabaru" target="_blank" rel="noopener noreferrer">
           📸 Follow us on Instagram
@@ -225,6 +221,7 @@ const showTabs = photos.length > 0 && videos.length > 0;
     border-bottom: 2px solid #b28471;
     border-radius: 0;
     cursor: pointer;
+    text-decoration: none;
   }
 
   .gallery-tab.active {
@@ -232,10 +229,6 @@ const showTabs = photos.length > 0 && videos.length > 0;
     color: #fff;
     border-bottom-color: transparent;
     border-radius: 9999px;
-  }
-
-  .gallery-panel-hidden {
-    display: none;
   }
 
   .gallery-grid {
@@ -401,48 +394,6 @@ const showTabs = photos.length > 0 && videos.length > 0;
 </style>
 
 <script>
-  // Tabs: only wired up when the tab bar exists (i.e. both photos and videos
-  // are present — otherwise there's nothing to switch between). Selected tab
-  // is reflected in the URL hash (#videos) via pushState/popstate so back
-  // navigation restores the previous tab, per spec.
-  function setupTabs() {
-    const tabBar = document.querySelector('.gallery-tabs');
-    if (!tabBar) return;
-
-    const tabs = Array.from(tabBar.querySelectorAll<HTMLButtonElement>('.gallery-tab'));
-    const panels: Record<string, HTMLElement | null> = {
-      photos: document.getElementById('photo-grid'),
-      videos: document.getElementById('video-grid'),
-    };
-
-    function render(name: string) {
-      tabs.forEach((tab) => {
-        const isActive = tab.dataset.tab === name;
-        tab.classList.toggle('active', isActive);
-        tab.setAttribute('aria-selected', String(isActive));
-      });
-      Object.entries(panels).forEach(([key, panel]) => {
-        panel?.classList.toggle('gallery-panel-hidden', key !== name);
-      });
-    }
-
-    function activate(name: string) {
-      render(name);
-      const url = location.pathname + location.search + (name === 'videos' ? '#videos' : '');
-      history.pushState({ tab: name }, '', url);
-    }
-
-    tabs.forEach((tab) => {
-      tab.addEventListener('click', () => activate(tab.dataset.tab!));
-    });
-
-    window.addEventListener('popstate', () => {
-      render(location.hash === '#videos' ? 'videos' : 'photos');
-    });
-
-    if (location.hash === '#videos') render('videos');
-  }
-
   // Videos in the grid: only load + autoplay once 50%+ visible.
   function setupGridVideoAutoplay() {
     const videos = document.querySelectorAll<HTMLVideoElement>('.gallery-video');
@@ -593,7 +544,6 @@ const showTabs = photos.length > 0 && videos.length > 0;
     });
   }
 
-  setupTabs();
   setupGridVideoAutoplay();
   setupLightbox();
 </script>

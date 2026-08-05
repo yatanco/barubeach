@@ -22,7 +22,8 @@ export default defineConfig({
     layout: 'constrained',
   },
   redirects: {
-    '/es/gallery': '/gallery',
+    '/gallery': '/photos',
+    '/es/gallery': '/photos',
   },
   // Not used by this project. Setting a driver here (instead of leaving
   // session.driver unset) stops the Cloudflare adapter from auto-enabling
