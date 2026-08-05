@@ -22,6 +22,7 @@ interface BookingRow {
 interface LeadRow {
   id: string; guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
   adults: number; children: number; status: string; created_at: string;
+  next_followup_date: string | null; followup_count: number;
   accommodation_amount: number; food_amount: number; food_confirmed: number; transport_amount: number; transport_confirmed: number;
   paid_cents: number;
 }
@@ -30,12 +31,6 @@ interface SyncLogRow {
 }
 interface DrinksOrderRow {
   id: number; booking_id: string | null; guest_name: string; items: string; total: number; status: string; created_at: string;
-}
-interface UrgentNewLeadRow {
-  id: string; guest_name: string | null; whatsapp: string | null; created_at: string;
-}
-interface FollowupDueLeadRow {
-  id: string; guest_name: string | null; whatsapp: string | null; next_followup_date: string; last_contact_date: string | null;
 }
 interface ListItem {
   kind: 'booking' | 'lead';
@@ -52,6 +47,9 @@ interface ListItem {
   channel: string | null;
   createdAt: string | null;
   avail: 'clear' | 'soft' | 'hard' | null;
+  urgency: 'red' | 'amber' | null;
+  urgencyLabel: string | null;
+  urgencyScore: number;
 }
 
 const BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status, b.channel,
@@ -60,6 +58,7 @@ const BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
   FROM bookings b WHERE b.status NOT IN ('cancelled','completed')`;
 const LEAD_SELECT = `SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, created_at,
+    next_followup_date, followup_count,
     accommodation_amount, food_amount, food_confirmed, transport_amount, transport_confirmed,
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.lead_id = leads.id), 0) AS paid_cents
   FROM leads WHERE status NOT IN ('lost','cancelled','completed') AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)`;
@@ -69,19 +68,6 @@ const COMPLETED_BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.da
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
   FROM bookings b WHERE b.status = 'completed' OR (b.date_to < date('now') AND b.status NOT IN ('cancelled','lost'))
   ORDER BY b.date_to DESC`;
-// "Follow up today" (home screen): untouched 'new' leads waiting 4+ hours are
-// flagged as urgent (higher priority than any scheduled follow-up, since
-// nobody has replied to them at all yet); 'replied' leads get the separate
-// Day 3 / Day 7 cadence via next_followup_date, set by the status API
-// (new -> replied) and POST .../log-followup.
-const URGENT_NEW_LEADS_SELECT = `SELECT id, guest_name, whatsapp, created_at FROM leads
-  WHERE status = 'new' AND created_at <= datetime('now','-4 hours')
-    AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)
-  ORDER BY created_at ASC`;
-const FOLLOWUP_DUE_LEADS_SELECT = `SELECT id, guest_name, whatsapp, next_followup_date, last_contact_date FROM leads
-  WHERE status = 'replied' AND next_followup_date IS NOT NULL AND next_followup_date <= date('now')
-    AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)
-  ORDER BY next_followup_date ASC`;
 
 const db = getDb(Astro.locals);
 let bookings: BookingRow[] = [];
@@ -89,8 +75,6 @@ let completedBookings: BookingRow[] = [];
 let leads: LeadRow[] = [];
 let hardConflictCandidates: ConflictInfo[] = [];
 let softConflictCandidates: ConflictInfo[] = [];
-let urgentNewLeads: UrgentNewLeadRow[] = [];
-let followupDueLeads: FollowupDueLeadRow[] = [];
 let newLeadsCount = 0;
 let weekLeadsCount = 0;
 let outstandingCents = 0;
@@ -112,7 +96,6 @@ if (!db) {
     const [
       bookingResult, completedBookingResult, leadsResult,
       hardConflictCandidatesResult, softConflictCandidatesResult,
-      urgentNewLeadsResult, followupDueLeadsResult,
       newCountResult, weekCountResult, outstandingResult, arrivalsResult, inHouseResult, lastSyncResult,
     ] = await Promise.all([
       db.prepare(`${BOOKING_SELECT} ORDER BY b.date_from ASC`).all<BookingRow>(),
@@ -120,8 +103,6 @@ if (!db) {
       db.prepare(`${LEAD_SELECT} ORDER BY created_at DESC`).all<LeadRow>(),
       db.prepare(HARD_CONFLICT_CANDIDATES_SQL).all<any>(),
       db.prepare(SOFT_CONFLICT_CANDIDATES_SQL).all<any>(),
-      db.prepare(URGENT_NEW_LEADS_SELECT).all<UrgentNewLeadRow>(),
-      db.prepare(FOLLOWUP_DUE_LEADS_SELECT).all<FollowupDueLeadRow>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE status = 'new'`).first<{ count: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM leads WHERE created_at >= datetime('now', '-7 days')`).first<{ count: number }>(),
       db.prepare(`WITH booking_totals AS (
@@ -141,8 +122,6 @@ if (!db) {
     leads = leadsResult.results;
     hardConflictCandidates = hardConflictCandidatesResult.results.map(mapConflictRow);
     softConflictCandidates = softConflictCandidatesResult.results.map(mapConflictRow);
-    urgentNewLeads = urgentNewLeadsResult.results;
-    followupDueLeads = followupDueLeadsResult.results;
     newLeadsCount = newCountResult?.count ?? 0;
     weekLeadsCount = weekCountResult?.count ?? 0;
     outstandingCents = outstandingResult?.outstanding ?? 0;
@@ -167,6 +146,25 @@ if (!db) {
   }
 }
 
+function hoursSince(iso: string): number {
+  return Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / 3_600_000));
+}
+// Same rules that used to drive the standalone "Follow up today" section:
+// a 'new' lead untouched 4+ hours is red (nobody has replied at all yet);
+// a 'replied' lead whose Day 3 / Day 7 cadence (next_followup_date, set by
+// the status API and POST .../log-followup) is due today or overdue is amber.
+// Bookings never carry urgency — this cadence is lead-only by design.
+function leadUrgency(lead: LeadRow): Pick<ListItem, 'urgency' | 'urgencyLabel' | 'urgencyScore'> {
+  if (lead.status === 'new') {
+    const hours = hoursSince(lead.created_at);
+    if (hours > 4) return { urgency: 'red', urgencyLabel: `${hours}h untouched`, urgencyScore: 1_000_000 + hours };
+  } else if (lead.status === 'replied' && lead.next_followup_date && lead.next_followup_date.slice(0, 10) <= todayStr) {
+    const daysOverdue = Math.max(0, Math.round((Date.parse(todayStr) - Date.parse(lead.next_followup_date.slice(0, 10))) / 86_400_000));
+    const dayLabel = (lead.followup_count ?? 0) === 0 ? 'Day 3' : 'Day 7';
+    return { urgency: 'amber', urgencyLabel: `Follow up: ${dayLabel}`, urgencyScore: daysOverdue };
+  }
+  return { urgency: null, urgencyLabel: null, urgencyScore: -1 };
+}
 function bookingToItem(b: BookingRow): ListItem {
   const totalCents = (b.channel === 'airbnb' ? 0 : b.accommodation_cents)
     + (b.food_confirmed ? b.food_amount : 0)
@@ -182,6 +180,9 @@ function bookingToItem(b: BookingRow): ListItem {
     channel: b.channel,
     createdAt: null,
     avail: null,
+    urgency: null,
+    urgencyLabel: null,
+    urgencyScore: -1,
   };
 }
 function leadToItem(lead: LeadRow): ListItem {
@@ -197,15 +198,13 @@ function leadToItem(lead: LeadRow): ListItem {
     channel: null,
     createdAt: lead.created_at,
     avail: null,
+    ...leadUrgency(lead),
   };
 }
 function datesLabel(item: ListItem): string {
   if (item.dateFrom && item.dateTo) return `${shortDate(item.dateFrom)} → ${shortDate(item.dateTo)}`;
   if (item.dateFrom) return shortDate(item.dateFrom);
   return 'No dates yet';
-}
-function hoursSince(iso: string): number {
-  return Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / 3_600_000));
 }
 
 const items: ListItem[] = [
@@ -218,6 +217,9 @@ items.forEach((item) => {
   const soft = findConflicts(softConflictCandidates, item.dateFrom, item.dateTo, item.kind === 'lead' ? item.id : '');
   item.avail = hard.length > 0 ? 'hard' : soft.length > 0 ? 'soft' : 'clear';
 });
+// Urgent cards (red, then amber, most severe first) float to the top; everything
+// else keeps its prior relative order (stable sort — all tie at urgencyScore -1).
+items.sort((a, b) => b.urgencyScore - a.urgencyScore);
 const weekArrivals = bookings.filter((booking) => {
   const from = booking.date_from.slice(0, 10);
   return from >= todayStr && from <= weekBoundStr;
@@ -289,32 +291,6 @@ const leadError = Astro.url.searchParams.get('leadError');
   {!error && (
     <p class="summary-line">{newLeadsCount} new leads · {weekLeadsCount} this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding</p>
   )}
-  {!error && (urgentNewLeads.length > 0 || followupDueLeads.length > 0) && (
-    <section class="card followup-card">
-      <h2>Follow up today</h2>
-      {urgentNewLeads.map((lead) => (
-        <a class="followup-row urgent" href={`/admin/leads/${lead.id}`}>
-          <span class="followup-dot"></span>
-          <span class="stack" style="gap:2px;min-width:0">
-            <strong>{lead.guest_name || 'Unnamed inquiry'}</strong>
-            <span class="muted">New inquiry · {hoursSince(lead.created_at)}h untouched</span>
-          </span>
-          <span class="followup-arrow">→</span>
-        </a>
-      ))}
-      {followupDueLeads.map((lead) => (
-        <a class="followup-row due" href={`/admin/leads/${lead.id}`}>
-          <span class="followup-dot"></span>
-          <span class="stack" style="gap:2px;min-width:0">
-            <strong>{lead.guest_name || 'Unnamed inquiry'}</strong>
-            <span class="muted">Follow-up due · last contacted {lead.last_contact_date ? shortDate(lead.last_contact_date) : '—'}</span>
-          </span>
-          <span class="followup-arrow">→</span>
-        </a>
-      ))}
-    </section>
-  )}
-
   {!error && (
     <section class="card arrivals-card">
       <h2>Arriving this week</h2>
@@ -361,6 +337,7 @@ const leadError = Astro.url.searchParams.get('leadError');
               data-upcoming={item.isUpcoming ? '1' : '0'}
               data-created-at={item.createdAt || ''}
               data-date-from={item.dateFrom || ''}
+              data-urgent={item.urgency ? '1' : '0'}
             >
               <div class="stack record-main">
                 <h3>{item.name}</h3>
@@ -368,6 +345,11 @@ const leadError = Astro.url.searchParams.get('leadError');
                   <span class={`type-pill ${item.kind}`}>{item.kind === 'booking' ? 'BOOKING' : 'LEAD'}</span>
                   {item.channel && <span class={`channel-pill ${channelBadgeClass(item.channel)}`}>{CHANNEL_PILL_LABELS[item.channel as typeof BOOKING_CHANNELS[number]] || item.channel}</span>}
                 </div>
+                {item.urgency && (
+                  <span class={`record-urgency urgency-${item.urgency}`}>
+                    <span class="urgency-dot"></span>{item.urgencyLabel}
+                  </span>
+                )}
                 <span class="muted record-meta">
                   {item.avail && <span class={`avail-dot avail-${item.avail}`} title={item.avail === 'hard' ? 'Dates unavailable — hard conflict' : item.avail === 'soft' ? 'Other leads interested in these dates' : 'Dates available'}></span>}
                   {datesLabel(item)}{item.guests > 0 && <> · {item.guests} guests</>}
@@ -502,6 +484,17 @@ const leadError = Astro.url.searchParams.get('leadError');
   function getLeadsSort() {
     return localStorage.getItem(LEADS_SORT_KEY) === 'checkin' ? 'checkin' : 'created';
   }
+  // Urgent cards (red/amber dot) always float to the top of the list,
+  // regardless of kind — the server already ordered them that way, but this
+  // toggle's re-sort (below) moves lead rows around, so re-promote urgent
+  // rows after every re-sort to keep them pinned above everything else.
+  function promoteUrgentRows() {
+    if (!unifiedList) return;
+    const urgentRows = Array.from(unifiedList.querySelectorAll('.clickable-row[data-urgent="1"]'));
+    const frag = document.createDocumentFragment();
+    urgentRows.forEach((row) => frag.appendChild(row));
+    unifiedList.insertBefore(frag, unifiedList.firstChild);
+  }
   function sortLeadRows(mode) {
     if (!unifiedList) return;
     const leadRows = Array.from(unifiedList.querySelectorAll('.clickable-row[data-kind="lead"]'));
@@ -519,6 +512,7 @@ const leadError = Astro.url.searchParams.get('leadError');
       return aCreated < bCreated ? 1 : aCreated > bCreated ? -1 : 0;
     });
     leadRows.forEach((row) => unifiedList.appendChild(row));
+    promoteUrgentRows();
   }
   function setLeadsSortUI(mode) {
     leadsSortToggle?.querySelectorAll('button[data-sort]').forEach((btn) => {
@@ -777,13 +771,12 @@ const leadError = Astro.url.searchParams.get('leadError');
   .arrivals-card { margin:16px 0; border-left:5px solid var(--mint); }
   .arrival-row { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; }
   .arrival-row:first-of-type { border-top:0; }
-  .followup-card { margin:16px 0; border-left:5px solid #F59E0B; }
-  .followup-row { min-height:52px; display:flex; align-items:center; gap:10px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; padding:8px 0; }
-  .followup-row:first-of-type { border-top:0; padding-top:0; }
-  .followup-dot { flex-shrink:0; width:9px; height:9px; border-radius:50%; }
-  .followup-row.urgent .followup-dot { background:#EF4444; }
-  .followup-row.due .followup-dot { background:#F59E0B; }
-  .followup-arrow { margin-left:auto; flex-shrink:0; }
+  .record-urgency { order:2; display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; }
+  .urgency-dot { flex-shrink:0; width:8px; height:8px; border-radius:50%; }
+  .record-urgency.urgency-red { color:#B91C1C; }
+  .record-urgency.urgency-red .urgency-dot { background:#EF4444; }
+  .record-urgency.urgency-amber { color:#92400E; }
+  .record-urgency.urgency-amber .urgency-dot { background:#F59E0B; }
   .amount.positive { color:#166534; }
   .amount.negative { color:var(--red); }
   #filter-bar { position:sticky; top:62px; z-index:20; margin:0 -8px 16px; padding:10px 8px; background:rgb(247 244 241 / 94%); backdrop-filter:blur(10px); }
@@ -801,8 +794,8 @@ const leadError = Astro.url.searchParams.get('leadError');
   .record-main { min-width:0; flex:1; gap:4px; }
   .record-main h3 { order:0; font-size:17px; font-weight:800; }
   .record-tags { order:1; gap:5px; }
-  .record-meta { order:2; font-size:13px; }
-  .record-main > .amount { order:3; font-size:12px; }
+  .record-meta { order:3; font-size:13px; }
+  .record-main > .amount { order:4; font-size:12px; }
   .record-actions { flex-shrink:0; }
   .clickable-row { cursor:pointer; min-height:86px; margin:0 -18px; padding-left:18px; padding-right:18px; border-radius:10px; transition:background-color 160ms ease,box-shadow 160ms ease,transform 160ms ease; }
   .clickable-row:hover { background:#f8f1ed; box-shadow:inset 3px 0 var(--terracotta); }
