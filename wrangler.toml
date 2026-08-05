@@ -14,10 +14,11 @@ HOSTHUB_RENTAL_ID = "m4jmlqny2d"
 PUBLIC_BASE_URL = "https://casagaviota.com"
 
 # PriceLabs Customer API — not sensitive, just identifiers (the API key below
-# is the secret). PriceLabs identifies this listing by its HostHub rental ID,
-# same value as HOSTHUB_RENTAL_ID above.
+# is the secret). Confirmed via GET /v1/listings: id matches the HostHub rental
+# ID, but PriceLabs has this listing registered under the "syncbnb" PMS
+# integration, not "hosthub".
 PRICELABS_LISTING_ID = "m4jmlqny2d"
-PRICELABS_PMS = "hosthub"
+PRICELABS_PMS = "syncbnb"
 
 # Secrets — never committed, set via:
 #   wrangler secret put HOSTHUB_API_KEY
