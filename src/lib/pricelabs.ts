@@ -50,7 +50,14 @@ export async function getPriceLabsQuote(env: PriceLabsEnv, checkinISO: string, c
   const apiKey = env.PRICELABS_API_KEY;
   const listingId = env.PRICELABS_LISTING_ID;
   const pms = env.PRICELABS_PMS;
-  if (!apiKey || !listingId || !pms) return null;
+  if (!apiKey || !listingId || !pms) {
+    console.error('[pricelabs] not configured — missing:', [
+      !apiKey && 'PRICELABS_API_KEY',
+      !listingId && 'PRICELABS_LISTING_ID',
+      !pms && 'PRICELABS_PMS',
+    ].filter(Boolean).join(', '));
+    return null;
+  }
 
   const lastNightISO = addDaysISO(checkoutISO, -1);
   if (lastNightISO < checkinISO) return null;
@@ -72,8 +79,10 @@ export async function getPriceLabsQuote(env: PriceLabsEnv, checkinISO: string, c
       body: JSON.stringify({ listings: [{ id: listingId, pms, dateFrom: checkinISO, dateTo: lastNightISO }] }),
     });
     if (res.ok) {
-      const body = await res.json() as { data?: PriceLabsListingResponse[] };
-      const listing = body.data?.[0];
+      const bodyText = await res.text();
+      // The API returns a plain array of listing results, not { data: [...] }.
+      const body = JSON.parse(bodyText) as PriceLabsListingResponse[];
+      const listing = body[0];
       const days = listing?.data;
       if (listing && !listing.error && days && days.length > 0) {
         const totalPrice = days.reduce((sum, d) => sum + (d.price || 0), 0);
@@ -83,9 +92,15 @@ export async function getPriceLabsQuote(env: PriceLabsEnv, checkinISO: string, c
           minStay: days[0].min_stay || 1,
           currency: listing.currency || 'USD',
         };
+      } else {
+        console.error('[pricelabs] listing_prices returned no usable data:', bodyText);
       }
+    } else {
+      const errorBody = await res.text();
+      console.error(`[pricelabs] listing_prices HTTP ${res.status}:`, errorBody);
     }
-  } catch {
+  } catch (err) {
+    console.error('[pricelabs] listing_prices request threw:', err instanceof Error ? err.message : err);
     quote = null;
   }
 
