@@ -20,7 +20,7 @@ declare const __BUILD_DATE__: string;
       header { position:sticky; top:0; z-index:30; background:rgb(255 253 250 / 94%); border-bottom:1px solid var(--line); backdrop-filter:blur(12px); }
       .nav,.shell { width:min(1180px,calc(100% - 32px)); margin:auto; }
       .nav { min-height:62px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
-      .brand { color:var(--brown); font-family:Georgia,serif; font-size:20px; font-weight:700; letter-spacing:-.02em; text-decoration:none; }
+      .brand { color:var(--brown); font-family:Georgia,serif; font-size:20px; font-weight:700; letter-spacing:-.02em; text-decoration:none; white-space:nowrap; }
       .user { color:#756b67; font-size:12px; }
       .nav-link { color:var(--brown); font-size:13px; font-weight:700; text-decoration:none; }
       .shell { padding:28px 0 64px; }
@@ -43,6 +43,19 @@ declare const __BUILD_DATE__: string;
       [data-status="lost"]::before { content:'×'; font-weight:900; }
       [data-status="cancelled"]::before { content:'∕'; font-weight:900; }
       .badge[data-status="lost"],.status-pill[data-status="lost"] { border-style:dashed; }
+      [data-status="new"] { --pill-color:#52606d !important; }
+      [data-status="replied"] { --pill-color:#176b7a !important; }
+      [data-status="quoted"] { --pill-color:#315f8c !important; }
+      [data-status="deposit_requested"] { --pill-color:#8a5a00 !important; }
+      [data-status="deposit_paid"] { --pill-color:#6c4f8f !important; }
+      [data-status="confirmed"] { --pill-color:#28724f !important; }
+      [data-status="upsell_pending"] { --pill-color:#695c76 !important; }
+      [data-status="upsell_confirmed"] { --pill-color:#176f69 !important; }
+      [data-status="in_house"],[data-status="checked_in"] { --pill-color:#345f7d !important; }
+      [data-status="balance_requested"] { --pill-color:#984c1f !important; }
+      [data-status="completed"] { --pill-color:#3e6f5f !important; }
+      [data-status="lost"] { --pill-color:#9c2f2f !important; }
+      [data-status="cancelled"] { --pill-color:#7c4545 !important; }
       .badge.overdue { background:#fee4e2; color:var(--red); }
       .badge.direct,.badge.other { background:#eee8e5; color:var(--brown); }
       .badge.airbnb { background:#ffe8ec; color:#c81d5c; }
@@ -87,10 +100,14 @@ declare const __BUILD_DATE__: string;
       .crm-footer { text-align:center; color:#a89e99; font-size:11px; padding:16px 0 24px; }
       .detail-back { margin:0 0 14px; font-size:13px; font-weight:750; }
       .detail-back a { text-decoration:none; }
+      @media(prefers-reduced-motion:reduce) {
+        *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+      }
       @media(max-width:760px) {
         .nav,.shell { width:min(100% - 24px,1180px); }
         .shell { padding:18px 0 88px; }
-        .nav { min-height:56px; }
+        .nav { min-height:56px; gap:12px; }
+        .brand { font-size:17px; }
         .user { display:none; }
         h1 { font-size:24px; }
         .card { padding:14px; border-radius:12px; }

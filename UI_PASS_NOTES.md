@@ -19,6 +19,7 @@
 ### Status system
 
 - Statuses are visually differentiated with label, color, border treatment, and a small leading state marker rather than hue alone.
+- Replaced the bright operational colors at the presentation layer with darker, higher-contrast slate, blue, amber, violet, teal, and brick variants; inline data values and CRM constants were not changed.
 - `lost` uses an × marker and dashed outline; `cancelled` uses a slash marker and solid muted-red outline, distinguishing the two terminal red states.
 - Status values and transition logic remain unchanged.
 
@@ -45,4 +46,6 @@
 
 ## Verification log
 
-- Build and viewport checks will be recorded per commit below.
+- `npm run build` passed before each of the three implementation commits.
+- Rendered `/admin` through the local Astro server and captured checks at 375 × 900, 768 × 900, and 1280 × 900. The 375px pass exposed and then verified a correction to keep the brand lockup on one line beside the navigation action.
+- The local development environment has no D1 binding, so populated-record screenshot fixtures were not fabricated (that would have required changing data behavior). Populated states were verified structurally from the server-rendered output and responsive CSS, plus the production build.
