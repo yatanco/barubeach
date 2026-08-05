@@ -31,6 +31,13 @@
 - Added tailored empty states for the unified, filtered, completed, drinks, and arrivals views.
 - Added a lightweight skeleton during the existing HostHub sync request and an aria-live confirmation chip; sync behavior itself is unchanged.
 
+### Shared lead and booking details
+
+- Reframed the shared detail component around a consistent guest overview: record type/channel, guest name, dates and occupancy, availability, contact, then status and operational sections.
+- Made status selection a compact horizontal rail on mobile and retained full 44px tap targets; terminal states also inherit the non-color markers from the global status system.
+- Standardized section headers, financial grouping, extra rows, notes, inline feedback, and mobile stacking across both record types.
+- Added mobile-appropriate telephone metadata (`type`, `inputmode`, and autocomplete) without changing save behavior.
+
 ## Logic-boundary TODOs
 
 - Intent exists on the Add Lead form, but the dashboard's existing list query does not fetch `guest_intent`. Showing intent on list cards would require a data/query change, so it was deliberately not added here. A future logic-approved pass can expose the already-stored field to the presentational list item.

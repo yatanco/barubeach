@@ -11,7 +11,7 @@ if (!lead) return Astro.redirect('/admin');
 const leadError = Astro.url.searchParams.get('leadError');
 ---
 <AdminLayout title={lead.guest_name || 'Lead'}>
-  <p><a href="/admin">← Dashboard</a></p>
+  <p class="detail-back"><a href="/admin">← Dashboard</a></p>
   {leadError && <div class="alert">{leadError}</div>}
   <UnifiedRecordDetail kind="lead" record={lead} />
 </AdminLayout>

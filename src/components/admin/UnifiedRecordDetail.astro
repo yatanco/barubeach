@@ -92,41 +92,45 @@ const boldLinkIsFallback = !env.BOLD_PAYMENT_LINK;
 const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/leads/${record.id}`;
 ---
 <div class="urd" data-kind={kind} data-id={record.id}>
-  <div class="header-top">
-    <h1>{record.guest_name || (isBooking ? 'Unnamed booking' : 'Unnamed lead')}</h1>
-    <a id="wa-btn" class="button whatsapp" href={phone ? waLinkTo(phone) : '#'} target="_blank" rel="noopener" style={phone ? '' : 'display:none'}>💬 WhatsApp</a>
-  </div>
-  <div class="actions" style="margin-bottom:10px">
-    <span class={`type-pill ${kind}`}>{isBooking ? 'BOOKING' : 'LEAD'}</span>
-    {isBooking && <span class={`channel-pill ${channelBadgeClass(channel!)}`}>{CHANNEL_PILL_LABELS[channel as typeof BOOKING_CHANNELS[number]] || channel}</span>}
-    {isBooking && record.source === 'hosthub_ical' && <span class="badge hh">HH</span>}
-  </div>
-  <p class="muted dates-line">
-    {record.date_from && record.date_to ? <>{shortDate(record.date_from)} → {shortDate(record.date_to)} · {nights} nights</> : 'No dates yet'}
-    {guests > 0 && <> · {guests} guests</>}
-  </p>
-
-  {record.date_from && record.date_to && (
-    availability.hardConflicts.length > 0 ? (
-      <div class="availability-badge hard">
-        🔴 Dates unavailable — booked: {availability.hardConflicts.map((c) => `${c.guestName || 'Unnamed'} (${STATUS_LABELS[normalizeStatus(c.status)]})`).join(', ')}
+  <section class="record-overview" aria-label="Guest and stay overview">
+    <div class="header-top">
+      <div class="record-title">
+        <div class="actions record-kicker">
+          <span class={`type-pill ${kind}`}>{isBooking ? 'BOOKING' : 'LEAD'}</span>
+          {isBooking && <span class={`channel-pill ${channelBadgeClass(channel!)}`}>{CHANNEL_PILL_LABELS[channel as typeof BOOKING_CHANNELS[number]] || channel}</span>}
+          {isBooking && record.source === 'hosthub_ical' && <span class="badge hh">HH</span>}
+        </div>
+        <h1>{record.guest_name || (isBooking ? 'Unnamed booking' : 'Unnamed lead')}</h1>
+        <p class="muted dates-line">
+          {record.date_from && record.date_to ? <>{shortDate(record.date_from)} → {shortDate(record.date_to)} · {nights} nights</> : 'No dates yet'}
+          {guests > 0 && <> · {guests} guests</>}
+        </p>
       </div>
-    ) : availability.softConflicts.length > 0 ? (
-      <details class="availability-badge soft">
-        <summary>🟡 {availability.softConflicts.length} other lead{availability.softConflicts.length > 1 ? 's' : ''} interested in these dates</summary>
-        <ul>
-          {availability.softConflicts.map((c) => <li>{c.guestName || 'Unnamed inquiry'} — {STATUS_LABELS[normalizeStatus(c.status)]}</li>)}
-        </ul>
-      </details>
-    ) : (
-      <div class="availability-badge clear">🟢 Dates available</div>
-    )
-  )}
+      <a id="wa-btn" class="button whatsapp" href={phone ? waLinkTo(phone) : '#'} target="_blank" rel="noopener" style={phone ? '' : 'display:none'}>💬 WhatsApp</a>
+    </div>
 
-  <label class="phone-field">Phone
-    <input type="tel" id="phone-input" value={phone || ''} placeholder="+57 300 000 0000" />
-  </label>
-  <div class="inline-feedback" id="phone-feedback"></div>
+    {record.date_from && record.date_to && (
+      availability.hardConflicts.length > 0 ? (
+        <div class="availability-badge hard">
+          🔴 Dates unavailable — booked: {availability.hardConflicts.map((c) => `${c.guestName || 'Unnamed'} (${STATUS_LABELS[normalizeStatus(c.status)]})`).join(', ')}
+        </div>
+      ) : availability.softConflicts.length > 0 ? (
+        <details class="availability-badge soft">
+          <summary>🟡 {availability.softConflicts.length} other lead{availability.softConflicts.length > 1 ? 's' : ''} interested in these dates</summary>
+          <ul>
+            {availability.softConflicts.map((c) => <li>{c.guestName || 'Unnamed inquiry'} — {STATUS_LABELS[normalizeStatus(c.status)]}</li>)}
+          </ul>
+        </details>
+      ) : (
+        <div class="availability-badge clear">🟢 Dates available</div>
+      )
+    )}
+
+    <label class="phone-field">Phone
+      <input type="tel" inputmode="tel" autocomplete="tel" id="phone-input" value={phone || ''} placeholder="+57 300 000 0000" />
+    </label>
+    <div class="inline-feedback" id="phone-feedback" role="status" aria-live="polite"></div>
+  </section>
 
   <section class="card urd-section">
     <h2>Status</h2>
@@ -137,7 +141,7 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
         </button>
       ))}
     </div>
-    <div class="inline-feedback" id="status-feedback"></div>
+    <div class="inline-feedback" id="status-feedback" role="status" aria-live="polite"></div>
   </section>
 
   {!isBooking && record.status === 'replied' && (
@@ -418,9 +422,13 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
 </div>
 
 <style>
-  .header-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
-  .header-top h1 { margin:0; }
-  .dates-line { margin-bottom:12px; }
+  .urd { max-width:1040px; margin-inline:auto; }
+  .record-overview { padding:4px 2px 2px; }
+  .header-top { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:14px; }
+  .record-title { min-width:0; }
+  .record-kicker { gap:5px; margin-bottom:7px; }
+  .header-top h1 { margin:0; font-size:clamp(27px,4vw,36px); }
+  .dates-line { margin:5px 0 0; font-size:14px; font-weight:600; }
   .availability-badge { border-radius:10px; padding:10px 14px; font-weight:700; font-size:13px; margin:-4px 0 16px; }
   .availability-badge.clear { background:#dff8f1; color:#116149; }
   .availability-badge.soft { background:#fff4e5; color:#7a4b00; cursor:pointer; }
@@ -428,16 +436,17 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   .availability-badge.soft summary::-webkit-details-marker { display:none; }
   .availability-badge.soft ul { margin:8px 0 0; padding-left:18px; font-weight:500; }
   .availability-badge.hard { background:#fee4e2; color:var(--red); }
-  .phone-field { max-width:280px; }
-  .urd-section { margin-top:18px; }
+  .phone-field { max-width:320px; }
+  .urd-section { position:relative; margin-top:16px; }
+  .urd-section > h2 { display:flex; align-items:baseline; justify-content:space-between; padding-bottom:10px; border-bottom:1px solid var(--line); }
   .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
   .type-pill.booking { background:#57392E; }
   .type-pill.lead { background:#7D98AB; }
-  .status-pill { background:color-mix(in srgb, var(--pill-color) 16%, white); color:var(--pill-color); }
-  .status-pill.active { border-color:var(--pill-color); }
+  #status-pills { gap:7px; }
   .info-box { background:#dff8f1; color:#116149; border-radius:10px; padding:12px 14px; font-weight:700; margin-bottom:10px; }
-  .extras-list { display:grid; gap:14px; }
-  .extras-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .extras-list { display:grid; gap:0; }
+  .extras-row { display:flex; min-height:54px; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); }
+  .extras-row:first-child { border-top:0; }
   .extras-label { font-weight:700; }
   .extras-control { display:flex; align-items:center; gap:10px; }
   .extras-amount-display { cursor:pointer; font-variant-numeric:tabular-nums; font-weight:750; border-bottom:1px dotted #a89890; }
@@ -448,12 +457,12 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   .amount.negative { color:var(--red); }
   .field-error { color:var(--red); font-size:12px; margin-top:8px; }
   .notes-state { font-size:12px; font-weight:400; }
-  #notes-input { min-height:100px; }
+  #notes-input { min-height:120px; }
   details > summary { cursor:pointer; font-weight:700; color:var(--brown); padding:10px 0; list-style:none; }
   details > summary::-webkit-details-marker { display:none; }
   .payment-row { padding:10px 0; }
 
-  .financial-card { padding:20px; }
+  .financial-card { padding:20px; border-top:3px solid var(--sand); }
   .fin-columns { display:grid; grid-template-columns:repeat(3,1fr); gap:0; }
   .fin-col { padding:0 18px; min-width:0; }
   .fin-col:first-child { padding-left:0; }
@@ -480,11 +489,25 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   .fin-summary-value-group { display:flex; align-items:center; gap:10px; }
   .fin-fallback-note { font-size:12px; margin:-4px 0 0; }
   @media(max-width:760px) {
+    .record-overview { padding-top:0; }
+    .header-top { align-items:flex-start; }
+    .header-top .button { flex:0 0 44px; width:44px; padding:0; overflow:hidden; font-size:0; }
+    .header-top .button::before { content:'💬'; font-size:17px; }
+    .dates-line { font-size:13px; }
+    #status-pills { flex-wrap:nowrap; overflow-x:auto; margin-inline:-14px; padding:2px 14px 8px; scrollbar-width:none; }
+    #status-pills::-webkit-scrollbar { display:none; }
+    #status-pills .status-pill { flex:0 0 auto; }
+    .urd-section { margin-top:12px; }
+    .urd-section > h2 { margin-bottom:10px; }
+    .extras-control { max-width:68%; }
+    .extras-control button { padding-inline:10px; }
     .fin-columns { grid-template-columns:1fr; }
     .fin-col { padding:14px 0; }
     .fin-col:first-child { padding-top:0; }
     .fin-col:last-child { padding-bottom:0; }
     .fin-col + .fin-col { border-left:0; border-top:1px solid #E6C497; }
+    .fin-summary-row { align-items:flex-start; }
+    .fin-summary-value-group { align-items:flex-end; flex-direction:column; }
   }
 </style>
 

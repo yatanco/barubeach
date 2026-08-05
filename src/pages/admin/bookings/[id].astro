@@ -45,7 +45,7 @@ const STATUS_COLORS: Record<string, string> = {
 ---
 <AdminLayout title={booking.guest_name || 'Booking'}>
   <div class="actions" style="justify-content:space-between;margin-bottom:10px">
-    <p style="margin:0"><a href="/admin">← Dashboard</a></p>
+    <p class="detail-back" style="margin:0"><a href="/admin">← Dashboard</a></p>
     <button type="button" class="secondary" id="copy-drinks-link-btn">🍹 Copy drinks link</button>
   </div>
   <UnifiedRecordDetail kind="booking" record={booking} />
