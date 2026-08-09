@@ -12,23 +12,35 @@ declare const __BUILD_DATE__: string;
     <meta name="viewport" content="width=device-width" />
     <meta name="robots" content="noindex,nofollow" />
     <title>{title} · Casa Gaviota CRM</title>
+    <script is:inline>
+      (() => {
+        try {
+          const saved = localStorage.getItem('casa-gaviota-admin-theme');
+          const theme = saved === 'dark' || saved === 'light'
+            ? saved
+            : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.dataset.theme = theme;
+        } catch { /* use light theme when storage is unavailable */ }
+      })();
+    </script>
     <style is:global>
-      :root { color-scheme: light; --ink:#2f211d; --brown:#57392e; --terracotta:#a9705b; --sand:#e6c497; --rose:#c1a8a1; --steel:#6f899b; --mint:#247b68; --line:#e3d8d2; --bg:#f7f4f1; --surface:#fffdfa; --red:#a63d35; --shadow:0 1px 2px rgb(67 43 34 / 5%),0 8px 28px rgb(67 43 34 / 4%); }
+      :root { color-scheme:light; --ink:#2f211d; --brown:#57392e; --on-accent:#fff; --terracotta:#a9705b; --sand:#e6c497; --rose:#c1a8a1; --steel:#6f899b; --mint:#247b68; --line:#e3d8d2; --bg:#f7f4f1; --surface:#fffdfa; --surface-soft:#f3ece8; --input-bg:#fff; --header-bg:rgb(255 253 250 / 94%); --muted:#716762; --label:#5e514b; --red:#a63d35; --alert-bg:#fff4e5; --alert-ink:#7a4b00; --positive:#166534; --shadow:0 1px 2px rgb(67 43 34 / 5%),0 8px 28px rgb(67 43 34 / 4%); }
+      :root[data-theme="dark"] { color-scheme:dark; --ink:#f1e8e3; --brown:#dcae99; --on-accent:#211713; --terracotta:#c78d76; --sand:#8f6c49; --rose:#8f7470; --steel:#8da7b8; --mint:#58b99f; --line:#493b36; --bg:#171310; --surface:#211b18; --surface-soft:#302622; --input-bg:#181310; --header-bg:rgb(23 19 16 / 94%); --muted:#b9aaa3; --label:#cbbcb5; --red:#f08a82; --alert-bg:#3b2c18; --alert-ink:#f4c77d; --positive:#73d3a7; --shadow:0 1px 2px rgb(0 0 0 / 24%),0 10px 32px rgb(0 0 0 / 18%); }
       * { box-sizing:border-box; }
       body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
       a { color:var(--brown); text-underline-offset:3px; }
-      header { position:sticky; top:0; z-index:30; background:rgb(255 253 250 / 94%); border-bottom:1px solid var(--line); backdrop-filter:blur(12px); }
+      header { position:sticky; top:0; z-index:30; background:var(--header-bg); border-bottom:1px solid var(--line); backdrop-filter:blur(12px); }
       .nav,.shell { width:min(1180px,calc(100% - 32px)); margin:auto; }
       .nav { min-height:62px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
       .brand { color:var(--brown); font-family:Georgia,serif; font-size:20px; font-weight:700; letter-spacing:-.02em; text-decoration:none; white-space:nowrap; }
-      .user { color:#756b67; font-size:12px; }
+      .user { color:var(--muted); font-size:12px; }
       .nav-link { color:var(--brown); font-size:13px; font-weight:700; text-decoration:none; }
       .shell { padding:28px 0 64px; }
       h1 { margin:0 0 6px; font-size:clamp(24px,3vw,30px); line-height:1.15; letter-spacing:-.025em; }
       h2 { margin:0 0 14px; font-size:17px; line-height:1.25; letter-spacing:-.01em; }
       h3 { margin:0; font-size:17px; line-height:1.3; letter-spacing:-.01em; }
       p { margin-top:0; }
-      .muted { color:#716762; }
+      .muted { color:var(--muted); }
       .grid { display:grid; gap:20px; }
       .grid-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:var(--shadow); }
@@ -38,7 +50,7 @@ declare const __BUILD_DATE__: string;
       .row:last-child { padding-bottom:0; }
       .stack { display:grid; gap:5px; min-width:0; }
       .actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-      .badge { display:inline-flex; align-items:center; gap:5px; width:max-content; border:1px solid color-mix(in srgb,var(--pill-color,#6b7280) 35%,white); border-radius:999px; padding:4px 9px; background:color-mix(in srgb,var(--pill-color,#6b7280) 12%,white); color:color-mix(in srgb,var(--pill-color,var(--brown)) 78%,#211); font-size:10px; font-weight:800; line-height:1.2; text-transform:uppercase; letter-spacing:.055em; }
+      .badge { display:inline-flex; align-items:center; gap:5px; width:max-content; border:1px solid color-mix(in srgb,var(--pill-color,#6b7280) 42%,var(--surface)); border-radius:999px; padding:4px 9px; background:color-mix(in srgb,var(--pill-color,#6b7280) 16%,var(--surface)); color:color-mix(in srgb,var(--pill-color,var(--brown)) 68%,var(--ink)); font-size:10px; font-weight:800; line-height:1.2; text-transform:uppercase; letter-spacing:.055em; }
       .badge::before,.status-pill::before { content:'•'; font-size:13px; line-height:0; }
       [data-status="lost"]::before { content:'×'; font-weight:900; }
       [data-status="cancelled"]::before { content:'∕'; font-weight:900; }
@@ -68,33 +80,42 @@ declare const __BUILD_DATE__: string;
       .channel-pill.other { background:#6B7280; }
       .pipeline { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 18px; }
       .pipeline a { display:flex; align-items:center; gap:6px; min-height:44px; border:1px solid var(--line); border-radius:999px; padding:8px 14px; background:var(--surface); color:var(--ink); text-decoration:none; font-size:13px; font-weight:700; white-space:nowrap; transition:background-color 160ms ease,color 160ms ease,border-color 160ms ease,transform 160ms ease; }
-      .pipeline a .count { background:#eee8e5; color:var(--brown); border-radius:999px; padding:1px 8px; font-size:12px; }
-      .pipeline a.active { background:var(--brown); color:#fff; border-color:var(--brown); box-shadow:inset 0 0 0 1px var(--brown); }
-      .pipeline a.active .count { background:rgb(255 255 255 / 20%); color:#fff; }
-      .button,button { appearance:none; border:0; border-radius:9px; background:var(--brown); color:#fff; min-height:44px; padding:10px 14px; font:inherit; font-weight:750; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; transition:background-color 160ms ease,box-shadow 160ms ease,transform 160ms ease,opacity 160ms ease; }
+      .pipeline a .count { background:var(--surface-soft); color:var(--brown); border-radius:999px; padding:1px 8px; font-size:12px; }
+      .pipeline a.active { background:var(--brown); color:var(--on-accent); border-color:var(--brown); box-shadow:inset 0 0 0 1px var(--brown); }
+      .pipeline a.active .count { background:color-mix(in srgb,var(--on-accent) 16%,transparent); color:var(--on-accent); }
+      .button,button { appearance:none; border:0; border-radius:9px; background:var(--brown); color:var(--on-accent); min-height:44px; padding:10px 14px; font:inherit; font-weight:750; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; transition:background-color 160ms ease,box-shadow 160ms ease,transform 160ms ease,opacity 160ms ease; }
       .button:hover,button:hover { box-shadow:0 3px 10px rgb(87 57 46 / 16%); }
       .button:active,button:active { transform:translateY(1px) scale(.99); }
       button:disabled { opacity:.62; cursor:wait; }
-      .button.secondary,button.secondary { border:1px solid #d9cbc4; background:#f3ece8; color:var(--brown); }
+      .button.secondary,button.secondary { border:1px solid var(--line); background:var(--surface-soft); color:var(--brown); }
       .button.whatsapp { background:#25d366; }
       .button.whatsapp[disabled] { background:#d8ded9; color:#8a938d; cursor:not-allowed; }
-      input,select,textarea { width:100%; min-height:44px; border:1px solid #cdbdb5; border-radius:9px; padding:10px 11px; background:#fff; color:var(--ink); font:inherit; font-size:16px; transition:border-color 160ms ease,box-shadow 160ms ease; }
+      input,select,textarea { width:100%; min-height:44px; border:1px solid var(--line); border-radius:9px; padding:10px 11px; background:var(--input-bg); color:var(--ink); font:inherit; font-size:16px; transition:border-color 160ms ease,box-shadow 160ms ease; }
       input:focus,select:focus,textarea:focus { outline:0; border-color:var(--terracotta); box-shadow:0 0 0 3px rgb(169 112 91 / 16%); }
       textarea { min-height:72px; resize:vertical; }
-      label { display:grid; gap:6px; color:#5e514b; font-size:12px; font-weight:750; }
+      label { display:grid; gap:6px; color:var(--label); font-size:12px; font-weight:750; }
       form.inline { display:flex; align-items:end; gap:8px; flex-wrap:wrap; }
       form.inline label { min-width:130px; flex:1; }
       .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
       .span-2 { grid-column:1/-1; }
       .amount { font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:750; }
-      .alert { border-radius:10px; padding:12px 14px; margin-bottom:18px; background:#fff4e5; color:#7a4b00; }
+      .alert { border-radius:10px; padding:12px 14px; margin-bottom:18px; background:var(--alert-bg); color:var(--alert-ink); }
       table { border-collapse:collapse; width:100%; }
       th,td { padding:10px 8px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
       th { color:#756b67; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
       .status-pills { display:flex; gap:8px; flex-wrap:wrap; }
-      .status-pill { min-height:44px; border:1px solid color-mix(in srgb,var(--pill-color,#6b7280) 38%,white); border-radius:999px; background:color-mix(in srgb,var(--pill-color,#6b7280) 11%,white); color:color-mix(in srgb,var(--pill-color,#4b5563) 80%,#211); padding:8px 13px; gap:6px; }
+      .status-pill { min-height:44px; border:1px solid color-mix(in srgb,var(--pill-color,#6b7280) 45%,var(--surface)); border-radius:999px; background:color-mix(in srgb,var(--pill-color,#6b7280) 16%,var(--surface)); color:color-mix(in srgb,var(--pill-color,#4b5563) 64%,var(--ink)); padding:8px 13px; gap:6px; }
       .status-pill.active { border-color:currentColor; box-shadow:inset 0 0 0 1px currentColor,0 0 0 3px color-mix(in srgb,var(--pill-color) 12%,transparent); }
-      .inline-feedback { min-height:20px; color:#166534; font-size:13px; font-weight:650; transition:opacity 180ms ease; }
+      .inline-feedback { min-height:20px; color:var(--positive); font-size:13px; font-weight:650; transition:opacity 180ms ease; }
+      .theme-toggle { width:44px; min-width:44px; padding:0; font-size:17px; }
+      :root[data-theme="dark"] .badge.direct,:root[data-theme="dark"] .badge.other { background:var(--surface-soft); }
+      :root[data-theme="dark"] .badge.overdue,:root[data-theme="dark"] .availability-badge.hard { background:#452321; }
+      :root[data-theme="dark"] .availability-badge.clear,:root[data-theme="dark"] .info-box { background:#193a31; color:#8ee0c2; }
+      :root[data-theme="dark"] .availability-badge.soft,:root[data-theme="dark"] .pricelabs-warning { background:#3b2c18; color:#f4c77d; }
+      :root[data-theme="dark"] #chatgpt-prompt-text { background:var(--input-bg); }
+      :root[data-theme="dark"] .financial-card { border-top-color:var(--sand); }
+      :root[data-theme="dark"] .fin-col + .fin-col,:root[data-theme="dark"] .fin-total,:root[data-theme="dark"] .fin-summary { border-color:var(--line); }
+      :root[data-theme="dark"] dialog#add-lead-dialog,:root[data-theme="dark"] .status-popover { background:var(--surface); color:var(--ink); }
       :focus-visible { outline:3px solid rgb(111 137 155 / 45%); outline-offset:2px; }
       .inline-feedback.error { color:var(--red); }
       .crm-footer { text-align:center; color:#a89e99; font-size:11px; padding:16px 0 24px; }
@@ -129,6 +150,7 @@ declare const __BUILD_DATE__: string;
         <a class="brand" href="/admin">Casa Gaviota CRM</a>
         <span class="actions" style="gap:14px">
           <a href="/admin/api/export" class="nav-link">Export CSV</a>
+          <button type="button" class="secondary theme-toggle" id="admin-theme-toggle" aria-label="Use dark mode" title="Toggle dark mode">◐</button>
           {userEmail && <span class="user">{userEmail}</span>}
         </span>
       </nav>
@@ -136,6 +158,21 @@ declare const __BUILD_DATE__: string;
     <main class="shell"><slot /></main>
     <footer class="crm-footer">Casa Gaviota CRM v{__APP_VERSION__} · Built {__BUILD_DATE__}</footer>
     <script>
+      const themeToggle = document.getElementById('admin-theme-toggle');
+      function syncThemeToggle() {
+        if (!(themeToggle instanceof HTMLButtonElement)) return;
+        const dark = document.documentElement.dataset.theme === 'dark';
+        themeToggle.textContent = dark ? '☀' : '☾';
+        themeToggle.setAttribute('aria-label', dark ? 'Use light mode' : 'Use dark mode');
+        themeToggle.title = dark ? 'Use light mode' : 'Use dark mode';
+      }
+      themeToggle?.addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('casa-gaviota-admin-theme', next); } catch { /* theme still applies for this page */ }
+        syncThemeToggle();
+      });
+      syncThemeToggle();
       document.querySelectorAll('form').forEach((form) => {
         form.addEventListener('submit', () => {
           form.querySelectorAll('button[type="submit"]').forEach((button) => {

@@ -237,7 +237,6 @@ items.forEach((item) => {
 // Urgent cards (red, then amber, most severe first) float to the top; everything
 // else keeps its prior relative order (stable sort — all tie at urgencyScore -1).
 items.sort((a, b) => b.urgencyScore - a.urgencyScore);
-const attentionItems = items.filter((item) => item.urgency || item.status === 'quoted' || item.status === 'deposit_requested').slice(0, 6);
 const newLeadsToday = leads.filter((lead) => lead.created_at.slice(0, 10) === todayStr).length;
 const leadsNeedingReply = leads.filter((lead) => lead.status === 'new').length;
 const followupsDue = leads.filter((lead) => leadUrgency(lead).urgency !== null && lead.status === 'replied').length;
@@ -326,17 +325,6 @@ const leadError = Astro.url.searchParams.get('leadError');
         <div><strong>{quotesAwaitingPayment}</strong><span>Quotes unpaid</span></div>
         {openPipelineCents > 0 && <div><strong>{money(openPipelineCents)}</strong><span>Open lead value</span></div>}
       </div>
-      {attentionItems.length > 0 && (
-        <div class="attention-list">
-          <h3>Attention needed</h3>
-          {attentionItems.map((item) => (
-            <a href={`/admin/${item.kind === 'lead' ? 'leads' : 'bookings'}/${item.id}`}>
-              <span><strong>{item.name}</strong><small>{item.urgencyLabel || STATUS_LABELS[normalizeStatus(item.status)]}</small></span>
-              <b>{item.nextAction} →</b>
-            </a>
-          ))}
-        </div>
-      )}
     </section>
   )}
   {!error && (
@@ -819,21 +807,14 @@ const leadError = Astro.url.searchParams.get('leadError');
   .dashboard-intro { margin-bottom:12px; }
   .sync-line { margin:-6px 0 16px; font-size:12px; }
   #sync-feedback:not(:empty) { display:inline-flex; margin-left:6px; padding:3px 8px; border-radius:999px; background:#e4f3ee; color:#17614f; font-weight:750; }
-  .summary-line { font-weight:750; margin:0 0 18px; color:#584a44; font-variant-numeric:tabular-nums; }
+  .summary-line { font-weight:750; margin:0 0 18px; color:var(--label); font-variant-numeric:tabular-nums; }
   .sales-today { margin:16px 0; border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--surface); box-shadow:var(--shadow); }
   .sales-today-head { display:flex; align-items:baseline; justify-content:space-between; }
   .sales-today-head h2 { margin:0 0 12px; }
   .today-metrics { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
-  .today-metrics > div { min-width:118px; display:grid; gap:2px; border-radius:10px; padding:10px 12px; background:#f3ece8; }
+  .today-metrics > div { min-width:118px; display:grid; gap:2px; border-radius:10px; padding:10px 12px; background:var(--surface-soft); }
   .today-metrics strong { color:var(--brown); font-size:18px; white-space:nowrap; }
-  .today-metrics span { color:#756b67; font-size:11px; font-weight:700; }
-  .attention-list { margin-top:14px; border-top:1px solid var(--line); padding-top:12px; }
-  .attention-list h3 { margin:0 0 5px; font-size:12px; color:#756b67; text-transform:uppercase; letter-spacing:.05em; }
-  .attention-list a { min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid #eee7e3; color:var(--ink); text-decoration:none; }
-  .attention-list a:first-of-type { border-top:0; }
-  .attention-list a > span { display:grid; }
-  .attention-list small { color:#756b67; }
-  .attention-list b { color:var(--brown); font-size:12px; text-align:right; }
+  .today-metrics span { color:var(--muted); font-size:11px; font-weight:700; }
   .arrivals-card { margin:16px 0; border-left:5px solid var(--mint); }
   .arrival-row { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; }
   .arrival-row:first-of-type { border-top:0; }
@@ -845,14 +826,14 @@ const leadError = Astro.url.searchParams.get('leadError');
   .record-urgency.urgency-amber .urgency-dot { background:#F59E0B; }
   .amount.positive { color:#166534; }
   .amount.negative { color:var(--red); }
-  #filter-bar { position:sticky; top:62px; z-index:20; margin:0 -8px 16px; padding:10px 8px; background:rgb(247 244 241 / 94%); backdrop-filter:blur(10px); }
+  #filter-bar { position:sticky; top:62px; z-index:20; margin:0 -8px 16px; padding:10px 8px; background:color-mix(in srgb,var(--bg) 94%,transparent); backdrop-filter:blur(10px); }
   .avail-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
   .avail-dot.avail-clear { background:#22C55E; }
   .avail-dot.avail-soft { background:#F59E0B; }
   .avail-dot.avail-hard { background:#EF4444; }
   .leads-sort-toggle { display:flex; align-items:center; gap:8px; margin:-10px 0 16px; }
-  .sort-pill { appearance:none; cursor:pointer; min-height:36px; border:1px solid var(--line); border-radius:999px; padding:5px 12px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
-  .sort-pill.active { background:var(--brown); color:#fff; border-color:var(--brown); }
+  .sort-pill { appearance:none; cursor:pointer; min-height:36px; border:1px solid var(--line); border-radius:999px; padding:5px 12px; background:var(--surface); color:var(--ink); font-size:12px; font-weight:700; }
+  .sort-pill.active { background:var(--brown); color:var(--on-accent); border-color:var(--brown); }
   .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
   .type-pill.booking { background:#57392E; }
   .type-pill.lead { background:#7D98AB; }
@@ -865,10 +846,10 @@ const leadError = Astro.url.searchParams.get('leadError');
   .next-action { order:5; color:var(--brown); font-size:12px; font-weight:750; }
   .record-actions { flex-shrink:0; }
   .clickable-row { cursor:pointer; min-height:86px; margin:0 -18px; padding-left:18px; padding-right:18px; border-radius:10px; transition:background-color 160ms ease,box-shadow 160ms ease,transform 160ms ease; }
-  .clickable-row:hover { background:#f8f1ed; box-shadow:inset 3px 0 var(--terracotta); }
-  .clickable-row:active { transform:scale(.995); background:#f2e8e3; }
-  .empty-state { display:grid; justify-items:center; gap:4px; padding:30px 16px; color:#716762; text-align:center; }
-  .empty-state > span { display:grid; place-items:center; width:40px; height:40px; margin-bottom:4px; border-radius:50%; background:#f1e7e2; color:var(--terracotta); font-size:20px; }
+  .clickable-row:hover { background:var(--surface-soft); box-shadow:inset 3px 0 var(--terracotta); }
+  .clickable-row:active { transform:scale(.995); background:color-mix(in srgb,var(--surface-soft) 80%,var(--bg)); }
+  .empty-state { display:grid; justify-items:center; gap:4px; padding:30px 16px; color:var(--muted); text-align:center; }
+  .empty-state > span { display:grid; place-items:center; width:40px; height:40px; margin-bottom:4px; border-radius:50%; background:var(--surface-soft); color:var(--terracotta); font-size:20px; }
   .empty-state strong { color:var(--ink); font-size:15px; }
   .empty-state p { margin:0; font-size:13px; }
   .sync-skeleton { display:grid; gap:12px; }
@@ -877,10 +858,10 @@ const leadError = Astro.url.searchParams.get('leadError');
   .skeleton-row span { display:block; width:42%; height:16px; border-radius:6px; background:linear-gradient(90deg,#eee5e0 25%,#f8f3f0 50%,#eee5e0 75%); background-size:200% 100%; animation:shimmer 1.2s infinite linear; }
   .skeleton-row span + span { width:68%; height:12px; }
   @keyframes shimmer { to { background-position:-200% 0; } }
-  dialog#add-lead-dialog { border: 1px solid var(--line); border-radius: 14px; padding: 22px; max-width: 560px; width: calc(100% - 40px); box-shadow: 0 10px 40px rgb(38 29 26 / 18%); }
+  dialog#add-lead-dialog { border:1px solid var(--line); border-radius:14px; padding:22px; max-width:560px; width:calc(100% - 40px); background:var(--surface); color:var(--ink); box-shadow:0 10px 40px rgb(38 29 26 / 18%); }
   dialog#add-lead-dialog::backdrop { background: rgb(38 29 26 / 35%); }
   .field-error { color: var(--red); font-size: 12px; margin-top: -8px; }
-  .status-popover { position:absolute; z-index:50; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgb(38 29 26 / 18%); padding:10px; display:flex; flex-direction:column; gap:6px; max-width:220px; }
+  .status-popover { position:absolute; z-index:50; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgb(38 29 26 / 18%); padding:10px; display:flex; flex-direction:column; gap:6px; max-width:220px; }
   .status-popover[hidden] { display:none; }
   .status-popover .status-pill { min-height:38px; width:100%; }
   .btn-icon { margin-right:6px; }

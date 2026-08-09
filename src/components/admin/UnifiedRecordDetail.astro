@@ -518,7 +518,7 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   .sales-actions { justify-content:flex-start; }
   #chatgpt-prompt-preview { margin-top:12px; }
   #chatgpt-prompt-preview[hidden] { display:none; }
-  #chatgpt-prompt-text { min-height:280px; font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; background:#faf8f6; }
+  #chatgpt-prompt-text { min-height:280px; font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; background:var(--input-bg); }
   #notes-input { min-height:120px; }
   details > summary { cursor:pointer; font-weight:700; color:var(--brown); padding:10px 0; list-style:none; }
   details > summary::-webkit-details-marker { display:none; }
@@ -541,7 +541,7 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   .fin-edit-btn:hover { opacity:1; }
   .fin-input { max-width:110px; min-height:34px; padding:4px 8px; text-align:right; font-size:13px; }
   .fin-remove-btn { appearance:none; border:0; background:none; color:var(--red); cursor:pointer; padding:2px 4px; min-height:auto; font-size:13px; }
-  .fin-total { display:flex; align-items:center; justify-content:space-between; padding-top:10px; border-top:1px solid #E6C497; font-weight:750; color:#57392E; }
+  .fin-total { display:flex; align-items:center; justify-content:space-between; padding-top:10px; border-top:1px solid var(--sand); font-weight:750; color:var(--brown); }
   .fin-empty { font-size:12px; margin:0; }
   .fin-add-btn { width:100%; margin-top:4px; font-size:13px; min-height:38px; }
   .fin-add-form { display:grid; gap:8px; margin-top:10px; }
