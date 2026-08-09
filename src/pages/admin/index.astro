@@ -23,6 +23,7 @@ interface LeadRow {
   id: string; guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
   adults: number; children: number; status: string; created_at: string;
   next_followup_date: string | null; followup_count: number;
+  guest_intent: string | null;
   accommodation_amount: number; food_amount: number; food_confirmed: number; transport_amount: number; transport_confirmed: number;
   paid_cents: number;
 }
@@ -50,6 +51,8 @@ interface ListItem {
   urgency: 'red' | 'amber' | null;
   urgencyLabel: string | null;
   urgencyScore: number;
+  totalCents: number;
+  nextAction: string;
 }
 
 const BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status, b.channel,
@@ -58,7 +61,7 @@ const BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
   FROM bookings b WHERE b.status NOT IN ('cancelled','completed')`;
 const LEAD_SELECT = `SELECT id, guest_name, whatsapp, date_from, date_to, adults, children, status, created_at,
-    next_followup_date, followup_count,
+    next_followup_date, followup_count, guest_intent,
     accommodation_amount, food_amount, food_confirmed, transport_amount, transport_confirmed,
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.lead_id = leads.id), 0) AS paid_cents
   FROM leads WHERE status NOT IN ('lost','cancelled','completed') AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)`;
@@ -183,6 +186,12 @@ function bookingToItem(b: BookingRow): ListItem {
     urgency: null,
     urgencyLabel: null,
     urgencyScore: -1,
+    totalCents,
+    nextAction: b.status === 'deposit_requested' ? 'Awaiting payment'
+      : b.status === 'deposit_paid' ? 'Confirm reservation'
+      : b.status === 'in_house' || b.status === 'checked_in' ? 'Support guest'
+      : b.status === 'balance_requested' ? 'Collect balance'
+      : 'Review booking',
   };
 }
 function leadToItem(lead: LeadRow): ListItem {
@@ -199,6 +208,14 @@ function leadToItem(lead: LeadRow): ListItem {
     createdAt: lead.created_at,
     avail: null,
     ...leadUrgency(lead),
+    totalCents,
+    nextAction: lead.status === 'new' ? 'Reply'
+      : lead.status === 'replied' ? (lead.next_followup_date?.slice(0, 10) <= todayStr ? 'Follow up' : 'Await guest')
+      : lead.status === 'quoted' ? 'Follow up on quote'
+      : lead.status === 'deposit_requested' ? 'Awaiting payment'
+      : lead.status === 'deposit_paid' ? 'Confirm reservation'
+      : !lead.date_from ? 'Confirm dates'
+      : 'Review lead',
   };
 }
 function datesLabel(item: ListItem): string {
@@ -220,6 +237,12 @@ items.forEach((item) => {
 // Urgent cards (red, then amber, most severe first) float to the top; everything
 // else keeps its prior relative order (stable sort — all tie at urgencyScore -1).
 items.sort((a, b) => b.urgencyScore - a.urgencyScore);
+const attentionItems = items.filter((item) => item.urgency || item.status === 'quoted' || item.status === 'deposit_requested').slice(0, 6);
+const newLeadsToday = leads.filter((lead) => lead.created_at.slice(0, 10) === todayStr).length;
+const leadsNeedingReply = leads.filter((lead) => lead.status === 'new').length;
+const followupsDue = leads.filter((lead) => leadUrgency(lead).urgency !== null && lead.status === 'replied').length;
+const quotesAwaitingPayment = items.filter((item) => (item.status === 'quoted' || item.status === 'deposit_requested') && item.totalCents > 0 && item.balanceClass === 'negative').length;
+const openPipelineCents = items.filter((item) => item.kind === 'lead').reduce((sum, item) => sum + item.totalCents, 0);
 const weekArrivals = bookings.filter((booking) => {
   const from = booking.date_from.slice(0, 10);
   return from >= todayStr && from <= weekBoundStr;
@@ -291,7 +314,30 @@ const leadError = Astro.url.searchParams.get('leadError');
   {leadAdded && <div class="alert">Lead added.</div>}
   {leadError && <div class="alert">{leadError}</div>}
   {!error && (
-    <p class="summary-line">{newLeadsCount} new leads · {weekLeadsCount} this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding</p>
+    <p class="summary-line">{newLeadsCount} open new leads · {weekLeadsCount} created this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding</p>
+  )}
+  {!error && (
+    <section class="sales-today" aria-labelledby="sales-today-title">
+      <div class="sales-today-head"><h2 id="sales-today-title">Sales today</h2><span class="muted">Action first</span></div>
+      <div class="today-metrics">
+        <div><strong>{newLeadsToday}</strong><span>New today</span></div>
+        <div><strong>{leadsNeedingReply}</strong><span>Need reply</span></div>
+        <div><strong>{followupsDue}</strong><span>Follow-ups due</span></div>
+        <div><strong>{quotesAwaitingPayment}</strong><span>Quotes unpaid</span></div>
+        {openPipelineCents > 0 && <div><strong>{money(openPipelineCents)}</strong><span>Open lead value</span></div>}
+      </div>
+      {attentionItems.length > 0 && (
+        <div class="attention-list">
+          <h3>Attention needed</h3>
+          {attentionItems.map((item) => (
+            <a href={`/admin/${item.kind === 'lead' ? 'leads' : 'bookings'}/${item.id}`}>
+              <span><strong>{item.name}</strong><small>{item.urgencyLabel || STATUS_LABELS[normalizeStatus(item.status)]}</small></span>
+              <b>{item.nextAction} →</b>
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
   )}
   {!error && (
     <section class="card arrivals-card">
@@ -357,6 +403,7 @@ const leadError = Astro.url.searchParams.get('leadError');
                   {datesLabel(item)}{item.guests > 0 && <> · {item.guests} guests</>}
                 </span>
                 <span class={`amount ${item.balanceClass}`}>{item.balanceLabel}</span>
+                <span class="next-action">Next: {item.nextAction}</span>
               </div>
               <div class="actions record-actions">
                 <button type="button" class="status-badge-btn badge" data-status={item.status} style={`--pill-color:${STATUS_COLORS[normalizeStatus(item.status)]}`}>{STATUS_LABELS[normalizeStatus(item.status)]}</button>
@@ -773,6 +820,20 @@ const leadError = Astro.url.searchParams.get('leadError');
   .sync-line { margin:-6px 0 16px; font-size:12px; }
   #sync-feedback:not(:empty) { display:inline-flex; margin-left:6px; padding:3px 8px; border-radius:999px; background:#e4f3ee; color:#17614f; font-weight:750; }
   .summary-line { font-weight:750; margin:0 0 18px; color:#584a44; font-variant-numeric:tabular-nums; }
+  .sales-today { margin:16px 0; border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--surface); box-shadow:var(--shadow); }
+  .sales-today-head { display:flex; align-items:baseline; justify-content:space-between; }
+  .sales-today-head h2 { margin:0 0 12px; }
+  .today-metrics { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+  .today-metrics > div { min-width:118px; display:grid; gap:2px; border-radius:10px; padding:10px 12px; background:#f3ece8; }
+  .today-metrics strong { color:var(--brown); font-size:18px; white-space:nowrap; }
+  .today-metrics span { color:#756b67; font-size:11px; font-weight:700; }
+  .attention-list { margin-top:14px; border-top:1px solid var(--line); padding-top:12px; }
+  .attention-list h3 { margin:0 0 5px; font-size:12px; color:#756b67; text-transform:uppercase; letter-spacing:.05em; }
+  .attention-list a { min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid #eee7e3; color:var(--ink); text-decoration:none; }
+  .attention-list a:first-of-type { border-top:0; }
+  .attention-list a > span { display:grid; }
+  .attention-list small { color:#756b67; }
+  .attention-list b { color:var(--brown); font-size:12px; text-align:right; }
   .arrivals-card { margin:16px 0; border-left:5px solid var(--mint); }
   .arrival-row { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; }
   .arrival-row:first-of-type { border-top:0; }
@@ -801,6 +862,7 @@ const leadError = Astro.url.searchParams.get('leadError');
   .record-tags { order:1; gap:5px; }
   .record-meta { order:3; font-size:13px; }
   .record-main > .amount { order:4; font-size:12px; }
+  .next-action { order:5; color:var(--brown); font-size:12px; font-weight:750; }
   .record-actions { flex-shrink:0; }
   .clickable-row { cursor:pointer; min-height:86px; margin:0 -18px; padding-left:18px; padding-right:18px; border-radius:10px; transition:background-color 160ms ease,box-shadow 160ms ease,transform 160ms ease; }
   .clickable-row:hover { background:#f8f1ed; box-shadow:inset 3px 0 var(--terracotta); }

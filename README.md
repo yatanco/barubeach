@@ -80,6 +80,18 @@ Every push to `main` triggers an automatic deployment via Cloudflare Pages CI.
 The private CRM is served at `/admin`. It stores inquiries, Hosthub-linked
 bookings, charges, payments, and operational statuses in Cloudflare D1.
 
+### Casa Gaviota Head of Sales
+
+Lead detail pages include a **Copy for ChatGPT** workflow. The server-rendered
+page assembles a concise prompt from deterministic CRM, availability, pricing,
+payment, reservation, and recent inquiry context. The operator can preview it,
+copy it, and paste it into their existing Casa Gaviota ChatGPT conversation.
+There is no OpenAI API call, API key, automated sending, or added usage billing.
+Commercial policy and mutable rates are maintained in
+[`docs/sales-playbook.md`](docs/sales-playbook.md). Operator instructions,
+context boundaries, calculations, and manual verification are documented in
+[`docs/head-of-sales.md`](docs/head-of-sales.md).
+
 ### 1. Create and bind D1
 
 Create a D1 database named `barubeach-crm` in **Cloudflare Dashboard → Storage &
@@ -107,13 +119,16 @@ npx wrangler d1 execute barubeach-crm --remote --file=migrations/0004_lead_quote
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0005_lead_quote_currency.sql
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0006_profitability.sql
 npx wrangler d1 execute barubeach-crm --remote --file=migrations/0007_payment_links.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0008_deposit_pending_channels_lead_payment_links.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0009_charge_cost_cents.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0010_unified_pipeline.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0011_drinks_orders.sql
+npx wrangler d1 execute barubeach-crm --remote --file=migrations/0012_lead_replied_status.sql
 ```
 
-(As of this writing, `0001`–`0005` have already been applied to the production
-`barubeach-crm` database. `0004`–`0006` are plain `ALTER TABLE ... ADD COLUMN`
-statements — safe to run once; re-running any of them will fail with
-"duplicate column name" since SQLite has no `ADD COLUMN IF NOT EXISTS`. `0007`
-uses `CREATE TABLE IF NOT EXISTS`, so it's safe to re-run.)
+Run each migration exactly once and in numeric order. Several migrations rebuild
+tables or add columns and are intentionally not idempotent. Back up production
+data before applying the sequence to an existing environment.
 
 `0006_profitability.sql` adds `ota_commission_cents`, `cost_staff_cents`,
 `cost_food_cents`, `cost_transport_cents` to `bookings`, all in cents like
@@ -121,10 +136,11 @@ every other money column in this schema — used to compute contribution margin
 on `/admin/bookings/[id]`. Revenue is still derived from `SUM(charges.amount_cents)`
 (there's no flat `revenue` column, consistent with the rest of this schema).
 
-`0007_payment_links.sql` adds `payment_links` (Bold/Wompi links generated per
-booking) and `provider_payments` (what you pay out to suppliers — boat
-captain, staff, etc, which also feeds into the contribution-margin
-calculation).
+`0010_unified_pipeline.sql` is the major current-schema transition. It unifies
+lead and booking stages, moves current food and transport tracking to flat
+fields, and removes the earlier `payment_links` and `provider_payments` tables.
+`0012_lead_replied_status.sql` adds the lead-only `replied` stage and manual
+follow-up cadence fields.
 
 During migration, `/api/capture-lead` writes to D1 and continues mirroring to
 `LEADS_WEBHOOK_URL`. Remove that Cloudflare secret once the Sheet is no longer
@@ -146,10 +162,12 @@ the pages and their actions.
 ### 3. Workflow
 
 1. New website inquiries appear under Leads.
-2. Create the confirmed reservation in Hosthub.
-3. Open the lead, choose **Convert**, and paste the Hosthub booking ID.
-4. Add accommodation, transport, food, or extra charges.
-5. Record payments separately and update the operational status (for example,
+2. Open the lead, verify its facts, and use **Copy for ChatGPT** when sales help is useful.
+3. Send the reviewed reply manually in WhatsApp and update the lead stage.
+4. Create the confirmed reservation in HostHub.
+5. Open the lead and paste the HostHub booking ID to convert it to a booking.
+6. Add accommodation, transport, food, or extra charges.
+7. Record payments separately and update the operational status (for example,
    transport paid but driver still pending).
 
 Hosthub remains the source of truth for reservation dates and availability.
@@ -201,29 +219,15 @@ token) at `GET /admin/api/sync-hosthub`, or move this project's deploy to
 `wrangler deploy` with a Worker entrypoint exporting both `fetch` and
 `scheduled`. Until then, use the manual **Sync HostHub** button.
 
-### 5. Payment links (Bold + Wompi)
+### 5. Collecting payments
 
-`/admin/bookings/[id]` can generate a one-off payment link through **Bold** or
-**Wompi** and record it in `payment_links` (see `0007_payment_links.sql`
-above). Set these as **Pages** secrets — never hardcode them:
+The detail page copies deposit or outstanding-balance WhatsApp text using the
+evergreen Bold checkout link. Set `BOLD_PAYMENT_LINK` as a Cloudflare Pages
+secret to override the built-in production fallback. There is no payment-provider
+API integration and the application does not generate one-off Bold or Wompi links.
 
-```bash
-npx wrangler pages secret put BOLD_API_KEY --project-name casagaviota-astro
-npx wrangler pages secret put WOMPI_PUBLIC_KEY --project-name casagaviota-astro
-npx wrangler pages secret put WOMPI_PRIVATE_KEY --project-name casagaviota-astro
-```
-
-`WOMPI_PUBLIC_KEY` isn't currently used by the `POST /admin/api/bookings/[id]/payment-links`
-endpoint (link creation only needs the private key) — it's set aside for a future
-embedded Wompi checkout widget, which does need the public key client-side.
-
-Without these secrets configured, generating a link for that provider fails
-with a generic "Could not generate payment link" message (the endpoint never
-surfaces the missing-key detail or the key itself to the client).
-
-The same booking page also tracks **Provider payments** — money paid out to
-suppliers (boat captain, staff, etc, stored in `provider_payments`) — which is
-subtracted from Net Contribution alongside OTA commission and variable costs.
+Payments received are recorded manually in D1. Booking contribution reporting
+uses the recorded revenue, commission, and flat staff/food/transport costs.
 
 ---
 

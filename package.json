@@ -8,7 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "generate:posters": "node scripts/generate-video-posters.mjs"
+    "generate:posters": "node scripts/generate-video-posters.mjs",
+    "test": "node --test --experimental-strip-types tests/*.test.ts"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.5.0",

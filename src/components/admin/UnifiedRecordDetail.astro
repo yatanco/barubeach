@@ -8,6 +8,7 @@ import {
   PAYMENT_METHODS,
 } from '../../lib/crm';
 import { checkAvailability } from '../../lib/crm-availability';
+import { buildChatGptSalesPrompt, buildSalesSuggestionContext } from '../../lib/sales-suggestion';
 
 interface Props {
   kind: 'lead' | 'booking';
@@ -93,6 +94,12 @@ const lastSync = isBooking && record.source === 'hosthub_ical'
   : null;
 
 const availability = await checkAvailability(db, record.date_from, record.date_to, kind, record.id);
+const linkedBooking = !isBooking
+  ? await db.prepare('SELECT id, status FROM bookings WHERE lead_id = ?1 LIMIT 1').bind(record.id).first<{ id: string; status: string }>()
+  : null;
+const chatGptPrompt = !isBooking ? buildChatGptSalesPrompt(buildSalesSuggestionContext({
+  lead: { ...record, nights }, availability, priceLabsQuote, paymentsReceivedCents: totalReceivedCents, linkedBooking,
+})) : '';
 
 const pipeline = pipelineFor(kind, channel);
 const currentStatus = normalizeStatus(record.status);
@@ -165,6 +172,28 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
     </div>
     <div class="inline-feedback" id="status-feedback" role="status" aria-live="polite"></div>
   </section>
+
+  {!isBooking && (
+    <section class="card urd-section sales-assistant" aria-labelledby="sales-assistant-title">
+      <div class="sales-assistant-head">
+        <div>
+          <p class="sales-eyebrow">HUMAN-TRIGGERED SALES SUPPORT</p>
+          <h2 id="sales-assistant-title">Head of Sales</h2>
+        </div>
+      </div>
+      <p class="muted sales-intro">Copy the current lead context into ChatGPT to get the next recommended reply and sales strategy. Nothing is sent automatically.</p>
+      <div class="actions sales-actions">
+        <button type="button" id="copy-chatgpt-prompt-btn">📋 Copy for ChatGPT</button>
+        <button type="button" class="secondary" id="preview-chatgpt-prompt-btn" aria-expanded="false">Preview prompt</button>
+      </div>
+      <div class="inline-feedback" id="chatgpt-copy-feedback" role="status" aria-live="polite"></div>
+      <div id="chatgpt-prompt-preview" hidden>
+        <label>Exact prompt to copy
+          <textarea id="chatgpt-prompt-text" readonly rows="14">{chatGptPrompt}</textarea>
+        </label>
+      </div>
+    </section>
+  )}
 
   {!isBooking && record.status === 'replied' && (
     <section class="card urd-section">
@@ -481,6 +510,15 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
   .amount.negative { color:var(--red); }
   .field-error { color:var(--red); font-size:12px; margin-top:8px; }
   .notes-state { font-size:12px; font-weight:400; }
+  .sales-assistant { border-top:3px solid var(--steel); }
+  .sales-assistant-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+  .sales-assistant-head h2 { margin:0; }
+  .sales-eyebrow { margin:0 0 3px; color:var(--steel); font-size:10px; font-weight:850; letter-spacing:.08em; }
+  .sales-intro { margin:12px 0; }
+  .sales-actions { justify-content:flex-start; }
+  #chatgpt-prompt-preview { margin-top:12px; }
+  #chatgpt-prompt-preview[hidden] { display:none; }
+  #chatgpt-prompt-text { min-height:280px; font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; background:#faf8f6; }
   #notes-input { min-height:120px; }
   details > summary { cursor:pointer; font-weight:700; color:var(--brown); padding:10px 0; list-style:none; }
   details > summary::-webkit-details-marker { display:none; }
@@ -532,6 +570,8 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
     .fin-col + .fin-col { border-left:0; border-top:1px solid #E6C497; }
     .fin-summary-row { align-items:flex-start; }
     .fin-summary-value-group { align-items:flex-end; flex-direction:column; }
+    .sales-assistant-head { flex-direction:column; }
+    .sales-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; }
   }
 </style>
 
@@ -616,6 +656,30 @@ const apiBase = isBooking ? `/admin/api/bookings/${record.id}` : `/admin/api/lea
       btn.disabled = false;
       if (feedback) { feedback.classList.add('error'); feedback.textContent = error instanceof Error ? error.message : 'Could not log follow-up'; }
     }
+  });
+
+  // ---- Head of Sales clipboard handoff (leads only; no network request) ----
+  const chatGptPrompt = document.getElementById('chatgpt-prompt-text')?.value || '';
+  const copyChatGptBtn = document.getElementById('copy-chatgpt-prompt-btn');
+  const copyChatGptFeedback = document.getElementById('chatgpt-copy-feedback');
+  copyChatGptBtn?.addEventListener('click', async () => {
+    const original = copyChatGptBtn.textContent;
+    try {
+      await navigator.clipboard.writeText(chatGptPrompt);
+      copyChatGptBtn.textContent = 'Copied ✓';
+      if (copyChatGptFeedback) copyChatGptFeedback.textContent = 'Paste it into your Casa Gaviota ChatGPT conversation.';
+    } catch {
+      if (copyChatGptFeedback) { copyChatGptFeedback.classList.add('error'); copyChatGptFeedback.textContent = 'Could not copy. Preview the prompt and copy it manually.'; }
+    }
+    setTimeout(() => { copyChatGptBtn.textContent = original; }, 1800);
+  });
+  const previewChatGptBtn = document.getElementById('preview-chatgpt-prompt-btn');
+  const chatGptPreview = document.getElementById('chatgpt-prompt-preview');
+  previewChatGptBtn?.addEventListener('click', () => {
+    if (!chatGptPreview) return;
+    chatGptPreview.hidden = !chatGptPreview.hidden;
+    previewChatGptBtn.setAttribute('aria-expanded', String(!chatGptPreview.hidden));
+    previewChatGptBtn.textContent = chatGptPreview.hidden ? 'Preview prompt' : 'Hide preview';
   });
 
   // ---- Accommodation ----

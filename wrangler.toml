@@ -24,9 +24,7 @@ PRICELABS_PMS = "syncbnb"
 #   wrangler secret put HOSTHUB_API_KEY
 #   wrangler secret put LEADS_WEBHOOK_URL
 #   wrangler secret put HOSTHUB_ICAL_URL
-#   wrangler secret put BOLD_API_KEY
-#   wrangler secret put WOMPI_PUBLIC_KEY
-#   wrangler secret put WOMPI_PRIVATE_KEY
+#   wrangler secret put BOLD_PAYMENT_LINK
 #   wrangler secret put PRICELABS_API_KEY
 
 # CRM database — add this binding after creating the database in Cloudflare:
