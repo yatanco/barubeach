@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { captureLead } from '../lib/leads';
-import { isDateBlocked, isRangeBlocked, type BlockedRange } from '../lib/availability';
+import { isDateBlocked, isRangeBlocked, violatesWeekendMinStay, type BlockedRange } from '../lib/availability';
 import { trackMetaEvent } from '../lib/metaPixel';
 import { publicAnalyticsContext, trackGA4Event } from '../lib/analytics';
 import { waLink } from '../lib/whatsapp';
@@ -56,6 +56,7 @@ const T = {
     datesAvailable: '✓ Dates look available',
     availabilityNote: 'Note: availability not verified — please confirm dates.',
     datesVerifiedMsg: 'Dates verified ✓',
+    weekendMinStay: 'Weekend nights (Fri/Sat) require a 2-night minimum stay.',
   },
   es: {
     header: 'Planea tu escape 🌴',
@@ -97,6 +98,7 @@ const T = {
     datesAvailable: '✓ Fechas aparentemente disponibles',
     availabilityNote: 'Nota: disponibilidad pendiente de confirmación.',
     datesVerifiedMsg: 'Fechas verificadas ✓',
+    weekendMinStay: 'Las noches de fin de semana (vie/sáb) requieren una estadía mínima de 2 noches.',
   },
 };
 
@@ -181,7 +183,8 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       ? Boolean(date) && isDateBlocked(new Date(date), blocked)
       : Boolean(checkin && checkout) && isRangeBlocked(new Date(checkin), new Date(checkout), blocked));
   const datesVerifiedAvailable = !availabilityLoading && !availabilityStale && hasDateSelected && !dateIsBlocked;
-  const canSubmit = hasDateSelected && !dateIsBlocked && name.trim().length > 0;
+  const minStayViolated = type === 'stay' && Boolean(checkin && checkout) && violatesWeekendMinStay(checkin, checkout);
+  const canSubmit = hasDateSelected && !dateIsBlocked && !minStayViolated && name.trim().length > 0;
 
   function buildMessage(): string {
     const intro = type === 'daytrip' ? t.introDaytrip : t.introStay;
@@ -373,6 +376,9 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
                   )}
                   {!availabilityLoading && !availabilityStale && checkin && checkout && dateIsBlocked && (
                     <p className="mt-1 text-xs text-[#B28471]">{t.dateUnavailableRange}</p>
+                  )}
+                  {(minStayViolated || (checkin && !checkout && [5, 6].includes(new Date(checkin).getUTCDay()))) && (
+                    <p className="mt-1 text-xs text-[#B28471]">{t.weekendMinStay}</p>
                   )}
                   {datesVerifiedAvailable && (
                     <p className="mt-1 text-xs text-[#22c55e]">{t.datesAvailable}</p>

@@ -21,3 +21,17 @@ export function isRangeBlocked(checkIn: Date, checkOut: Date, blocked: BlockedRa
   }
   return false;
 }
+
+// House policy: a single-night stay is fine on weeknights, but a stay that
+// overlaps a Friday or Saturday night needs a 2-night minimum.
+export function violatesWeekendMinStay(checkinISO: string, checkoutISO: string): boolean {
+  if (!checkinISO || !checkoutISO) return false;
+  const checkIn = new Date(checkinISO);
+  const checkOut = new Date(checkoutISO);
+  const nights = Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000);
+  if (nights !== 1) return false;
+  // ISO date-only strings parse as UTC midnight, so read the weekday in UTC
+  // too — getDay() would apply the local offset and can roll onto the wrong day.
+  const dow = checkIn.getUTCDay(); // 0 = Sun … 6 = Sat
+  return dow === 5 || dow === 6;
+}

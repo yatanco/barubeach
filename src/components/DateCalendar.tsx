@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isDateBlocked, isRangeBlocked, type BlockedRange } from '../lib/availability';
+import { isDateBlocked, isRangeBlocked, violatesWeekendMinStay, type BlockedRange } from '../lib/availability';
 
 interface SingleProps {
   lang: 'en' | 'es';
@@ -157,7 +157,15 @@ export default function DateCalendar(props: Props) {
 
             const isPast = dateStr < today;
             const isBlockedDate = !isPast && isDateBlocked(new Date(dateStr), blocked);
-            const isDisabled = isPast || isBlockedDate;
+            const isMinStayBlocked =
+              mode === 'range' &&
+              !isPast &&
+              !isBlockedDate &&
+              Boolean(props.checkin) &&
+              !props.checkout &&
+              dateStr > props.checkin &&
+              violatesWeekendMinStay(props.checkin, dateStr);
+            const isDisabled = isPast || isBlockedDate || isMinStayBlocked;
             const isToday = dateStr === today;
 
             const isEndpoint = mode === 'range' && (dateStr === props.checkin || dateStr === props.checkout);
@@ -168,8 +176,10 @@ export default function DateCalendar(props: Props) {
 
             let classes = 'relative flex items-center justify-center min-h-9 h-9 p-1 rounded-lg text-[13px] font-medium transition ';
 
-            if (isDisabled) {
+            if (isBlockedDate || isPast) {
               classes += 'bg-rose text-ink/60 line-through cursor-not-allowed';
+            } else if (isMinStayBlocked) {
+              classes += 'bg-sand/40 text-ink/30 cursor-not-allowed';
             } else if (rangeInvalid && (isEndpoint || isInRange)) {
               classes += 'bg-red-100 text-red-600 border border-red-400 cursor-pointer';
             } else if (isSelected) {
