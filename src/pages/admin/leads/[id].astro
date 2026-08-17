@@ -9,9 +9,14 @@ const db = requireDb(Astro.locals);
 const lead = await db.prepare('SELECT * FROM leads WHERE id = ?1').bind(Astro.params.id).first<any>();
 if (!lead) return Astro.redirect('/admin');
 const leadError = Astro.url.searchParams.get('leadError');
+const notice = Astro.url.searchParams.get('notice');
+const alreadyExists = notice === 'already_exists';
+const justCreated = notice === 'created';
 ---
 <AdminLayout title={lead.guest_name || 'Lead'}>
   <p class="detail-back"><a href="/admin">← Dashboard</a></p>
+  {justCreated && <div class="alert">Lead added. Reply on WhatsApp and update the status below.</div>}
+  {alreadyExists && <div class="alert">This lead already exists — showing the existing record. Update any missing details here.</div>}
   {leadError && <div class="alert">{leadError}</div>}
   <UnifiedRecordDetail kind="lead" record={lead} />
 </AdminLayout>

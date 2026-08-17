@@ -288,7 +288,6 @@ const DRINKS_STATUS_COLORS: Record<string, string> = {
 };
 
 const notice = Astro.url.searchParams.get('saved');
-const leadAdded = Astro.url.searchParams.get('leadAdded');
 const leadError = Astro.url.searchParams.get('leadError');
 ---
 <AdminLayout title="Dashboard">
@@ -310,7 +309,6 @@ const leadError = Astro.url.searchParams.get('leadError');
   </p>
   {error && <div class="alert">{error}</div>}
   {notice && <div class="alert">Saved successfully.</div>}
-  {leadAdded && <div class="alert">Lead added.</div>}
   {leadError && <div class="alert">{leadError}</div>}
   {!error && (
     <p class="summary-line">{newLeadsCount} open new leads · {weekLeadsCount} created this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding</p>
@@ -765,6 +763,15 @@ const leadError = Astro.url.searchParams.get('leadError');
   }
 
   wireDateValidation('lead-date-from', 'lead-date-to', 'lead-date-error', 'add-lead-save-btn');
+
+  // Auto-reload every 2 minutes so new leads appear without a manual refresh.
+  // Skipped if the status popover is open (mid-action) or the add-lead dialog is open.
+  let autoRefreshTimer = setTimeout(function tick() {
+    const popoverOpen = !document.getElementById('status-popover')?.hidden;
+    const dialogOpen = document.getElementById('add-lead-dialog')?.hasAttribute('open');
+    if (!popoverOpen && !dialogOpen) { window.location.reload(); return; }
+    autoRefreshTimer = setTimeout(tick, 30_000);
+  }, 120_000);
 
   const syncBtn = document.getElementById('sync-hosthub-btn');
   const syncBtnIcon = syncBtn?.querySelector('.btn-icon');

@@ -1,0 +1,25 @@
+name: HostHub iCal sync
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # every hour, on the hour
+  workflow_dispatch:        # also triggerable manually from the GitHub Actions UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger HostHub sync
+        run: |
+          HTTP_STATUS=$(curl -s -o /tmp/sync-response.json -w "%{http_code}" \
+            -X GET "https://casagaviota.com/admin/api/sync-hosthub" \
+            -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
+            -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}")
+          echo "HTTP status: $HTTP_STATUS"
+          cat /tmp/sync-response.json
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Sync failed — endpoint returned $HTTP_STATUS"
+            exit 1
+          fi

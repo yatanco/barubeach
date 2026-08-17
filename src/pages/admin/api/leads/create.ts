@@ -28,6 +28,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const guestIntentRaw = formString(form, 'guest_intent');
   const guestIntent = isOneOf(guestIntentRaw, GUEST_INTENT_VALUES as unknown as readonly string[]) ? guestIntentRaw : null;
 
+  // Deduplicate by phone number before inserting. If a lead already exists with
+  // the same number (format-insensitive), redirect to it instead of creating a
+  // duplicate — the operator can update whatever is missing from the detail page.
+  const normalizedPhone = whatsapp.replace(/\D/g, '');
+  if (normalizedPhone.length >= 7) {
+    const existing = await db.prepare(`
+      SELECT id FROM leads
+      WHERE REPLACE(REPLACE(REPLACE(whatsapp, ' ', ''), '+', ''), '-', '') = ?1
+      LIMIT 1
+    `).bind(normalizedPhone).first<{ id: string }>();
+    if (existing) {
+      return Response.redirect(new URL(`/admin/leads/${existing.id}?notice=already_exists`, request.url), 303);
+    }
+  }
+
   await db.prepare(`
     INSERT INTO leads (
       id, created_at, updated_at, status, source, language, experience_type,
@@ -38,5 +53,5 @@ export const POST: APIRoute = async ({ request, locals }) => {
     JSON.stringify({ guest_name: guestName, whatsapp, email, experience_type: experienceType, date_from: dateFrom, date_to: dateTo, adults, children, guest_intent: guestIntent, notes }),
   ).run();
 
-  return redirectBack(request, '/admin', { leadAdded: '1' });
+  return Response.redirect(new URL(`/admin/leads/${id}?notice=created`, request.url), 303);
 };

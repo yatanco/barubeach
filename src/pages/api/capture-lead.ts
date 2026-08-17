@@ -29,36 +29,83 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const runtime = getRuntimeEnv(locals);
   const webhookUrl = runtime.LEADS_WEBHOOK_URL ?? import.meta.env.LEADS_WEBHOOK_URL;
   const now = nowIso();
-  const id = crypto.randomUUID();
+  let id = crypto.randomUUID();
   let storedInD1 = false;
   let storedInWebhook = false;
 
   if (db) {
     try {
-      await db.prepare(`
-        INSERT INTO leads (
-          id, created_at, updated_at, source, language, experience_type,
-          guest_name, whatsapp, email, date_from, date_to, adults, children,
-          estimated_price, notes, page_url, raw_payload
-        ) VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
-      `).bind(
-        id,
-        now,
-        source,
-        language,
-        experienceType,
-        text(data.name, 200),
-        text(data.whatsapp, 100),
-        text(data.email, 320),
-        text(data.date, 30),
-        text(data.checkOut, 30),
-        integer(data.adults, 1),
-        integer(data.children),
-        text(data.estimatedPrice, 200),
-        text(data.notes, 2000),
-        text(data.pageUrl, 1000),
-        JSON.stringify(data).slice(0, 20000),
-      ).run();
+      const incomingPhone = text(data.whatsapp, 100);
+      const normalizedPhone = incomingPhone?.replace(/\D/g, '') ?? '';
+
+      // Check for an existing lead with the same phone number (format-insensitive).
+      // If found, update rather than insert to avoid duplicates from multi-channel contacts.
+      let existingId: string | null = null;
+      if (normalizedPhone.length >= 7) {
+        const existing = await db.prepare(`
+          SELECT id FROM leads
+          WHERE REPLACE(REPLACE(REPLACE(whatsapp, ' ', ''), '+', ''), '-', '') = ?1
+          LIMIT 1
+        `).bind(normalizedPhone).first<{ id: string }>();
+        existingId = existing?.id ?? null;
+      }
+
+      if (existingId) {
+        id = existingId;
+        await db.prepare(`
+          UPDATE leads SET
+            updated_at       = ?1,
+            guest_name       = COALESCE(guest_name, ?2),
+            email            = COALESCE(email, ?3),
+            date_from        = COALESCE(date_from, ?4),
+            date_to          = COALESCE(date_to, ?5),
+            adults           = ?6,
+            children         = ?7,
+            estimated_price  = COALESCE(estimated_price, ?8),
+            notes            = COALESCE(notes, ?9),
+            page_url         = COALESCE(page_url, ?10),
+            raw_payload      = ?11
+          WHERE id = ?12
+        `).bind(
+          now,
+          text(data.name, 200),
+          text(data.email, 320),
+          text(data.date, 30),
+          text(data.checkOut, 30),
+          integer(data.adults, 1),
+          integer(data.children),
+          text(data.estimatedPrice, 200),
+          text(data.notes, 2000),
+          text(data.pageUrl, 1000),
+          JSON.stringify(data).slice(0, 20000),
+          existingId,
+        ).run();
+      } else {
+        await db.prepare(`
+          INSERT INTO leads (
+            id, created_at, updated_at, source, language, experience_type,
+            guest_name, whatsapp, email, date_from, date_to, adults, children,
+            estimated_price, notes, page_url, raw_payload
+          ) VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+        `).bind(
+          id,
+          now,
+          source,
+          language,
+          experienceType,
+          text(data.name, 200),
+          text(data.whatsapp, 100),
+          text(data.email, 320),
+          text(data.date, 30),
+          text(data.checkOut, 30),
+          integer(data.adults, 1),
+          integer(data.children),
+          text(data.estimatedPrice, 200),
+          text(data.notes, 2000),
+          text(data.pageUrl, 1000),
+          JSON.stringify(data).slice(0, 20000),
+        ).run();
+      }
       storedInD1 = true;
     } catch (error) {
       console.error('[capture-lead] D1 insert failed', error);
