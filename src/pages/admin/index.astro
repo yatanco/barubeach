@@ -354,6 +354,10 @@ const leadError = Astro.url.searchParams.get('leadError');
         <button type="button" data-sort="checkin" class="sort-pill">Soonest check-in</button>
       </div>
 
+      <div class="list-search-bar">
+        <input type="search" id="list-search" placeholder="Search by name or phone…" autocomplete="off" spellcheck="false" />
+      </div>
+
       <div class="card" id="unified-list-card">
         <div class="sync-skeleton" id="sync-skeleton" hidden aria-hidden="true">
           {[1,2,3,4].map(() => <div class="skeleton-row"><span></span><span></span></div>)}
@@ -372,6 +376,8 @@ const leadError = Astro.url.searchParams.get('leadError');
               data-created-at={item.createdAt || ''}
               data-date-from={item.dateFrom || ''}
               data-urgent={item.urgency ? '1' : '0'}
+              data-name={item.name.toLowerCase()}
+              data-phone={(item.phone || '').replace(/\D/g, '')}
             >
               <div class="stack record-main">
                 <h3>{item.name}</h3>
@@ -387,6 +393,7 @@ const leadError = Astro.url.searchParams.get('leadError');
                 <span class="muted record-meta">
                   {item.avail && <span class={`avail-dot avail-${item.avail}`} title={item.avail === 'hard' ? 'Dates unavailable — hard conflict' : item.avail === 'soft' ? 'Other leads interested in these dates' : 'Dates available'}></span>}
                   {datesLabel(item)}{item.guests > 0 && <> · {item.guests} guests</>}
+                  {item.kind === 'lead' && item.createdAt && <> · First contact: {shortDate(item.createdAt)}</>}
                 </span>
                 <span class={`amount ${item.balanceClass}`}>{item.balanceLabel}</span>
                 <span class="next-action">Next: {item.nextAction}</span>
@@ -532,9 +539,10 @@ const leadError = Astro.url.searchParams.get('leadError');
   }
   function sortLeadRows(mode) {
     if (!unifiedList) return;
-    // Urgent rows keep the server's severity order (most untouched/overdue
-    // first) regardless of this toggle — only non-urgent leads get resorted.
-    const leadRows = Array.from(unifiedList.querySelectorAll('.clickable-row[data-kind="lead"][data-urgent="0"]'));
+    // Sort ALL lead rows (urgent and non-urgent) so the toggle is always
+    // meaningful. promoteUrgentRows() keeps urgent leads at the top, but
+    // within that tier they now respect the user's chosen sort order.
+    const leadRows = Array.from(unifiedList.querySelectorAll('.clickable-row[data-kind="lead"]'));
     leadRows.sort((a, b) => {
       if (mode === 'checkin') {
         const aDate = a.dataset.dateFrom || '';
@@ -604,6 +612,34 @@ const leadError = Astro.url.searchParams.get('leadError');
     });
     if (noMatches) noMatches.style.display = visibleCount === 0 ? '' : 'none';
   }
+  // ── Search ────────────────────────────────────────────────────────────────
+  const searchInput = document.getElementById('list-search');
+  let activeFilter = 'all';
+
+  function applySearchOverlay() {
+    const raw = (searchInput?.value || '').trim().toLowerCase();
+    if (!raw) return; // nothing to hide — applyFilter already set visibility
+    const digits = raw.replace(/\D/g, '');
+    let anyVisible = false;
+    listRows.forEach((row) => {
+      if (row.style.display === 'none') return; // already hidden by filter
+      const nameMatch = (row.dataset.name || '').includes(raw);
+      const phoneMatch = digits.length >= 3 && (row.dataset.phone || '').includes(digits);
+      if (!nameMatch && !phoneMatch) { row.style.display = 'none'; return; }
+      anyVisible = true;
+    });
+    if (noMatches) noMatches.style.display = anyVisible ? 'none' : '';
+  }
+
+  const _origApplyFilter = applyFilter;
+  function applyFilterWithSearch(filter) {
+    activeFilter = filter;
+    _origApplyFilter(filter);
+    applySearchOverlay();
+  }
+
+  searchInput?.addEventListener('input', () => applyFilterWithSearch(activeFilter));
+
   filterBar?.querySelectorAll('a[data-filter]').forEach((pill) => {
     pill.addEventListener('click', (event) => {
       event.preventDefault();
@@ -611,10 +647,10 @@ const leadError = Astro.url.searchParams.get('leadError');
       pill.classList.add('active');
       filterBar.querySelectorAll('a[data-filter]').forEach((p) => p.removeAttribute('aria-current'));
       pill.setAttribute('aria-current', 'page');
-      applyFilter(pill.dataset.filter || 'all');
+      applyFilterWithSearch(pill.dataset.filter || 'all');
     });
   });
-  applyFilter('all');
+  applyFilterWithSearch('all');
 
   // Only show the trailing scroll fade on #filter-bar when there's actually
   // more to scroll to — avoids implying hidden content when everything fits.
@@ -838,7 +874,9 @@ const leadError = Astro.url.searchParams.get('leadError');
   .avail-dot.avail-clear { background:#22C55E; }
   .avail-dot.avail-soft { background:#F59E0B; }
   .avail-dot.avail-hard { background:#EF4444; }
-  .leads-sort-toggle { display:flex; align-items:center; gap:8px; margin:-10px 0 16px; }
+  .leads-sort-toggle { display:flex; align-items:center; gap:8px; margin:-10px 0 10px; }
+  .list-search-bar { margin:0 0 12px; }
+  .list-search-bar input { width:100%; }
   .sort-pill { appearance:none; cursor:pointer; min-height:36px; border:1px solid var(--line); border-radius:999px; padding:5px 12px; background:var(--surface); color:var(--ink); font-size:12px; font-weight:700; }
   .sort-pill.active { background:var(--brown); color:var(--on-accent); border-color:var(--brown); }
   .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }

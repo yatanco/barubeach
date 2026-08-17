@@ -129,6 +129,9 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
           {record.date_from && record.date_to ? <>{shortDate(record.date_from)} → {shortDate(record.date_to)} · {nights} nights</> : 'No dates yet'}
           {guests > 0 && <> · {guests} guests</>}
         </p>
+        <p class="muted dates-line">
+          First contact: {record.created_at ? shortDate(record.created_at) : 'unknown'}
+        </p>
         {checkinISO && checkoutISO && nights > 0 && (
           priceLabsQuote ? (
             <div class="pricelabs-note">
@@ -268,6 +271,7 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
           {!isBooking && (
             <>
               <div class="ns-followup-block">
+                <div class="row"><span>First contact</span><strong>{record.created_at ? shortDate(record.created_at) : 'unknown'}</strong></div>
                 <div class="row"><span>Last contacted</span><strong>{record.last_contact_date ? shortDate(record.last_contact_date) : '—'}</strong></div>
                 <div class="row"><span>Next follow-up</span><strong id="next-followup-display">{record.next_followup_date ? shortDate(record.next_followup_date) : '—'}</strong></div>
                 <button type="button" class="secondary" id="log-followup-btn">✅ Log follow-up (today)</button>
@@ -288,6 +292,7 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
           {!isBooking && (
             <>
               <div class="ns-followup-block">
+                <div class="row"><span>First contact</span><strong>{record.created_at ? shortDate(record.created_at) : 'unknown'}</strong></div>
                 <div class="row"><span>Last contacted</span><strong>{record.last_contact_date ? shortDate(record.last_contact_date) : '—'}</strong></div>
                 <div class="row"><span>Next follow-up</span><strong id="next-followup-display">{record.next_followup_date ? shortDate(record.next_followup_date) : '—'}</strong></div>
                 <button type="button" class="secondary" id="log-followup-btn">✅ Log follow-up (today)</button>
