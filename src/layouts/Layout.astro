@@ -32,7 +32,7 @@ const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
 const ogImageURL = ogImage.startsWith('http') ? ogImage : new URL(ogImage, Astro.site).href;
 const altURL = altHref ? new URL(altHref, Astro.site).href : null;
 const ogLocale = lang === 'es' ? 'es_CO' : 'en_US';
-const stickyLabel = lang === 'es' ? 'Verificar Disponibilidad →' : 'Check Availability →';
+const stickyLabel = lang === 'es' ? 'Consulta tus fechas y tu tarifa →' : 'Check your dates & get your rate →';
 const metaPixelId = import.meta.env.PUBLIC_META_PIXEL_ID ?? '1039533654806987';
 ---
 

@@ -35,14 +35,17 @@ There is no Web3Forms (or any other) key to configure — that integration was r
 
 **Pages** (`src/pages/`) are pure Astro — no server-side rendering logic on the marketing pages themselves (the `/admin` CRM pages are the exception; see below). `Layout.astro` mounts a global `WhatsAppPopup` (see **Lead capture** below) unless the page passes `hideBookingWidgets`.
 
-**Lead capture** — three surfaces, all writing through `captureLead()` (`src/lib/leads.ts`) to `/api/capture-lead`, which stores to D1 and optionally mirrors to `LEADS_WEBHOOK_URL`:
-- `WhatsAppPopup.tsx` — the global floating popup mounted by `Layout.astro` on every page (unless `hideBookingWidgets`). Opens on a floating button, an exit-intent, a 40-second timer, or a `window.dispatchEvent(new CustomEvent('open-wa-popup'))` call from any page.
+**Lead capture** — two surfaces, all writing through `captureLead()` (`src/lib/leads.ts`) to `/api/capture-lead`, which stores to D1 and optionally mirrors to `LEADS_WEBHOOK_URL`:
+- `WhatsAppPopup.tsx` — the global floating popup mounted by `Layout.astro` on every page (unless `hideBookingWidgets`). Opens on a floating button, an exit-intent, a 40-second timer, or a `window.dispatchEvent(new CustomEvent('open-wa-popup', {detail}))` call from any page — `detail.type` sets day-trip/stay, `detail.cart` (see `PricingCart.tsx` below) prefills the extras summary.
 - `WAInlineForm.tsx` — embedded day-trip/stay inquiry form, used inline on `/daytrip` and `/es/pasadia`.
-- `EscapePlanner.tsx` — the multi-step price-estimate flow on `/plan` and `/es/plan`. Its final step also offers to leave an email for follow-up (captured as a lead — there's no automated email sender wired up, so don't imply one in the copy).
 
-All three build a `wa.me` link via `waLink()` (`src/lib/whatsapp.ts`, which also exports `WHATSAPP_NUMBER`) and render the WhatsApp glyph via the shared `WhatsAppIcon` component (`src/components/icons/WhatsAppIcon.astro` for `.astro` files, `WhatsAppIcon.tsx` for React) — reuse these rather than re-inlining the SVG path or the phone number.
+Both forms collect adults, optional children (+ optional free-text ages), an optional occasion dropdown, and a contact method toggle: WhatsApp number (default) or, via a "No WhatsApp? Leave your email instead" link, an email address — the email path skips the `wa.me` redirect entirely and just confirms the lead was captured. `occasion` is picked up automatically by `sales-suggestion.ts`'s ChatGPT-prompt builder (via `raw_payload`); it does not set the structured `leads.guest_intent` admin column.
 
-`InquiryForm.tsx`, `DayTripForm.tsx`, `BookingForm.tsx`, and `WhatsAppButton.astro` have all been removed — they were superseded by the three components above and were unused.
+Both build a `wa.me` link via `waLink()` (`src/lib/whatsapp.ts`, which also exports `WHATSAPP_NUMBER`) and render the WhatsApp glyph via the shared `WhatsAppIcon` component (`src/components/icons/WhatsAppIcon.astro` for `.astro` files, `WhatsAppIcon.tsx` for React) — reuse these rather than re-inlining the SVG path or the phone number.
+
+`InquiryForm.tsx`, `DayTripForm.tsx`, `BookingForm.tsx`, `WhatsAppButton.astro`, and `EscapePlanner.tsx` (plus its orphaned `/plan`, `/es/plan` pages) have all been removed — superseded by the two components above and unused. There is no self-serve price calculator on the site; accommodation is never quoted with a static number (it varies by season) and is always confirmed on WhatsApp/email after checking dates.
+
+**Pricing model** — food ($50 USD/person/day) and transport ($250 USD private boat / $200 USD car+boat, each way) are flat, season-stable rates and are the only prices that may appear publicly anywhere on the site. Accommodation and day-trip pricing are both bespoke — quoted per group/dates, never shown as a static number or blended into a total on the marketing pages. `PricingCart.tsx` is the homepage's "Build your stay" extras selector (food + transport only, live-summed as an "Extras estimate") — its CTA dispatches `open-wa-popup` with a `cart` detail that `WhatsAppPopup.tsx` folds into the WhatsApp message and lead `notes`; it never computes or displays an accommodation figure.
 
 **WhatsApp prefill texts** — use exactly as specified (these feed analytics):
 - Stay pages: `gaviotastay`
@@ -92,12 +95,10 @@ Hosthub remains the source of truth for reservation dates/availability; D1 is th
 |---|---|---|
 | `/` | `src/pages/index.astro` | `/es` |
 | `/daytrip` | `src/pages/daytrip.astro` | `/es/pasadia` |
-| `/plan` | `src/pages/plan.astro` | `/es/plan` |
 | `/gallery` | `src/pages/gallery.astro` | `/gallery` |
 | `/blog` | `src/pages/blog/index.astro` | n/a — Spanish-only content, no EN equivalent |
 | `/es` | `src/pages/es/index.astro` | `/` |
 | `/es/pasadia` | `src/pages/es/pasadia.astro` | `/daytrip` |
-| `/es/plan` | `src/pages/es/plan.astro` | `/plan` |
 | `/booking/confirm` | `src/pages/booking/confirm.astro` | `/booking/confirm` |
 | `/menu` | `src/pages/menu.astro` | `/es/menu` |
 | `/es/menu` | `src/pages/es/menu.astro` | `/menu` |

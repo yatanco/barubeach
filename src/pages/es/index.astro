@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import WhatsAppIcon from '../../components/icons/WhatsAppIcon.astro';
+import PricingCart from '../../components/PricingCart.tsx';
 const MAPS = 'https://share.google/SHahHFkk8vXJIW7hH';
 
 const lodgingJsonLd = {
@@ -19,7 +20,6 @@ const lodgingJsonLd = {
     "addressRegion": "Bolívar",
     "addressCountry": "CO"
   },
-  "priceRange": "$300-$1600 USD",
   "aggregateRating": {
     "@type": "AggregateRating",
     "ratingValue": "4.8",
@@ -61,63 +61,13 @@ const lodgingJsonLd = {
         Barú sin multitudes — un grupo a la vez.
       </p>
 
-      <!-- Toggle Pasadía / Estadía — enruta al flujo de pasadía o de estadía (no es una búsqueda en vivo) -->
-      <div class="flex justify-center mb-5">
-        <div id="trip-toggle" role="tablist" aria-label="Pasadía o estadía" class="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 p-1 backdrop-blur-sm">
-          <button type="button" role="tab" data-mode="days" aria-selected="false" class="trip-toggle-btn px-6 py-2.5 rounded-full text-sm font-semibold transition-colors text-white/70 hover:text-white cursor-pointer">
-            Pasadía
-          </button>
-          <button type="button" role="tab" data-mode="nights" aria-selected="true" class="trip-toggle-btn px-6 py-2.5 rounded-full text-sm font-semibold transition-colors bg-sand text-brown cursor-pointer">
-            Estadía
-          </button>
-        </div>
-      </div>
-
       <button
-        id="hero-cta"
+        onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
         class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-4"
       >
-        Verificar Disponibilidad →
+        Consulta tus fechas y tu tarifa →
       </button>
       <p class="text-white/60 text-sm italic mb-6">Solo recibimos un grupo a la vez.</p>
-
-      <script is:inline>
-        (function () {
-          const toggle = document.getElementById('trip-toggle');
-          const cta = document.getElementById('hero-cta');
-          if (!toggle || !cta) return;
-          const btns = toggle.querySelectorAll('.trip-toggle-btn');
-          let mode = 'nights';
-
-          function render() {
-            btns.forEach((b) => {
-              const active = b.dataset.mode === mode;
-              b.setAttribute('aria-selected', String(active));
-              b.classList.toggle('bg-sand', active);
-              b.classList.toggle('text-brown', active);
-              b.classList.toggle('text-white/70', !active);
-              b.classList.toggle('hover:text-white', !active);
-            });
-          }
-
-          btns.forEach((b) =>
-            b.addEventListener('click', () => {
-              mode = b.dataset.mode;
-              render();
-            })
-          );
-
-          cta.addEventListener('click', () => {
-            if (mode === 'days') {
-              window.location.href = '/es/pasadia';
-            } else {
-              window.dispatchEvent(new CustomEvent('open-wa-popup', { detail: { type: 'stay' } }));
-            }
-          });
-
-          render();
-        })();
-      </script>
       <a href="#experiencia" class="block text-white/45 text-sm hover:text-white/70 transition-colors">
         Explorar ↓
       </a>
@@ -235,7 +185,7 @@ const lodgingJsonLd = {
               onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
               class="inline-flex items-center gap-1.5 border border-brown text-brown font-semibold text-sm px-5 py-3 rounded-full hover:bg-brown/5 transition cursor-pointer"
             >
-              Verificar Disponibilidad →
+              Consulta tus fechas y tu tarifa →
             </button>
           </div>
         </div>
@@ -415,89 +365,14 @@ const lodgingJsonLd = {
     </div>
   </section>
 
-  <!-- PRECIOS DE ESTADÍA -->
+  <!-- ARMA TU ESTADÍA -->
   <section class="py-20 md:py-28" style="background: #FAFAF5;">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-12">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Cómo funciona el precio</h2>
-        <p class="text-ink/60">La casa es tuya — agrega lo que necesitas.</p>
+    <div class="max-w-2xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-10">
+        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Arma tu estadía</h2>
+        <p class="text-ink/60">La comida y el transporte son tarifas fijas todo el año — agrega lo que necesites. El alojamiento se cotiza para tus fechas exactas.</p>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
-          <div class="text-3xl mb-3">🏠</div>
-          <h3 class="font-semibold text-brown text-lg mb-1">La casa</h3>
-          <p class="text-2xl font-bold text-brown mb-2">$350 USD <span class="text-base font-normal text-ink/50">/noche</span></p>
-          <p class="text-sm text-ink/60">Hasta 8 personas · mínimo 2 noches · 3 habitaciones con baño privado</p>
-        </div>
-        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
-          <div class="text-3xl mb-3">🚤</div>
-          <h3 class="font-semibold text-brown text-lg mb-3">Transporte <span class="text-sm font-normal text-ink/50">(elige uno)</span></h3>
-          <div class="space-y-3">
-            <div>
-              <p class="font-semibold text-sm text-ink">Lancha privada: $250 USD cada trayecto</p>
-              <p class="text-sm text-ink/55">Directo desde Cartagena · hasta 10 personas</p>
-            </div>
-            <div>
-              <p class="font-semibold text-sm text-ink">Carro + lancha: $200 USD cada trayecto</p>
-              <p class="text-sm text-ink/55">Drive a Barú + lancha corta hasta la casa</p>
-            </div>
-          </div>
-        </div>
-        <div class="bg-white rounded-2xl p-6 border border-terracotta/15 shadow-sm">
-          <div class="text-3xl mb-3">🍽️</div>
-          <h3 class="font-semibold text-brown text-lg mb-3">Comida <span class="text-sm font-normal text-ink/50">(elige una)</span></h3>
-          <div class="space-y-3">
-            <div>
-              <p class="font-semibold text-sm text-ink">Servicio de comida: $50 USD/persona/día</p>
-              <p class="text-sm text-ink/55">Comidas caribeñas frescas preparadas en la casa</p>
-              <p class="text-xs text-ink/60 italic mt-1">Tu cocina privada, atendiendo solo a tu grupo.</p>
-            </div>
-            <div>
-              <p class="font-semibold text-sm text-ink">Lujo con langosta: $80 USD/persona/día</p>
-            </div>
-            <div>
-              <p class="font-semibold text-sm text-ink">Traer tus propios víveres: $0</p>
-              <p class="text-sm text-ink/55">Compra en Cartagena antes de llegar</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="rounded-2xl p-7 mb-8" style="background: #E6C497;">
-        <p class="font-semibold text-brown text-sm uppercase tracking-wide mb-5">Ejemplo: 2 noches · 4 personas · lancha privada · servicio de comida</p>
-        <div class="space-y-2 text-sm text-ink/80 mb-4">
-          <div class="flex justify-between">
-            <span>🏠 Casa (2 noches)</span>
-            <span class="font-semibold">$700 USD</span>
-          </div>
-          <div class="flex justify-between">
-            <span>🚤 Transporte (lancha, ida y vuelta)</span>
-            <span class="font-semibold">$500 USD</span>
-          </div>
-          <div class="flex justify-between">
-            <span>🍽️ Comida (4 personas × $50 × 2 noches)</span>
-            <span class="font-semibold">$400 USD</span>
-          </div>
-          <div class="border-t border-ink/20 pt-3 flex justify-between font-bold text-base">
-            <span>Total</span>
-            <span>~$1,600 USD</span>
-          </div>
-          <div class="flex justify-between text-ink/55">
-            <span>Por persona</span>
-            <span>~$400 USD</span>
-          </div>
-        </div>
-      </div>
-
-      <p class="text-center text-sm text-ink/50 mb-8">Precio final confirmado por WhatsApp. Se requiere 50% de depósito para reservar las fechas.</p>
-      <div class="text-center">
-        <button
-          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'stay'}}))"
-          class="inline-flex items-center gap-2.5 bg-sand text-brown px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition shadow-md cursor-pointer"
-        >
-          Verificar Disponibilidad →
-        </button>
-      </div>
+      <PricingCart lang="es" client:visible />
     </div>
   </section>
 
@@ -667,7 +542,7 @@ const lodgingJsonLd = {
           },
           {
             q: '¿Cómo funciona la comida?',
-            a: 'Para pasadías, un almuerzo caribeño fresco está incluido en el precio del paquete. Para estadías, puedes agregar nuestro servicio de comida ($50 USD/persona/día), cambiar al paquete con langosta ($80 USD/persona/día), o traer tus propios víveres de Cartagena.',
+            a: 'Para pasadías, un almuerzo caribeño fresco está incluido en el precio del paquete. Para estadías, puedes agregar nuestro servicio de comida ($50 USD/persona/día) o traer tus propios víveres de Cartagena.',
           },
           {
             q: '¿Hay aire acondicionado?',
@@ -719,7 +594,7 @@ const lodgingJsonLd = {
         style="background: #25D366;"
       >
         <WhatsAppIcon class="w-5 h-5 flex-shrink-0" />
-        Verificar Disponibilidad por WhatsApp →
+        Consulta tus fechas y tu tarifa →
       </button>
       <div>
         <a

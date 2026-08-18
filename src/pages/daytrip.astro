@@ -42,11 +42,11 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
         onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'daytrip'}}))"
         class="bg-sand text-brown font-semibold px-8 py-4 rounded-full text-base hover:opacity-90 transition-opacity cursor-pointer mb-4"
       >
-        Check Availability →
+        Check your dates & get your rate →
       </button>
       <p class="text-white/60 text-sm italic mb-6">One group at a time — your beach, exclusively.</p>
-      <a href="#pricing" class="block text-white/45 text-sm hover:text-white/70 transition-colors">
-        See pricing ↓
+      <a href="#details" class="block text-white/45 text-sm hover:text-white/70 transition-colors">
+        See what's included ↓
       </a>
     </div>
   </section>
@@ -102,31 +102,14 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
     });
   </script>
 
-  <!-- ALL-IN PRICING -->
-  <section id="pricing" class="py-20 md:py-28" style="background: #E6C497;">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-12">
-        <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">Simple, all-in pricing</h2>
-        <p class="text-ink/70">Transport, house, beach, and lunch — all included. No surprises.</p>
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-        {[
-          { group: 'Couple', people: '2 people', price: '$300 USD' },
-          { group: 'Family', people: '4 people', price: '$500 USD' },
-          { group: 'Group of 6', people: '6 people', price: '$700 USD' },
-          { group: 'Group of 8', people: '8 people', price: '$900 USD' },
-        ].map(({ group, people, price }) => (
-          <div class="bg-white rounded-2xl p-5 text-center shadow-sm">
-            <p class="font-semibold text-brown text-sm mb-1">{group}</p>
-            <p class="text-xs text-ink/50 mb-3">{people}</p>
-            <p class="text-xl font-bold text-brown">{price}</p>
-          </div>
-        ))}
-      </div>
+  <!-- YOUR DAY, YOUR QUOTE -->
+  <section id="details" class="py-20 md:py-28" style="background: #E6C497;">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center">
+      <h2 class="font-serif text-3xl sm:text-4xl font-semibold mb-3 text-brown">A day trip built around your group</h2>
+      <p class="text-ink/70 mb-8">Group size, dates, and any special requests shape your quote — tell us your plans and we'll confirm your rate on WhatsApp.</p>
 
       <div class="bg-white/60 rounded-2xl p-6 text-center mb-8">
-        <p class="text-sm text-ink/70 font-medium">All-in price. Includes transport from Cartagena, private beach access, and fresh Caribbean lunch.</p>
+        <p class="text-sm text-ink/70 font-medium">Round-trip transport from Cartagena, private beach access, and fresh Caribbean lunch — all included.</p>
       </div>
 
       <div class="text-center">
@@ -134,7 +117,7 @@ import WAInlineForm from '../components/WAInlineForm.tsx';
           onclick="window.dispatchEvent(new CustomEvent('open-wa-popup', {detail:{type:'daytrip'}}))"
           class="inline-flex items-center gap-2 bg-brown text-white px-8 py-4 rounded-full text-sm font-semibold hover:opacity-90 transition cursor-pointer"
         >
-          Check Availability →
+          Check your dates & get your rate →
         </button>
       </div>
     </div>

@@ -9,11 +9,25 @@ import DateCalendar from './DateCalendar';
 import WhatsAppIcon from './icons/WhatsAppIcon';
 
 type ExperienceType = 'daytrip' | 'stay';
+type ContactMethod = 'whatsapp' | 'email';
+type CartTransport = 'boat' | 'car_boat';
+
+export interface CartDetail {
+  foodOn: boolean;
+  people: number;
+  days: number;
+  foodSubtotal: number;
+  transport: CartTransport;
+  transportSubtotal: number;
+  extrasTotal: number;
+}
 
 interface Props {
   lang?: 'en' | 'es';
   defaultType?: ExperienceType;
 }
+
+const OCCASION_VALUES = ['family_vacation', 'birthday', 'anniversary', 'friends', 'work_retreat', 'relaxation', 'wedding', 'other'] as const;
 
 const T = {
   en: {
@@ -33,11 +47,31 @@ const T = {
     notesPh: 'Birthday, dietary needs, questions…',
     childrenLabel: 'Children',
     childrenSub: 'under 12',
+    agesLabel: 'Ages',
+    agesOptional: '(optional)',
+    agesPh: 'e.g. 5, 8, 12',
+    occasionLabel: 'What are you celebrating?',
+    occasionOptional: '(optional)',
+    occasionPlaceholder: 'Select one…',
+    occasionOptions: {
+      family_vacation: 'Family vacation', birthday: 'Birthday', anniversary: 'Anniversary',
+      friends: 'Trip with friends', work_retreat: 'Team / work retreat', relaxation: 'Just relaxing',
+      wedding: 'Wedding', other: 'Other',
+    },
     nameLabel: 'Your name',
     namePh: 'First name',
     childrenMsg: 'Children',
+    agesMsg: 'Ages',
+    occasionMsg: 'Occasion',
     nameMsg: 'Name',
     submitBtn: 'Send on WhatsApp →',
+    emailSubmitBtn: 'Send →',
+    sending: 'Sending…',
+    useEmailInstead: 'No WhatsApp? Leave your email instead →',
+    useWhatsappInstead: '← Use WhatsApp instead',
+    emailLabel: 'Your email',
+    emailPh: 'you@example.com',
+    emailSuccess: "✓ Got it — we'll email you back within a few hours.",
     introDaytrip: "I'd like a private day trip.",
     introStay: "I'd like to plan an overnight stay.",
     dateMsg: 'Date',
@@ -46,10 +80,18 @@ const T = {
     adultsMsg: 'Adults',
     peopleMsg: 'People',
     waPhoneMsg: 'My WhatsApp',
+    emailMsg: 'My email',
     noteMsg: 'Note',
     tbd: 'TBD',
     greeting: 'Hello Casa Gaviota! 👋',
     footer: 'Sent from casagaviota.com',
+    foodCartOn: (people: number, days: number) => `Food service — ${people} people × ${days} days ($50/person/day)`,
+    foodCartOff: 'Bringing own food',
+    transportCartMsg: 'Transport',
+    boatLabel: 'Private boat',
+    carLabel: 'Car + boat',
+    extrasCartMsg: 'Extras estimate',
+    accommodationNote: 'Accommodation depends on dates — to be confirmed on WhatsApp.',
     checkingAvailability: 'Checking availability...',
     dateUnavailableDay: '⚠️ This date is not available. Please choose another date.',
     dateUnavailableRange: '⚠️ Some dates in this range are not available. Please adjust your dates.',
@@ -75,11 +117,31 @@ const T = {
     notesPh: 'Cumpleaños, alergias, preguntas…',
     childrenLabel: 'Niños',
     childrenSub: 'menores de 12',
+    agesLabel: 'Edades',
+    agesOptional: '(opcional)',
+    agesPh: 'ej. 5, 8, 12',
+    occasionLabel: '¿Qué están celebrando?',
+    occasionOptional: '(opcional)',
+    occasionPlaceholder: 'Selecciona uno…',
+    occasionOptions: {
+      family_vacation: 'Vacaciones familiares', birthday: 'Cumpleaños', anniversary: 'Aniversario',
+      friends: 'Viaje con amigos', work_retreat: 'Retiro de trabajo / equipo', relaxation: 'Solo relajarnos',
+      wedding: 'Boda', other: 'Otro',
+    },
     nameLabel: 'Tu nombre',
     namePh: 'Nombre',
     childrenMsg: 'Niños',
+    agesMsg: 'Edades',
+    occasionMsg: 'Ocasión',
     nameMsg: 'Nombre',
     submitBtn: 'Enviar por WhatsApp →',
+    emailSubmitBtn: 'Enviar →',
+    sending: 'Enviando…',
+    useEmailInstead: '¿No tienes WhatsApp? Deja tu email →',
+    useWhatsappInstead: '← Usar WhatsApp',
+    emailLabel: 'Tu email',
+    emailPh: 'tu@ejemplo.com',
+    emailSuccess: '✓ Listo — te escribimos por email en pocas horas.',
     introDaytrip: 'Quiero un pasadía privado.',
     introStay: 'Quiero información sobre estadía.',
     dateMsg: 'Fecha',
@@ -88,10 +150,18 @@ const T = {
     adultsMsg: 'Adultos',
     peopleMsg: 'Personas',
     waPhoneMsg: 'Mi WhatsApp',
+    emailMsg: 'Mi email',
     noteMsg: 'Nota',
     tbd: 'Por confirmar',
     greeting: 'Hola Casa Gaviota! 👋',
     footer: 'Enviado desde casagaviota.com',
+    foodCartOn: (people: number, days: number) => `Servicio de comida — ${people} personas × ${days} días ($50/persona/día)`,
+    foodCartOff: 'Traen su propia comida',
+    transportCartMsg: 'Transporte',
+    boatLabel: 'Lancha privada',
+    carLabel: 'Carro + lancha',
+    extrasCartMsg: 'Estimado de extras',
+    accommodationNote: 'El alojamiento depende de las fechas — se confirma por WhatsApp.',
     checkingAvailability: 'Verificando disponibilidad...',
     dateUnavailableDay: '⚠️ Esta fecha no está disponible. Por favor elige otra fecha.',
     dateUnavailableRange: '⚠️ Algunas fechas en este rango no están disponibles.',
@@ -112,14 +182,20 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
   const [checkout, setCheckout] = useState('');
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
+  const [ages, setAges] = useState('');
+  const [occasion, setOccasion] = useState('');
   const [name, setName] = useState('');
+  const [contactMethod, setContactMethod] = useState<ContactMethod>('whatsapp');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [cart, setCart] = useState<CartDetail | null>(null);
   const [blocked, setBlocked] = useState<BlockedRange[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityStale, setAvailabilityStale] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const submissionTrackedRef = useRef(false);
 
@@ -127,8 +203,12 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ type?: ExperienceType; intentional?: boolean }>).detail;
+      const detail = (e as CustomEvent<{ type?: ExperienceType; intentional?: boolean; cart?: CartDetail }>).detail;
       if (detail?.type) setType(detail.type);
+      if (detail?.cart) {
+        setCart(detail.cart);
+        setAdults(detail.cart.people);
+      }
       submissionTrackedRef.current = false;
       setSubmitError('');
       if (detail?.intentional !== false) {
@@ -184,7 +264,8 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       : Boolean(checkin && checkout) && isRangeBlocked(new Date(checkin), new Date(checkout), blocked));
   const datesVerifiedAvailable = !availabilityLoading && !availabilityStale && hasDateSelected && !dateIsBlocked;
   const minStayViolated = type === 'stay' && Boolean(checkin && checkout) && violatesWeekendMinStay(checkin, checkout);
-  const canSubmit = hasDateSelected && !dateIsBlocked && !minStayViolated && name.trim().length > 0;
+  const canSubmit = hasDateSelected && !dateIsBlocked && !minStayViolated && name.trim().length > 0
+    && (contactMethod === 'whatsapp' || email.trim().length > 0);
 
   function buildMessage(): string {
     const intro = type === 'daytrip' ? t.introDaytrip : t.introStay;
@@ -198,7 +279,16 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       msg += `${t.adultsMsg}: ${adults}\n`;
     }
     if (children > 0) msg += `${t.childrenMsg}: ${children}\n`;
+    if (children > 0 && ages.trim()) msg += `${t.agesMsg}: ${ages.trim()}\n`;
+    if (occasion) msg += `${t.occasionMsg}: ${t.occasionOptions[occasion as keyof typeof t.occasionOptions]}\n`;
     if (name.trim()) msg += `${t.nameMsg}: ${name.trim()}\n`;
+    if (contactMethod === 'email' && email.trim()) msg += `${t.emailMsg}: ${email.trim()}\n`;
+    if (cart) {
+      msg += `${cart.foodOn ? t.foodCartOn(cart.people, cart.days) : t.foodCartOff}\n`;
+      msg += `${t.transportCartMsg}: ${cart.transport === 'boat' ? t.boatLabel : t.carLabel} ($${cart.transportSubtotal} USD)\n`;
+      msg += `${t.extrasCartMsg}: $${cart.extrasTotal} USD\n`;
+      msg += `${t.accommodationNote}\n`;
+    }
     if (notes.trim()) msg += `${t.noteMsg}: ${notes.trim()}\n`;
     if (hasDateSelected) {
       if (availabilityStale) {
@@ -211,6 +301,13 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     return msg;
   }
 
+  function cartNotesSummary(): string {
+    if (!cart) return '';
+    const foodLine = cart.foodOn ? t.foodCartOn(cart.people, cart.days) : t.foodCartOff;
+    const transportLine = `${t.transportCartMsg}: ${cart.transport === 'boat' ? t.boatLabel : t.carLabel} ($${cart.transportSubtotal} USD)`;
+    return `${foodLine}. ${transportLine}. ${t.extrasCartMsg}: $${cart.extrasTotal} USD.`;
+  }
+
   function closePopup() {
     setOpen(false);
     setDate('');
@@ -218,9 +315,15 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     setCheckout('');
     setAdults(2);
     setChildren(0);
+    setAges('');
+    setOccasion('');
     setName('');
+    setContactMethod('whatsapp');
     setPhone('');
+    setEmail('');
     setNotes('');
+    setCart(null);
+    setEmailSubmitted(false);
     setType(defaultType);
   }
 
@@ -229,7 +332,9 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     if (!canSubmit || submitting || submissionTrackedRef.current) return;
     setSubmitting(true);
     setSubmitError('');
-    const whatsappWindow = window.open('', '_blank');
+    const whatsappWindow = contactMethod === 'whatsapp' ? window.open('', '_blank') : null;
+    const cartNotes = cartNotesSummary();
+    const combinedNotes = [cartNotes, notes.trim()].filter(Boolean).join(' ') || undefined;
     const captured = await captureLead({
       source: 'popup',
       language: lang,
@@ -239,11 +344,15 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       adults,
       children: children > 0 ? children : undefined,
       name: name || undefined,
-      whatsapp: phone || undefined,
-      notes: notes || undefined,
+      whatsapp: contactMethod === 'whatsapp' ? (phone || undefined) : undefined,
+      email: contactMethod === 'email' ? email.trim() : undefined,
+      occasion: occasion || undefined,
+      notes: combinedNotes,
       estimatedPrice: type === 'daytrip'
         ? daytripEstimate(adults)
-        : 'From $350 USD/night + transport + food',
+        : cart
+          ? `Extras: $${cart.extrasTotal} USD (food+transport) — accommodation TBD by dates`
+          : 'Accommodation depends on dates',
     });
     if (!captured) {
       whatsappWindow?.close();
@@ -262,12 +371,19 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     });
     trackMetaEvent('Lead');
     trackMetaEvent('Contact', {
-      content_name: 'WhatsApp Inquiry',
+      content_name: contactMethod === 'whatsapp' ? 'WhatsApp Inquiry' : 'Email Inquiry',
       source: 'popup',
       language: lang,
       experience_type: type,
     });
     sessionStorage.setItem('popup_shown', '1');
+
+    if (contactMethod === 'email') {
+      setSubmitting(false);
+      setEmailSubmitted(true);
+      return;
+    }
+
     trackGA4Event('whatsapp_click', {
       link_type: 'whatsapp',
       ...analyticsContext,
@@ -341,6 +457,13 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
             </div>
 
             <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-4">
+              {cart && (
+                <div className="rounded-xl border border-terracotta/20 bg-sand/15 px-4 py-3 text-xs text-ink/70">
+                  <p className="font-semibold text-brown mb-1">{t.extrasCartMsg}: ${cart.extrasTotal} USD</p>
+                  <p>{cart.foodOn ? t.foodCartOn(cart.people, cart.days) : t.foodCartOff}</p>
+                  <p>{t.transportCartMsg}: {cart.transport === 'boat' ? t.boatLabel : t.carLabel} (${cart.transportSubtotal} USD)</p>
+                </div>
+              )}
               {type === 'daytrip' ? (
                 <div>
                   <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.whenLabel}</label>
@@ -422,6 +545,37 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
                 </div>
               </div>
 
+              {children > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">
+                    {t.agesLabel} <span className="normal-case font-normal text-ink/35">{t.agesOptional}</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={ages}
+                    onChange={e => setAges(e.target.value)}
+                    placeholder={t.agesPh}
+                    className={inp}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">
+                  {t.occasionLabel} <span className="normal-case font-normal text-ink/35">{t.occasionOptional}</span>
+                </label>
+                <select
+                  value={occasion}
+                  onChange={e => setOccasion(e.target.value)}
+                  className={inp}
+                >
+                  <option value="">{t.occasionPlaceholder}</option>
+                  {OCCASION_VALUES.map(v => (
+                    <option key={v} value={v}>{t.occasionOptions[v]}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide mb-1.5">{t.nameLabel}</label>
                 <input
@@ -432,6 +586,41 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
                   placeholder={t.namePh}
                   className={inp}
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-ink/50 uppercase tracking-wide">
+                    {contactMethod === 'whatsapp' ? t.phoneLabel : t.emailLabel}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setContactMethod(contactMethod === 'whatsapp' ? 'email' : 'whatsapp')}
+                    className="text-xs font-medium text-terracotta hover:underline"
+                  >
+                    {contactMethod === 'whatsapp' ? t.useEmailInstead : t.useWhatsappInstead}
+                  </button>
+                </div>
+                {contactMethod === 'whatsapp' ? (
+                  <input
+                    type="tel"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder={t.phonePh}
+                    className={inp}
+                  />
+                ) : (
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder={t.emailPh}
+                    className={inp}
+                  />
+                )}
               </div>
 
               <div>
@@ -447,18 +636,22 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
 
               {submitError && <p role="alert" className="text-sm text-red-700">{submitError}</p>}
 
-              <button
-                type="submit"
-                disabled={!canSubmit || submitting}
-                className={`w-full font-semibold py-3.5 rounded-xl transition text-sm flex items-center justify-center gap-2 mt-2 ${
-                  canSubmit
-                    ? 'bg-whatsapp text-white hover:opacity-90'
-                    : 'bg-rose text-ink/60 cursor-not-allowed'
-                }`}
-              >
-                <WhatsAppIcon className="w-4 h-4 flex-shrink-0" />
-                {submitting ? (lang === 'es' ? 'Enviando…' : 'Sending…') : t.submitBtn}
-              </button>
+              {emailSubmitted ? (
+                <p className="text-center text-sm font-medium text-[#22c55e] py-3">{t.emailSuccess}</p>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!canSubmit || submitting}
+                  className={`w-full font-semibold py-3.5 rounded-xl transition text-sm flex items-center justify-center gap-2 mt-2 ${
+                    canSubmit
+                      ? 'bg-whatsapp text-white hover:opacity-90'
+                      : 'bg-rose text-ink/60 cursor-not-allowed'
+                  }`}
+                >
+                  {contactMethod === 'whatsapp' && <WhatsAppIcon className="w-4 h-4 flex-shrink-0" />}
+                  {submitting ? t.sending : (contactMethod === 'whatsapp' ? t.submitBtn : t.emailSubmitBtn)}
+                </button>
+              )}
             </form>
           </div>
         </div>

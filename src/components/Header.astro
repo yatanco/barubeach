@@ -27,13 +27,21 @@ const nav = isES
       { href: '/#faq', label: 'FAQ' },
     ];
 
-const waLabel = isES ? 'Verificar Disponibilidad →' : 'Check Availability →';
+const waLabel = isES ? 'Consulta tus fechas y tu tarifa →' : 'Check your dates & get your rate →';
 const flagLabel = isES ? '🇬🇧' : '🇪🇸';
 const flagTitle = isES ? 'View in English' : 'Ver en español';
+
+// Days/Nights trip toggle — routes the CTA action:
+// Days → day-trip page, Nights → overnight-stay WhatsApp flow.
+const daytripHref = isES ? '/es/pasadia' : '/daytrip';
+const daysLabel = isES ? 'Días' : 'Days';
+const nightsLabel = isES ? 'Noches' : 'Nights';
+const tripToggleLabel = isES ? 'Pasadía o estadía' : 'Day trip or overnight stay';
 ---
 
 <header
   id="site-header"
+  data-daytrip-href={daytripHref}
   class="sticky top-0 z-50 bg-brown"
 >
   <div class="max-w-6xl mx-auto px-4 sm:px-6">
@@ -73,9 +81,22 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
           </a>
         )}
 
+        <div
+          role="tablist"
+          aria-label={tripToggleLabel}
+          class="trip-toggle hidden md:inline-flex items-center gap-0.5 rounded-full border border-white/20 bg-white/10 p-0.5"
+        >
+          <button type="button" role="tab" data-mode="days" aria-selected="false" class="trip-toggle-btn px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors text-white/60 hover:text-white cursor-pointer">
+            {daysLabel}
+          </button>
+          <button type="button" role="tab" data-mode="nights" aria-selected="true" class="trip-toggle-btn px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors bg-sand text-brown cursor-pointer">
+            {nightsLabel}
+          </button>
+        </div>
+
         <button
-          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
-          class="hidden md:inline-flex items-center gap-1.5 bg-sand text-brown text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity cursor-pointer"
+          type="button"
+          class="check-availability-btn hidden md:inline-flex items-center gap-1.5 bg-sand text-brown text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity cursor-pointer"
         >
           {waLabel}
         </button>
@@ -111,9 +132,21 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
             </a>
           ))}
         </nav>
+        <div
+          role="tablist"
+          aria-label={tripToggleLabel}
+          class="trip-toggle flex items-center gap-1 rounded-full border border-white/20 bg-white/10 p-1 mb-3"
+        >
+          <button type="button" role="tab" data-mode="days" aria-selected="false" class="trip-toggle-btn flex-1 px-3 py-2 rounded-full text-sm font-medium transition-colors text-white/60 hover:text-white cursor-pointer">
+            {daysLabel}
+          </button>
+          <button type="button" role="tab" data-mode="nights" aria-selected="true" class="trip-toggle-btn flex-1 px-3 py-2 rounded-full text-sm font-medium transition-colors bg-sand text-brown cursor-pointer">
+            {nightsLabel}
+          </button>
+        </div>
         <button
-          onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
-          class="flex items-center justify-center gap-2 bg-sand text-brown text-sm font-semibold px-4 py-3 rounded-full hover:opacity-90 transition-opacity w-full cursor-pointer"
+          type="button"
+          class="check-availability-btn flex items-center justify-center gap-2 bg-sand text-brown text-sm font-semibold px-4 py-3 rounded-full hover:opacity-90 transition-opacity w-full cursor-pointer"
         >
           {waLabel}
         </button>
@@ -142,4 +175,41 @@ const flagTitle = isES ? 'View in English' : 'Ver en español';
     if (!header) return;
     header.classList.toggle('shadow-md', window.scrollY > 10);
   });
+
+  // Days/Nights trip toggle — controls what the CTA buttons do.
+  const daytripHref = document.getElementById('site-header')?.dataset.daytripHref || '/daytrip';
+  const toggleBtns = document.querySelectorAll('.trip-toggle-btn');
+  const ctaBtns = document.querySelectorAll('.check-availability-btn');
+  let tripMode = 'nights';
+
+  function renderTripMode() {
+    toggleBtns.forEach((b) => {
+      const el = b as HTMLElement;
+      const active = el.dataset.mode === tripMode;
+      el.setAttribute('aria-selected', String(active));
+      el.classList.toggle('bg-sand', active);
+      el.classList.toggle('text-brown', active);
+      el.classList.toggle('text-white/60', !active);
+      el.classList.toggle('hover:text-white', !active);
+    });
+  }
+
+  toggleBtns.forEach((b) =>
+    b.addEventListener('click', () => {
+      tripMode = (b as HTMLElement).dataset.mode || 'nights';
+      renderTripMode();
+    })
+  );
+
+  ctaBtns.forEach((c) =>
+    c.addEventListener('click', () => {
+      if (tripMode === 'days') {
+        window.location.href = daytripHref;
+      } else {
+        window.dispatchEvent(new CustomEvent('open-wa-popup', { detail: { type: 'stay' } }));
+      }
+    })
+  );
+
+  renderTripMode();
 </script>
