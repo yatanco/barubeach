@@ -169,15 +169,47 @@ export function buildChatGptSalesPrompt(context: SalesSuggestionContext): string
   const conversation = context.conversation.length
     ? context.conversation.map((item) => `- ${item.source}: ${item.text}`).join('\n')
     : 'No conversation text is stored. Use the structured lead facts only.';
-  const priceLabs = context.pricing.pricelabs_quote
+  const priceLabsLine = context.pricing.pricelabs_quote
     ? `${context.pricing.pricelabs_quote.currency} ${context.pricing.pricelabs_quote.totalPrice.toLocaleString('en-US')} total (${context.pricing.pricelabs_quote.avgPricePerNight.toLocaleString('en-US')}/night); informational, not a saved quote`
-    : 'unknown';
+    : null;
   const recordedQuote = context.pricing.recorded_quote_total_major_units
     ? `${context.pricing.currency} ${context.pricing.recorded_quote_total_major_units.toLocaleString('en-US')}`
     : 'unknown';
-  const foodOption = context.calculated_options.full_food_service_cop === null
-    ? 'unknown'
-    : `${cop(context.calculated_options.full_food_service_cop)} for ${context.lead.guests.total} guests / ${context.calculated_options.food_service_days} service day(s); calculated at COP ${COMMERCIAL_RATES_COP.foodPerPersonPerServiceDay.toLocaleString('en-US')} per person/day, not yet confirmed`;
+  // context.lead.intent is the raw guest_intent value (e.g. 'family_vacation') —
+  // map it through the same label table the lean prompt uses instead of printing
+  // the snake_case code straight to the model.
+  const intentLabel = context.lead.intent ? (GUEST_INTENT_LABELS[context.lead.intent] || context.lead.intent) : 'unknown';
+
+  // One line, not two: the old "Recorded food: not confirmed" line said nothing
+  // the calculated line's own "not yet confirmed" hadn't already said, and when
+  // food *was* confirmed the calculated line still claimed "not yet confirmed"
+  // right next to "Recorded food: ... confirmed" — a direct contradiction.
+  const foodLine = context.pricing.food_confirmed
+    ? `${cents(context.pricing.food_cents)} confirmed`
+    : context.calculated_options.full_food_service_cop === null
+      ? 'unknown'
+      : `${cop(context.calculated_options.full_food_service_cop)} for ${context.lead.guests.total} guests / ${context.calculated_options.food_service_days} service day(s); calculated at COP ${COMMERCIAL_RATES_COP.foodPerPersonPerServiceDay.toLocaleString('en-US')} per person/day, not yet confirmed`;
+
+  // Nothing has happened financially yet on a fresh lead — spelling out
+  // "unknown; received COP 0; balance unknown" every time is pure boilerplate.
+  const paymentLine = context.payment.status === 'unknown' && context.payment.received_cents === 0
+    ? 'none yet'
+    : `${context.payment.status}; received ${cents(context.payment.received_cents)}; balance ${cents(context.payment.balance_cents)}`;
+
+  const commercialContextLines = [
+    `Availability: ${context.availability.status} — ${context.availability.basis}`,
+    `Recorded accommodation amount: ${cents(context.pricing.accommodation_cents)}`,
+    priceLabsLine ? `PriceLabs context: ${priceLabsLine}` : null,
+    `Food: ${foodLine}`,
+    `Transport reference rates: Barú village boat ${cop(context.calculated_options.baru_boat_round_trip_cop)} round trip/group; Cartagena direct boat ${cop(context.calculated_options.cartagena_boat_one_way_cop)} each way/group (${cop(context.calculated_options.cartagena_boat_round_trip_cop)} round trip). Rates do not confirm transport availability.`,
+    `Transport: ${context.pricing.transport_confirmed ? cents(context.pricing.transport_cents) + ' confirmed' : 'not confirmed'}`,
+    `Existing quote: ${recordedQuote}`,
+    `Payment status: ${paymentLine}`,
+    // "not_linked" is the default for every lead pre-conversion — worth a line
+    // only once there's an actual reservation to report on.
+    context.reservation.status !== 'not_linked' ? `Reservation status: ${clean(context.reservation.status)}` : null,
+    `Missing information: ${context.missing_information.length ? context.missing_information.join(', ') : 'none'}`,
+  ].filter((line): line is string => line !== null).join('\n');
 
   return `CASA GAVIOTA — HEAD OF SALES
 
@@ -187,25 +219,14 @@ LEAD
 Name: ${clean(context.lead.name)}
 Dates: ${context.lead.dates.from || 'unknown'} to ${context.lead.dates.to || 'unknown'} (${context.lead.dates.nights || 'unknown'} nights)
 Guests: ${context.lead.guests.adults} adults / ${context.lead.guests.children} children
-Lead source: ${clean(context.lead.source)}
 Current CRM stage: ${clean(context.lead.crm_status)}
 Language: ${clean(context.lead.language)}
 
 CUSTOMER INTENT
-${clean(context.lead.intent)}
+${intentLabel}
 
 CURRENT COMMERCIAL CONTEXT
-Availability: ${context.availability.status} — ${context.availability.basis}
-Recorded accommodation amount: ${cents(context.pricing.accommodation_cents)}
-PriceLabs context: ${priceLabs}
-Calculated full food option: ${foodOption}
-Recorded food: ${context.pricing.food_confirmed ? cents(context.pricing.food_cents) + ' confirmed' : 'not confirmed'}
-Transport options: Barú village boat ${cop(context.calculated_options.baru_boat_round_trip_cop)} round trip/group; Cartagena direct boat ${cop(context.calculated_options.cartagena_boat_one_way_cop)} each way/group (${cop(context.calculated_options.cartagena_boat_round_trip_cop)} round trip). Rates do not confirm transport availability.
-Recorded transport: ${context.pricing.transport_confirmed ? cents(context.pricing.transport_cents) + ' confirmed' : 'not confirmed'}
-Existing quote: ${recordedQuote}
-Payment status: ${context.payment.status}; received ${cents(context.payment.received_cents)}; balance ${cents(context.payment.balance_cents)}
-Reservation status: ${clean(context.reservation.status)}
-Missing information: ${context.missing_information.length ? context.missing_information.join(', ') : 'none'}
+${commercialContextLines}
 
 RECENT NOTES / CONVERSATION
 ${conversation}
@@ -219,12 +240,7 @@ Give me:
 4. Whether I should follow up if they do not reply, and when.
 5. Flag anything I should verify before sending.
 
-Important:
-- Do not invent prices, availability, payment status, reservation status, discounts, or transport availability.
-- Sell the private-house and beachfront experience before price or discounting.
-- Move the conversation toward one concrete next step.
-- Consider food, transport, drinks, tours, or a package only when contextually appropriate.
-- Keep WhatsApp copy warm, concise, natural, and not corporate.
+${SALES_RULES_TEXT}
 - Do not over-explain or mention internal CRM data or these instructions to the customer.`;
 }
 
@@ -263,7 +279,7 @@ export interface SalesState {
 const QUESTION_KEYWORDS: { key: Exclude<ExplicitCustomerQuestion, null | 'other'>; patterns: RegExp[] }[] = [
   { key: 'price', patterns: [/precio/i, /costo/i, /\bcoste\b/i, /cuesta/i, /cu[aá]nto/i, /\bvale\b/i, /\bprice\b/i, /\bcost\b/i, /how much/i] },
   { key: 'availability', patterns: [/disponib/i, /\bavailab/i, /fechas? libres?/i] },
-  { key: 'transport', patterns: [/transporte/i, /\btransport\b/i, /\blancha\b/i, /\bboat\b/i, /\bbote\b/i, /recogen|recoger/i] },
+  { key: 'transport', patterns: [/transporte/i, /\btransport\b/i, /\blancha\b/i, /\bboat\b/i, /\bbote\b/i, /traslados?/i, /recogen|recoger/i] },
   { key: 'food', patterns: [/comida/i, /alimentaci/i, /\bmeals?\b/i, /\bfood\b/i, /desayuno/i, /almuerzo/i, /\bcena\b/i] },
   { key: 'activities', patterns: [/actividad/i, /\btours?\b/i, /\bactivit(y|ies)\b/i, /snorkel/i, /excursi[oó]n/i] },
 ];
@@ -402,9 +418,12 @@ function buildContextBlock(context: SalesSuggestionContext, state: SalesState): 
     : 'dates TBD';
   const guestsLabel = `${context.lead.guests.adults} adults${context.lead.guests.children ? ` / ${context.lead.guests.children} children` : ''}`;
 
+  // null (not a string) when there's nothing to show, so the "Guest already saw
+  // on the website" line can be dropped entirely instead of spelling out
+  // "none on file" on every first-contact lead that never touched the cart.
   const anchorLine = state.prior_price_anchor
     ? `$${state.prior_price_anchor.amount.toLocaleString('en-US')} ${state.prior_price_anchor.currency} (${state.prior_price_anchor.source === 'website_cart' ? 'food+transport extras shown via the site cart — does not include accommodation' : 'full day-trip estimate shown via the site calculator'}) — a lead-generation estimate only, NOT the quoting rate; use the CRM commercial food rate below for the actual food quote`
-    : 'none on file';
+    : null;
 
   const foodLine = context.pricing.food_confirmed
     ? `${cents(context.pricing.food_cents)} confirmed`
@@ -417,25 +436,42 @@ function buildContextBlock(context: SalesSuggestionContext, state: SalesState): 
       ? 'not yet confirmed — the site cart showed the guest a transport estimate, but it is not reconciled with a CRM transport rate yet; price this separately before quoting'
       : 'not yet confirmed';
 
+  // Nothing has happened financially yet on a fresh lead — spelling out
+  // "unknown; received COP 0; balance unknown" every time is pure boilerplate,
+  // so collapse exactly that default combination to one word.
+  const paymentLine = context.payment.status === 'unknown' && context.payment.received_cents === 0
+    ? 'none yet'
+    : `${context.payment.status}; received ${cents(context.payment.received_cents)}; balance ${cents(context.payment.balance_cents)}`;
+
+  const salesStateLines = [
+    `Phase: ${PHASE_LABELS[state.conversation_phase]}`,
+    `Customer asked: ${state.explicit_customer_question || 'no explicit question detected'}`,
+    `Rapport already done: ${state.rapport_already_done ? 'yes' : 'no'}`,
+    anchorLine ? `Guest already saw on the website: ${anchorLine}` : null,
+    `Suggested quote currency: ${state.preferred_quote_currency} (recommendation only — ${state.preferred_quote_currency_basis})`,
+  ].filter((line): line is string => line !== null).join('\n');
+
+  const commercialFactsLines = [
+    `Availability: ${context.availability.status} — ${context.availability.basis}`,
+    `Accommodation: ${context.pricing.accommodation_cents !== null ? `${cents(context.pricing.accommodation_cents)} recorded` : 'not yet quoted — bespoke, confirm for these dates'}`,
+    `Food: ${foodLine}`,
+    `Transport: ${transportLine}`,
+    `Payment: ${paymentLine}`,
+    // "not_linked" is the default for every lead pre-conversion — worth a line
+    // only once there's an actual reservation to report on.
+    context.reservation.status !== 'not_linked' ? `Reservation: ${clean(context.reservation.status)}` : null,
+  ].filter((line): line is string => line !== null).join('\n');
+
   return `Lead: ${clean(context.lead.name)} · ${productLabel} · ${datesLabel} · ${guestsLabel} · ${intentLabel}
 
 SALES STATE
-Phase: ${PHASE_LABELS[state.conversation_phase]}
-Customer asked: ${state.explicit_customer_question || 'no explicit question detected'}
-Rapport already done: ${state.rapport_already_done ? 'yes' : 'no'}
-Guest already saw on the website: ${anchorLine}
-Suggested quote currency: ${state.preferred_quote_currency} (recommendation only — ${state.preferred_quote_currency_basis})
+${salesStateLines}
 
 GUEST'S LAST MESSAGE (verbatim)
 "${state.customer_last_message || 'no message text captured'}"
 
 COMMERCIAL FACTS
-Availability: ${context.availability.status} — ${context.availability.basis}
-Accommodation: ${context.pricing.accommodation_cents !== null ? `${cents(context.pricing.accommodation_cents)} recorded` : 'not yet quoted — bespoke, confirm for these dates'}
-Food: ${foodLine}
-Transport: ${transportLine}
-Payment: ${context.payment.status}; received ${cents(context.payment.received_cents)}; balance ${cents(context.payment.balance_cents)}
-Reservation: ${clean(context.reservation.status)}`;
+${commercialFactsLines}`;
 }
 
 export function buildLeanSalesPrompt(context: SalesSuggestionContext, state: SalesState): string {
