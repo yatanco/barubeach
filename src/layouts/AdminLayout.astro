@@ -12,6 +12,22 @@ declare const __BUILD_DATE__: string;
     <meta name="viewport" content="width=device-width" />
     <meta name="robots" content="noindex,nofollow" />
     <title>{title} · Casa Gaviota CRM</title>
+    <link rel="manifest" href="/admin-manifest.webmanifest" />
+    <meta name="theme-color" content="#57392e" />
+    <link rel="apple-touch-icon" href="/images/admin-apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Gaviota CRM" />
+    <script is:inline>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/admin-sw.js', { scope: '/admin' }).catch(() => {
+            // Installability is a nice-to-have here, not a functional
+            // requirement — the admin still works fully without a service
+            // worker registered.
+          });
+        });
+      }
+    </script>
     <script is:inline>
       (() => {
         try {
