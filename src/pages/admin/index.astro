@@ -162,6 +162,14 @@ function leadUrgency(lead: LeadRow): Pick<ListItem, 'urgency' | 'urgencyLabel' |
     const hours = hoursSince(lead.created_at);
     if (hours > 4) return { urgency: 'red', urgencyLabel: `${hours}h untouched`, urgencyScore: 1_000_000 + hours };
   } else if (lead.status === 'replied' && lead.next_followup_date && lead.next_followup_date.slice(0, 10) <= todayStr) {
+    // A lead whose stay dates are already gone isn't an active follow-up
+    // candidate anymore (there are no dates left to fill) — checkout date
+    // takes priority since it's the later boundary, falling back to checkin
+    // for a lead with only one date set.
+    const lastRelevantDate = lead.date_to || lead.date_from;
+    if (lastRelevantDate && lastRelevantDate.slice(0, 10) < todayStr) {
+      return { urgency: null, urgencyLabel: null, urgencyScore: -1 };
+    }
     const daysOverdue = Math.max(0, Math.round((Date.parse(todayStr) - Date.parse(lead.next_followup_date.slice(0, 10))) / 86_400_000));
     const dayLabel = (lead.followup_count ?? 0) === 0 ? 'Day 3' : 'Day 7';
     return { urgency: 'amber', urgencyLabel: `Follow up: ${dayLabel}`, urgencyScore: daysOverdue };

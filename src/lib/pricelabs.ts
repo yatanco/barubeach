@@ -65,9 +65,13 @@ export async function getPriceLabsQuote(env: PriceLabsEnv, checkinISO: string, c
   const kv = env.CACHE;
   const cacheKey = `pricelabs:${listingId}:${checkinISO}:${lastNightISO}`;
   if (kv) {
-    const cached = await kv.get(cacheKey);
-    if (cached) {
-      try { return JSON.parse(cached) as PriceLabsQuote; } catch { /* fall through and refetch */ }
+    // A transient KV read error must not take down the whole page render (this
+    // is a nice-to-have overlay) — treat it as a cache miss and fall through.
+    try {
+      const cached = await kv.get(cacheKey);
+      if (cached) return JSON.parse(cached) as PriceLabsQuote;
+    } catch (err) {
+      console.error('[pricelabs] KV cache read failed:', err instanceof Error ? err.message : err);
     }
   }
 
