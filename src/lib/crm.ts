@@ -162,8 +162,9 @@ export function timeAgo(value: string | null | undefined): string {
 }
 
 export function waLinkTo(phone: string, text?: string): string {
-  const digits = phone.replace(/\D/g, '');
-  return text ? `https://wa.me/${digits}?text=${encodeURIComponent(text)}` : `https://wa.me/${digits}`;
+  const trimmed = phone.trim();
+  const target = trimmed.startsWith('@') ? trimmed : trimmed.replace(/\D/g, '');
+  return text ? `https://wa.me/${target}?text=${encodeURIComponent(text)}` : `https://wa.me/${target}`;
 }
 
 export function addDaysIso(dateStr: string, days: number): string {

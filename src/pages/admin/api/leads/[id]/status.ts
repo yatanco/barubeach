@@ -14,19 +14,30 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
     return Response.json({ success:false, error:'Invalid status' }, { status:422 });
   }
   const db = requireDb(locals);
+  const now = nowIso();
 
   // Manually marking a lead "replied" (right after sending the first message)
   // starts its Day 3 / Day 7 follow-up cadence — not automatic on any other
   // transition into 'replied', only the initial new -> replied move.
   const current = await db.prepare('SELECT status FROM leads WHERE id = ?1').bind(params.id).first<{ status: string }>();
   if (current?.status === 'new' && status === 'replied') {
-    const cadence = computeFollowupCadence(true, 0, nowIso().slice(0, 10));
+    const cadence = computeFollowupCadence(true, 0, now.slice(0, 10));
     await db.prepare(
       `UPDATE leads SET status = ?1, updated_at = ?2, last_contact_date = ?3, next_followup_date = ?4, followup_count = ?5 WHERE id = ?6`,
-    ).bind(status, nowIso(), cadence.lastContactDate, cadence.nextFollowupDate, cadence.followupCount, params.id).run();
+    ).bind(status, now, cadence.lastContactDate, cadence.nextFollowupDate, cadence.followupCount, params.id).run();
   } else {
     await db.prepare('UPDATE leads SET status = ?1, updated_at = ?2 WHERE id = ?3')
-      .bind(status, nowIso(), params.id).run();
+      .bind(status, now, params.id).run();
   }
+
+  // No message context is available on a plain status change, so this is
+  // always a 'note' — the outgoing-message case is covered separately by
+  // reply-suggestions/send.ts, which logs the actual text that was sent.
+  if (status === 'replied') {
+    await db.prepare(
+      'INSERT INTO interactions (id, lead_id, direction, message_text, created_at) VALUES (?1, ?2, ?3, ?4, ?5)',
+    ).bind(crypto.randomUUID(), params.id, 'note', 'Marked as replied', now).run();
+  }
+
   return Response.json({ success:true, status });
 };

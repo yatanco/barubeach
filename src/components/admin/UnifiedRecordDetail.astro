@@ -76,6 +76,18 @@ const totalReceivedCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
 const balanceDueCents = totalToCollectCents - totalReceivedCents;
 const bookingBalanceDueCents = revenueTotalCents - totalReceivedCents;
 
+interface InteractionRow { id: string; direction: string; message_text: string; created_at: string; }
+const INTERACTIONS_PREVIEW_COUNT = 5;
+const interactionsResult = isBooking
+  ? await db.prepare(`SELECT id, direction, message_text, created_at FROM interactions WHERE booking_id = ?1 ORDER BY created_at DESC LIMIT ${INTERACTIONS_PREVIEW_COUNT}`).bind(record.id).all<InteractionRow>()
+  : await db.prepare(`SELECT id, direction, message_text, created_at FROM interactions WHERE lead_id = ?1 ORDER BY created_at DESC LIMIT ${INTERACTIONS_PREVIEW_COUNT}`).bind(record.id).all<InteractionRow>();
+const interactions = interactionsResult.results;
+const interactionsCountRow = isBooking
+  ? await db.prepare(`SELECT COUNT(*) as cnt FROM interactions WHERE booking_id = ?1`).bind(record.id).first<{ cnt: number }>()
+  : await db.prepare(`SELECT COUNT(*) as cnt FROM interactions WHERE lead_id = ?1`).bind(record.id).first<{ cnt: number }>();
+const interactionsTotalCount = interactionsCountRow?.cnt ?? 0;
+const INTERACTION_TRUNCATE_LENGTH = 140;
+
 const lastSync = isBooking && record.source === 'hosthub_ical'
   ? await db.prepare(`SELECT synced_at FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<{ synced_at: string }>()
   : null;
@@ -289,6 +301,7 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
           <div class="ns-followup-block">
             <div class="row"><span>Last contacted</span><strong>{record.last_contact_date ? shortDate(record.last_contact_date) : '—'}</strong></div>
             <div class="row"><span>Next follow-up</span><strong id="next-followup-display">{record.next_followup_date ? shortDate(record.next_followup_date) : '—'}</strong></div>
+            <textarea id="followup-message-input" class="followup-message-input" rows="2" placeholder="What did you send/say? (optional)"></textarea>
             <button type="button" class="secondary" id="log-followup-btn">✅ Log follow-up (today)</button>
             <div class="inline-feedback" id="followup-feedback"></div>
           </div>
@@ -310,7 +323,8 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
                 <div class="row"><span>First contact</span><strong>{record.created_at ? shortDate(record.created_at) : 'unknown'}</strong></div>
                 <div class="row"><span>Last contacted</span><strong>{record.last_contact_date ? shortDate(record.last_contact_date) : '—'}</strong></div>
                 <div class="row"><span>Next follow-up</span><strong id="next-followup-display">{record.next_followup_date ? shortDate(record.next_followup_date) : '—'}</strong></div>
-                <button type="button" class="secondary" id="log-followup-btn">✅ Log follow-up (today)</button>
+                <textarea id="followup-message-input" class="followup-message-input" rows="2" placeholder="What did you send/say? (optional)"></textarea>
+            <button type="button" class="secondary" id="log-followup-btn">✅ Log follow-up (today)</button>
                 <div class="inline-feedback" id="followup-feedback"></div>
               </div>
               <div class="ns-divider"></div>
@@ -331,7 +345,8 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
                 <div class="row"><span>First contact</span><strong>{record.created_at ? shortDate(record.created_at) : 'unknown'}</strong></div>
                 <div class="row"><span>Last contacted</span><strong>{record.last_contact_date ? shortDate(record.last_contact_date) : '—'}</strong></div>
                 <div class="row"><span>Next follow-up</span><strong id="next-followup-display">{record.next_followup_date ? shortDate(record.next_followup_date) : '—'}</strong></div>
-                <button type="button" class="secondary" id="log-followup-btn">✅ Log follow-up (today)</button>
+                <textarea id="followup-message-input" class="followup-message-input" rows="2" placeholder="What did you send/say? (optional)"></textarea>
+            <button type="button" class="secondary" id="log-followup-btn">✅ Log follow-up (today)</button>
                 <div class="inline-feedback" id="followup-feedback"></div>
               </div>
               <div class="ns-divider"></div>
@@ -463,6 +478,34 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
       {currentStatus === 'cancelled' && '✕ Cancelled'}
     </div>
   )}
+
+  <!-- ── INTERACTION HISTORY ─────────────────────────────────────────────── -->
+  <section class="card urd-section" id="interaction-history" aria-labelledby="interaction-history-heading">
+    <h2 id="interaction-history-heading">Follow-up history</h2>
+    <div class="interactions-list" id="interactions-list">
+      {interactions.length === 0 && <p class="muted" id="no-interactions">No follow-ups logged yet.</p>}
+      {interactions.map((i) => (
+        <div class="interaction-row" data-direction={i.direction}>
+          <div class="interaction-meta">
+            <span class={`interaction-badge ${i.direction}`}>{i.direction === 'outgoing' ? '💬 Sent' : '📝 Note'}</span>
+            <span class="interaction-time muted">{timeAgo(i.created_at)}</span>
+          </div>
+          {i.message_text.length > INTERACTION_TRUNCATE_LENGTH ? (
+            <details class="interaction-text">
+              <summary>{i.message_text.slice(0, INTERACTION_TRUNCATE_LENGTH)}…</summary>
+              <p>{i.message_text}</p>
+            </details>
+          ) : (
+            <p class="interaction-text-plain">{i.message_text}</p>
+          )}
+        </div>
+      ))}
+    </div>
+    {interactionsTotalCount > interactions.length && (
+      <button type="button" class="secondary" id="interactions-show-more-btn">Show all {interactionsTotalCount} follow-ups</button>
+    )}
+    <div class="inline-feedback" id="interactions-feedback"></div>
+  </section>
 
   <!-- ── FULL RECORD ACCORDION ────────────────────────────────────────────── -->
   <details class="full-record" id="full-record">
@@ -867,6 +910,23 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
   .ns-terminal-completed { background:#dff8f1; color:#116149; }
   .ns-terminal-lost, .ns-terminal-cancelled { background:#fee4e2; color:var(--red); }
 
+  /* ── Follow-up (message input) ───────────────────────────────────────── */
+  .followup-message-input { min-height:52px; resize:vertical; font-size:14px; }
+
+  /* ── Interaction history ─────────────────────────────────────────────── */
+  .interactions-list { display:grid; gap:0; }
+  .interaction-row { padding:12px 0; border-top:1px solid var(--line); }
+  .interaction-row:first-child { border-top:0; padding-top:0; }
+  .interaction-meta { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .interaction-badge { display:inline-flex; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:750; background:var(--surface-soft); color:var(--brown); }
+  .interaction-badge.outgoing { background:#dff8f1; color:#116149; }
+  .interaction-time { font-size:12px; }
+  .interaction-text-plain { margin:0; font-size:14px; white-space:pre-wrap; }
+  .interaction-text summary { cursor:pointer; font-size:14px; list-style:none; }
+  .interaction-text summary::-webkit-details-marker { display:none; }
+  .interaction-text p { margin:6px 0 0; font-size:14px; white-space:pre-wrap; }
+  #interactions-show-more-btn { width:100%; margin-top:10px; }
+
   /* ── Full Record accordion ───────────────────────────────────────────── */
   .full-record { margin-top:16px; }
   .full-record > summary { display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--surface); border:1px solid var(--line); border-radius:12px; font-size:15px; font-weight:750; color:var(--ink); transition:border-radius 160ms; }
@@ -942,8 +1002,9 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
   const waBtn = document.getElementById('wa-btn');
   const phoneFeedback = document.getElementById('phone-feedback');
   function syncWaBtn() {
-    const digits = (phoneInput.value || '').replace(/\D/g, '');
-    if (digits) { waBtn.href = `https://wa.me/${digits}`; waBtn.style.display = ''; }
+    const raw = (phoneInput.value || '').trim();
+    const target = raw.startsWith('@') ? raw : raw.replace(/\D/g, '');
+    if (target) { waBtn.href = `https://wa.me/${target}`; waBtn.style.display = ''; }
     else { waBtn.style.display = 'none'; }
   }
   phoneInput?.addEventListener('input', syncWaBtn);
@@ -1104,15 +1165,73 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
   document.getElementById('log-followup-btn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const feedback = document.getElementById('followup-feedback');
+    const messageInput = document.getElementById('followup-message-input');
     btn.disabled = true;
     try {
-      const res = await fetch(`${apiBase}/log-followup`, { method: 'POST' });
+      const res = await fetch(`${apiBase}/log-followup`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message_text: messageInput?.value || '' }),
+      });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Could not log follow-up');
       window.location.reload();
     } catch (error) {
       btn.disabled = false;
       if (feedback) { feedback.classList.add('error'); feedback.textContent = error instanceof Error ? error.message : 'Could not log follow-up'; }
+    }
+  });
+
+  // ── Interaction history ───────────────────────────────────────────────────
+  function timeAgoJs(value) {
+    if (!value) return 'never';
+    const diffMs = Date.now() - new Date(value).getTime();
+    const minutes = Math.round(diffMs / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes} min ago`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.round(hours / 24);
+    return `${days}d ago`;
+  }
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+  function renderInteractionRow(i) {
+    const badge = i.direction === 'outgoing' ? '💬 Sent' : '📝 Note';
+    const truncateLength = 140;
+    const text = i.message_text.length > truncateLength
+      ? `<details class="interaction-text"><summary>${escapeHtml(i.message_text.slice(0, truncateLength))}…</summary><p>${escapeHtml(i.message_text)}</p></details>`
+      : `<p class="interaction-text-plain">${escapeHtml(i.message_text)}</p>`;
+    return `<div class="interaction-row" data-direction="${i.direction}">
+      <div class="interaction-meta">
+        <span class="interaction-badge ${i.direction}">${badge}</span>
+        <span class="interaction-time muted">${timeAgoJs(i.created_at)}</span>
+      </div>
+      ${text}
+    </div>`;
+  }
+  document.getElementById('interactions-show-more-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const feedback = document.getElementById('interactions-feedback');
+    const list = document.getElementById('interactions-list');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    try {
+      const res = await fetch(`${apiBase}/interactions`);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Could not load history');
+      if (list) {
+        list.innerHTML = data.interactions.length
+          ? data.interactions.map(renderInteractionRow).join('')
+          : '<p class="muted" id="no-interactions">No follow-ups logged yet.</p>';
+      }
+      btn.remove();
+    } catch (error) {
+      btn.disabled = false;
+      btn.textContent = 'Show all follow-ups';
+      if (feedback) { feedback.classList.add('error'); feedback.textContent = error instanceof Error ? error.message : 'Could not load history'; }
     }
   });
 

@@ -1,0 +1,15 @@
+import type { APIRoute } from 'astro';
+import { requireDb } from '../../../../../lib/db';
+
+export const prerender = false;
+
+interface InteractionRow { id: string; direction: string; message_text: string; created_at: string; }
+
+export const GET: APIRoute = async ({ locals, params }) => {
+  if (!params.id) return Response.json({ success: false, error: 'Invalid booking' }, { status: 422 });
+  const db = requireDb(locals);
+  const result = await db.prepare(
+    'SELECT id, direction, message_text, created_at FROM interactions WHERE booking_id = ?1 ORDER BY created_at DESC',
+  ).bind(params.id).all<InteractionRow>();
+  return Response.json({ success: true, interactions: result.results });
+};
