@@ -1,0 +1,263 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getDb } from '../../lib/db';
+import { ACTIVE_BOOKING_FILTER_SQL, ACTIVE_UNLINKED_LEAD_FILTER_SQL, type ConflictInfo } from '../../lib/crm-availability';
+import { buildCalendarMonth, parseMonthParam, monthParam, addMonths, type CalendarDay } from '../../lib/calendar';
+import { STATUS_LABELS } from '../../lib/crm';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+interface BookingPanelInfo extends ConflictInfo { guestPhone: string | null; channel: string; source: string; }
+interface LeadPanelInfo extends ConflictInfo { whatsapp: string | null; lastContactDate: string | null; }
+
+const db = getDb(Astro.locals);
+const now = new Date();
+const todayISO = now.toISOString().slice(0, 10);
+const { year, monthIndex0 } = parseMonthParam(Astro.url.searchParams.get('month'), now);
+const prev = addMonths(year, monthIndex0, -1);
+const next = addMonths(year, monthIndex0, 1);
+const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, monthIndex0, 1)));
+
+let bookingRows: BookingPanelInfo[] = [];
+let leadRows: LeadPanelInfo[] = [];
+let error = '';
+
+if (!db) {
+  error = 'D1 is not configured yet.';
+} else {
+  try {
+    // Same active-status/unlinked-lead filters the dashboard's conflict
+    // candidates use (ACTIVE_BOOKING_FILTER_SQL / ACTIVE_UNLINKED_LEAD_FILTER_SQL,
+    // extracted from crm-availability.ts's HARD/SOFT_CONFLICT_CANDIDATES_SQL) —
+    // just with the extra columns the day panel needs to display.
+    const [bookingResult, leadResult] = await Promise.all([
+      db.prepare(
+        `SELECT id, guest_name, guest_phone, status, channel, source, date_from, date_to FROM bookings WHERE ${ACTIVE_BOOKING_FILTER_SQL}`,
+      ).all<any>(),
+      db.prepare(
+        `SELECT id, guest_name, whatsapp, status, last_contact_date, date_from, date_to FROM leads WHERE ${ACTIVE_UNLINKED_LEAD_FILTER_SQL}`,
+      ).all<any>(),
+    ]);
+    bookingRows = bookingResult.results.map((r: any) => ({
+      id: r.id, guestName: r.guest_name, status: r.status, dateFrom: r.date_from, dateTo: r.date_to,
+      guestPhone: r.guest_phone, channel: r.channel, source: r.source,
+    }));
+    leadRows = leadResult.results.map((r: any) => ({
+      id: r.id, guestName: r.guest_name, status: r.status, dateFrom: r.date_from, dateTo: r.date_to,
+      whatsapp: r.whatsapp, lastContactDate: r.last_contact_date,
+    }));
+  } catch (cause) {
+    console.error('[admin/calendar] failed to load', cause);
+    error = 'The CRM database could not be read.';
+  }
+}
+
+const days: CalendarDay[] = buildCalendarMonth(year, monthIndex0, bookingRows, leadRows, todayISO);
+const weeks: CalendarDay[][] = [];
+for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+
+const bookingById = Object.fromEntries(bookingRows.map((b) => [b.id, b]));
+const leadById = Object.fromEntries(leadRows.map((l) => [l.id, l]));
+
+// Every day's booking/lead ids, plus the two lookup tables above, are
+// embedded once as JSON so the day panel can render client-side with no
+// extra request — the whole month's data is already on the page.
+const dayIndex = Object.fromEntries(days.map((d) => [d.dateISO, { bookings: d.bookings.map((b) => b.id), leads: d.leads.map((l) => l.id) }]));
+
+// Guest names are free text — if one ever contained the literal substring
+// "</script>", an unescaped embed would prematurely close this script tag
+// before the browser's HTML parser even reaches JS/JSON parsing.
+const calDataJson = JSON.stringify({ dayIndex, bookings: bookingById, leads: leadById, statusLabels: STATUS_LABELS }).replace(/</g, '\\u003c');
+---
+
+<AdminLayout title="Calendar">
+  <div class="cal">
+    <div class="cal-header">
+      <h1>Calendar</h1>
+      <nav class="cal-nav" aria-label="Month navigation">
+        <a class="button secondary" href={`/admin/calendar?month=${monthParam(prev.year, prev.monthIndex0)}`} aria-label="Previous month">←</a>
+        <span class="cal-month-label">{monthLabel}</span>
+        <a class="button secondary" href={`/admin/calendar?month=${monthParam(next.year, next.monthIndex0)}`} aria-label="Next month">→</a>
+      </nav>
+    </div>
+
+    {error && <p class="muted">{error}</p>}
+
+    {!error && (
+      <>
+        <div class="cal-weekday-row">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <span>{d}</span>)}
+        </div>
+        <div class="cal-grid">
+          {weeks.map((week) => (
+            <div class="cal-week">
+              {week.map((day) => {
+                const dominant = day.bookings[0];
+                const dayNum = Number(day.dateISO.slice(8, 10));
+                return (
+                  <button
+                    type="button"
+                    class="cal-day"
+                    class:list={[{ 'is-outside': !day.inMonth, 'is-today': day.isToday }]}
+                    data-date={day.dateISO}
+                    aria-label={`${day.dateISO}${dominant ? ', booked' : day.leads.length ? `, ${day.leads.length} interested lead(s)` : ''}`}
+                  >
+                    <span class="cal-day-num">{dayNum}</span>
+                    {dominant && (
+                      <span
+                        class="cal-bar booked"
+                        class:list={[{ 'continues-left': day.continuesLeft, 'continues-right': day.continuesRight }]}
+                      ></span>
+                    )}
+                    {day.leads.length > 0 && <span class="cal-lead-count">{day.leads.length}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <p class="muted cal-legend"><span class="legend-swatch booked"></span> Booked <span class="legend-swatch lead"></span> Lead(s) interested</p>
+      </>
+    )}
+  </div>
+
+  <div id="cal-panel-backdrop" hidden></div>
+  <div id="cal-panel" role="dialog" aria-modal="true" aria-labelledby="cal-panel-title" hidden>
+    <div class="cal-panel-handle"></div>
+    <div class="cal-panel-body">
+      <h2 id="cal-panel-title"></h2>
+      <div id="cal-panel-content"></div>
+    </div>
+    <button type="button" class="secondary cal-panel-close" id="cal-panel-close">Close</button>
+  </div>
+
+  <script type="application/json" id="cal-data" set:html={calDataJson} />
+
+  <script>
+    const data = JSON.parse(document.getElementById('cal-data')?.textContent || '{}');
+    function shortDateClient(iso) {
+      if (!iso) return '—';
+      return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+        .format(new Date(`${iso.slice(0, 10)}T00:00:00Z`));
+    }
+    // Guest names are guest-submitted free text — escape before interpolating
+    // into innerHTML, same as any other untrusted string rendered as markup.
+    function escapeHtml(value) {
+      const div = document.createElement('div');
+      div.textContent = value == null ? '' : String(value);
+      return div.innerHTML;
+    }
+
+    const backdrop = document.getElementById('cal-panel-backdrop');
+    const panel = document.getElementById('cal-panel');
+    const panelTitle = document.getElementById('cal-panel-title');
+    const panelContent = document.getElementById('cal-panel-content');
+    const closeBtn = document.getElementById('cal-panel-close');
+
+    function renderBooking(b) {
+      const statusLabel = data.statusLabels[b.status] || b.status;
+      return `<div class="cal-panel-item">
+        <p class="cal-panel-kind">BOOKING</p>
+        <p class="cal-panel-name">${escapeHtml(b.guestName) || 'Unnamed booking'}</p>
+        <p class="muted">${shortDateClient(b.dateFrom)} → ${shortDateClient(b.dateTo)}</p>
+        <p class="muted">${statusLabel} · ${(b.channel || 'direct').toUpperCase()}${b.source === 'hosthub_ical' ? ' · HostHub' : ''}</p>
+        <a class="button secondary" href="/admin/bookings/${b.id}">Open booking →</a>
+      </div>`;
+    }
+    function renderLead(l) {
+      const statusLabel = data.statusLabels[l.status] || l.status;
+      return `<div class="cal-panel-item">
+        <p class="cal-panel-kind">LEAD</p>
+        <p class="cal-panel-name">${escapeHtml(l.guestName) || 'Unnamed lead'}</p>
+        <p class="muted">${shortDateClient(l.dateFrom)} → ${shortDateClient(l.dateTo)}</p>
+        <p class="muted">${statusLabel}</p>
+        <p class="muted">${l.lastContactDate ? `Last contact: ${shortDateClient(l.lastContactDate)}` : 'No contact recorded'}</p>
+        <a class="button secondary" href="/admin/leads/${l.id}">Open lead →</a>
+      </div>`;
+    }
+
+    function openPanelForDay(dateISO) {
+      const entry = data.dayIndex[dateISO];
+      if (!entry) return;
+      const bookings = entry.bookings.map((id) => data.bookings[id]).filter(Boolean);
+      const leads = entry.leads.map((id) => data.leads[id]).filter(Boolean);
+      panelTitle.textContent = shortDateClient(dateISO);
+      if (!bookings.length && !leads.length) {
+        panelContent.innerHTML = '<p class="muted">Nothing on the books for this date.</p>';
+      } else {
+        panelContent.innerHTML = bookings.map(renderBooking).join('') + leads.map(renderLead).join('');
+      }
+      backdrop.hidden = false;
+      panel.hidden = false;
+    }
+    function closePanel() {
+      panel.hidden = true;
+      backdrop.hidden = true;
+    }
+
+    document.querySelectorAll('.cal-day').forEach((el) => {
+      el.addEventListener('click', () => openPanelForDay(el.getAttribute('data-date')));
+    });
+    closeBtn?.addEventListener('click', closePanel);
+    backdrop?.addEventListener('click', closePanel);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+  </script>
+</AdminLayout>
+
+<style>
+  .cal { max-width: 900px; margin: 0 auto; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .cal-nav { display: flex; align-items: center; gap: 12px; }
+  .cal-month-label { font-weight: 750; font-size: 16px; min-width: 160px; text-align: center; }
+  .cal-weekday-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 6px; }
+  .cal-weekday-row span { text-align: center; font-size: 11px; font-weight: 750; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .cal-grid { display: flex; flex-direction: column; gap: 4px; }
+  .cal-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .cal-day {
+    position: relative; aspect-ratio: 1 / 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); display: flex; flex-direction: column; align-items: flex-start;
+    justify-content: flex-start; padding: 6px; font: inherit; cursor: pointer; overflow: visible;
+  }
+  .cal-day:hover { border-color: var(--terracotta); }
+  .cal-day.is-outside { opacity: .38; cursor: default; }
+  .cal-day.is-outside:hover { border-color: var(--line); }
+  .cal-day.is-today { border-color: var(--brown); border-width: 2px; }
+  .cal-day-num { font-size: 12px; font-weight: 700; }
+  .cal-bar {
+    position: absolute; left: 0; right: 0; bottom: 8px; height: 8px; background: var(--brown);
+    border-radius: 4px;
+  }
+  .cal-bar.continues-left { border-top-left-radius: 0; border-bottom-left-radius: 0; left: -4px; }
+  .cal-bar.continues-right { border-top-right-radius: 0; border-bottom-right-radius: 0; right: -4px; }
+  .cal-lead-count {
+    position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; border-radius: 999px;
+    background: var(--terracotta); color: #fff; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; padding: 0 3px;
+  }
+  .cal-legend { display: flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 12px; }
+  .legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 10px; }
+  .legend-swatch.booked { background: var(--brown); margin-left: 0; }
+  .legend-swatch.lead { background: var(--terracotta); }
+
+  #cal-panel-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 40%); z-index: 90; }
+  #cal-panel {
+    position: fixed; z-index: 91; background: var(--surface); border: 1px solid var(--line);
+    left: 0; right: 0; bottom: 0; border-radius: 16px 16px 0 0; max-height: 80vh; overflow-y: auto;
+    padding: 8px 18px 18px;
+  }
+  .cal-panel-handle { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 8px auto 10px; }
+  .cal-panel-item { border-top: 1px solid var(--line); padding: 12px 0; }
+  .cal-panel-item:first-child { border-top: 0; }
+  .cal-panel-kind { font-size: 10px; font-weight: 800; letter-spacing: .05em; color: var(--muted); margin: 0 0 2px; }
+  .cal-panel-name { font-weight: 750; margin: 0 0 2px; }
+  .cal-panel-body a { margin-top: 8px; }
+  .cal-panel-close { width: 100%; margin-top: 4px; }
+
+  @media (min-width: 640px) {
+    #cal-panel {
+      left: auto; right: 24px; bottom: auto; top: 90px; width: 340px; border-radius: 14px; max-height: 70vh;
+      box-shadow: var(--shadow);
+    }
+    .cal-panel-handle { display: none; }
+  }
+</style>

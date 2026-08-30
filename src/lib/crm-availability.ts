@@ -22,15 +22,33 @@ function mapConflictRow(row: any): ConflictInfo {
   return { id: row.id, guestName: row.guest_name, status: row.status, dateFrom: row.date_from, dateTo: row.date_to };
 }
 
+// "Active" filters shared by every view that lists bookings/leads without
+// per-item conflict checks — the dashboard's bulk candidate sets below, and
+// the admin calendar's richer per-day queries (calendar.astro), which select
+// extra display columns but must apply the exact same status/linkage rules.
+export const ACTIVE_BOOKING_FILTER_SQL = `status NOT IN ('cancelled','lost')`;
+export const ACTIVE_UNLINKED_LEAD_FILTER_SQL = `status NOT IN ('lost','cancelled') AND date_from IS NOT NULL AND date_to IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)`;
+
 // Bulk candidate sets for the dashboard list view, where checking every row
 // individually would mean 2N queries — fetch each table's active rows once,
 // then overlap-check in JS per item via findConflicts().
-export const HARD_CONFLICT_CANDIDATES_SQL = `SELECT id, guest_name, status, date_from, date_to FROM bookings WHERE status NOT IN ('cancelled','lost')`;
-export const SOFT_CONFLICT_CANDIDATES_SQL = `SELECT id, guest_name, status, date_from, date_to FROM leads
-  WHERE status NOT IN ('lost','cancelled') AND date_from IS NOT NULL AND date_to IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id)`;
+export const HARD_CONFLICT_CANDIDATES_SQL = `SELECT id, guest_name, status, date_from, date_to FROM bookings WHERE ${ACTIVE_BOOKING_FILTER_SQL}`;
+export const SOFT_CONFLICT_CANDIDATES_SQL = `SELECT id, guest_name, status, date_from, date_to FROM leads WHERE ${ACTIVE_UNLINKED_LEAD_FILTER_SQL}`;
 
 export { mapConflictRow };
+
+// Half-open range test shared by the admin calendar (calendar.ts): a stay
+// from dateFrom to dateTo occupies the *nights* [dateFrom, dateTo) — the
+// check-in date is occupied, the check-out date is not (unless another range
+// starts that day). Pure ISO-date string comparison — no Date parsing, so
+// there's no timezone to shift the boundary by a day.
+export function rangeCoversNight(dateFrom: string, dateTo: string, nightISO: string): boolean {
+  const from = dateFrom.slice(0, 10);
+  const to = dateTo.slice(0, 10);
+  const night = nightISO.slice(0, 10);
+  return from <= night && night < to;
+}
 
 export function findConflicts(
   candidates: ConflictInfo[],
