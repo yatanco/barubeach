@@ -1,5 +1,5 @@
 ---
-import HeaderSocials from './HeaderSocials.astro';
+import WhatsAppIcon from './icons/WhatsAppIcon.astro';
 
 interface Props {
   lang?: 'en' | 'es';
@@ -11,32 +11,23 @@ const isES = lang === 'es';
 
 const altURL = altHref ?? (isES ? '/' : '/es');
 
-// Hide nav for ad traffic (UTM params, fbclid, gclid)
+// Hide nav escape hatches (lang switch, WhatsApp icon) for ad traffic — keep
+// the toggle + CTA, since that's the conversion path we want ad clicks to hit.
 const hasAd = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid']
   .some(p => Astro.url.searchParams.has(p));
-
-const nav = isES
-  ? [
-      { href: '/es', label: 'Estadía' },
-      { href: '/es/pasadia', label: 'Pasadía' },
-      { href: '/es/#faq', label: 'Preguntas' },
-    ]
-  : [
-      { href: '/', label: 'Stay' },
-      { href: '/daytrip', label: 'Day Trip' },
-      { href: '/#faq', label: 'FAQ' },
-    ];
 
 const waLabel = isES ? 'Consulta tus fechas y tu tarifa →' : 'Check your dates & get your rate →';
 const flagLabel = isES ? '🇬🇧' : '🇪🇸';
 const flagTitle = isES ? 'View in English' : 'Ver en español';
 
-// Days/Nights trip toggle — routes the CTA action:
-// Days → day-trip page, Nights → overnight-stay WhatsApp flow.
+// Day Trip/Stay toggle — routes the CTA action:
+// Day Trip → day-trip page, Stay → overnight-stay WhatsApp flow.
 const daytripHref = isES ? '/es/pasadia' : '/daytrip';
-const daysLabel = isES ? 'Días' : 'Days';
-const nightsLabel = isES ? 'Noches' : 'Nights';
+const dayTripLabel = isES ? 'Pasadía' : 'Day Trip';
+const stayLabel = isES ? 'Estadía' : 'Stay';
 const tripToggleLabel = isES ? 'Pasadía o estadía' : 'Day trip or overnight stay';
+
+const toggleTabClass = 'trip-toggle-btn px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer';
 ---
 
 <header
@@ -45,31 +36,47 @@ const tripToggleLabel = isES ? 'Pasadía o estadía' : 'Day trip or overnight st
   class="sticky top-0 z-50 bg-brown"
 >
   <div class="max-w-6xl mx-auto px-4 sm:px-6">
-    <div class="flex items-center justify-between h-16">
 
-      <!-- Logo -->
+    <!-- Desktop row -->
+    <div class="hidden md:flex items-center justify-between h-16">
       <a href={isES ? '/es' : '/'} class="flex items-center gap-2.5 flex-shrink-0">
         <img src="/images/logo.png" alt="Casa Gaviota Baru" class="h-8 w-auto" />
-        <span class="font-serif font-semibold text-white text-sm hidden sm:block">Casa Gaviota</span>
+        <span class="font-serif font-semibold text-white text-sm">Casa Gaviota</span>
       </a>
 
-      <!-- Desktop nav — hidden for ad traffic -->
-      {!hasAd && (
-        <nav class="hidden md:flex items-center gap-7">
-          {nav.map(link => (
-            <a
-              href={link.href}
-              class="text-base font-medium text-white/70 hover:text-white transition-colors"
-            >
-              {link.label}
-            </a>
-          ))}
-          <HeaderSocials lang={lang} class="pl-5 border-l border-white/15" />
-        </nav>
-      )}
+      <div class="flex items-center gap-4">
+        <div
+          role="tablist"
+          aria-label={tripToggleLabel}
+          class="trip-toggle inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/5 p-0.5"
+        >
+          <button type="button" role="tab" data-mode="days" aria-selected="false" class={`${toggleTabClass} text-white/50 hover:text-white/80`}>
+            {dayTripLabel}
+          </button>
+          <button type="button" role="tab" data-mode="nights" aria-selected="true" class={`${toggleTabClass} bg-white/15 text-white`}>
+            {stayLabel}
+          </button>
+        </div>
 
-      <!-- Right side -->
-      <div class="flex items-center gap-3">
+        {!hasAd && (
+          <button
+            type="button"
+            onclick="window.dispatchEvent(new CustomEvent('open-wa-popup'))"
+            aria-label="WhatsApp"
+            title="WhatsApp"
+            class="text-white/40 hover:text-white transition-colors inline-flex items-center p-0 bg-transparent cursor-pointer"
+          >
+            <WhatsAppIcon class="w-5 h-5" />
+          </button>
+        )}
+
+        <button
+          type="button"
+          class="check-availability-btn inline-flex items-center gap-1.5 bg-sand text-brown text-sm font-semibold px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap"
+        >
+          {waLabel}
+        </button>
+
         {!hasAd && (
           <a
             href={altURL}
@@ -80,103 +87,62 @@ const tripToggleLabel = isES ? 'Pasadía o estadía' : 'Day trip or overnight st
             {flagLabel}
           </a>
         )}
-
-        <div
-          role="tablist"
-          aria-label={tripToggleLabel}
-          class="trip-toggle hidden md:inline-flex items-center gap-0.5 rounded-full border border-white/20 bg-white/10 p-0.5"
-        >
-          <button type="button" role="tab" data-mode="days" aria-selected="false" class="trip-toggle-btn px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors text-white/60 hover:text-white cursor-pointer">
-            {daysLabel}
-          </button>
-          <button type="button" role="tab" data-mode="nights" aria-selected="true" class="trip-toggle-btn px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors bg-sand text-brown cursor-pointer">
-            {nightsLabel}
-          </button>
-        </div>
-
-        <button
-          type="button"
-          class="check-availability-btn hidden md:inline-flex items-center gap-1.5 bg-sand text-brown text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity cursor-pointer"
-        >
-          {waLabel}
-        </button>
-
-        {!hasAd && (
-          <button
-            id="menu-btn"
-            aria-label="Toggle menu"
-            aria-expanded="false"
-            class="md:hidden p-2 -mr-1 rounded-lg hover:bg-white/10 transition-colors text-white"
-          >
-            <svg id="icon-open" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            <svg id="icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
       </div>
     </div>
 
-    <!-- Mobile menu — hidden for ad traffic -->
-    {!hasAd && (
-      <div id="mobile-menu" class="hidden md:hidden border-t border-white/20 py-4">
-        <nav class="flex flex-col gap-1 mb-4">
-          {nav.map(link => (
-            <a
-              href={link.href}
-              class="text-base font-medium text-white/70 hover:text-white px-2 py-2.5 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              {link.label}
-            </a>
-          ))}
-        </nav>
+    <!-- Mobile rows -->
+    <div class="md:hidden py-3">
+      <div class="flex items-center justify-between">
+        <a href={isES ? '/es' : '/'} class="flex items-center gap-2 flex-shrink-0">
+          <img src="/images/logo.png" alt="Casa Gaviota Baru" class="h-7 w-auto" />
+          <span class="font-serif font-semibold text-white text-sm">Casa Gaviota</span>
+        </a>
+
+        {!hasAd && (
+          <a
+            href={altURL}
+            title={flagTitle}
+            aria-label={flagTitle}
+            class="text-base leading-none hover:opacity-70 transition-opacity select-none"
+          >
+            {flagLabel}
+          </a>
+        )}
+      </div>
+
+      <div class="flex items-center gap-2 mt-3">
         <div
           role="tablist"
           aria-label={tripToggleLabel}
-          class="trip-toggle flex items-center gap-1 rounded-full border border-white/20 bg-white/10 p-1 mb-3"
+          class="trip-toggle inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/5 p-0.5 flex-shrink-0"
         >
-          <button type="button" role="tab" data-mode="days" aria-selected="false" class="trip-toggle-btn flex-1 px-3 py-2 rounded-full text-sm font-medium transition-colors text-white/60 hover:text-white cursor-pointer">
-            {daysLabel}
+          <button type="button" role="tab" data-mode="days" aria-selected="false" class={`${toggleTabClass} text-white/50 hover:text-white/80`}>
+            {dayTripLabel}
           </button>
-          <button type="button" role="tab" data-mode="nights" aria-selected="true" class="trip-toggle-btn flex-1 px-3 py-2 rounded-full text-sm font-medium transition-colors bg-sand text-brown cursor-pointer">
-            {nightsLabel}
+          <button type="button" role="tab" data-mode="nights" aria-selected="true" class={`${toggleTabClass} bg-white/15 text-white`}>
+            {stayLabel}
           </button>
         </div>
+
         <button
           type="button"
-          class="check-availability-btn flex items-center justify-center gap-2 bg-sand text-brown text-sm font-semibold px-4 py-3 rounded-full hover:opacity-90 transition-opacity w-full cursor-pointer"
+          class="check-availability-btn flex-1 inline-flex items-center justify-center gap-1.5 bg-sand text-brown text-sm font-semibold px-4 py-2.5 rounded-full hover:opacity-90 transition-opacity cursor-pointer text-center leading-tight"
         >
           {waLabel}
         </button>
-        <HeaderSocials lang={lang} class="justify-center gap-6 pt-5 mt-4 border-t border-white/10" />
       </div>
-    )}
+    </div>
   </div>
 </header>
 
 <script>
-  const btn = document.getElementById('menu-btn');
-  const menu = document.getElementById('mobile-menu');
-  const iconOpen = document.getElementById('icon-open');
-  const iconClose = document.getElementById('icon-close');
-
-  btn?.addEventListener('click', () => {
-    const isOpen = menu?.classList.contains('hidden') === false;
-    menu?.classList.toggle('hidden');
-    iconOpen?.classList.toggle('hidden');
-    iconClose?.classList.toggle('hidden');
-    btn.setAttribute('aria-expanded', String(!isOpen));
-  });
-
   window.addEventListener('scroll', () => {
     const header = document.getElementById('site-header');
     if (!header) return;
     header.classList.toggle('shadow-md', window.scrollY > 10);
   });
 
-  // Days/Nights trip toggle — controls what the CTA buttons do.
+  // Day Trip/Stay toggle — controls what the CTA buttons do.
   const daytripHref = document.getElementById('site-header')?.dataset.daytripHref || '/daytrip';
   const toggleBtns = document.querySelectorAll('.trip-toggle-btn');
   const ctaBtns = document.querySelectorAll('.check-availability-btn');
@@ -187,10 +153,10 @@ const tripToggleLabel = isES ? 'Pasadía o estadía' : 'Day trip or overnight st
       const el = b as HTMLElement;
       const active = el.dataset.mode === tripMode;
       el.setAttribute('aria-selected', String(active));
-      el.classList.toggle('bg-sand', active);
-      el.classList.toggle('text-brown', active);
-      el.classList.toggle('text-white/60', !active);
-      el.classList.toggle('hover:text-white', !active);
+      el.classList.toggle('bg-white/15', active);
+      el.classList.toggle('text-white', active);
+      el.classList.toggle('text-white/50', !active);
+      el.classList.toggle('hover:text-white/80', !active);
     });
   }
 
