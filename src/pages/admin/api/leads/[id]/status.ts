@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { nowIso, requireDb } from '../../../../../lib/db';
-import { isOneOf, UNIFIED_STATUSES, addDaysIso } from '../../../../../lib/crm';
+import { isOneOf, UNIFIED_STATUSES } from '../../../../../lib/crm';
+import { computeFollowupCadence } from '../../../../../lib/followup';
 export const prerender = false;
 
 export const PATCH: APIRoute = async ({ request, locals, params }) => {
@@ -19,10 +20,10 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
   // transition into 'replied', only the initial new -> replied move.
   const current = await db.prepare('SELECT status FROM leads WHERE id = ?1').bind(params.id).first<{ status: string }>();
   if (current?.status === 'new' && status === 'replied') {
-    const today = nowIso().slice(0, 10);
+    const cadence = computeFollowupCadence(true, 0, nowIso().slice(0, 10));
     await db.prepare(
-      `UPDATE leads SET status = ?1, updated_at = ?2, last_contact_date = ?3, next_followup_date = ?4, followup_count = 0 WHERE id = ?5`,
-    ).bind(status, nowIso(), today, addDaysIso(today, 3), params.id).run();
+      `UPDATE leads SET status = ?1, updated_at = ?2, last_contact_date = ?3, next_followup_date = ?4, followup_count = ?5 WHERE id = ?6`,
+    ).bind(status, nowIso(), cadence.lastContactDate, cadence.nextFollowupDate, cadence.followupCount, params.id).run();
   } else {
     await db.prepare('UPDATE leads SET status = ?1, updated_at = ?2 WHERE id = ?3')
       .bind(status, nowIso(), params.id).run();

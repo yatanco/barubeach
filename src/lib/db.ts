@@ -35,6 +35,7 @@ interface RuntimeEnv {
   PRICELABS_API_KEY?: string;
   PRICELABS_LISTING_ID?: string;
   PRICELABS_PMS?: string;
+  ANTHROPIC_API_KEY?: string;
 }
 
 // Evergreen Bold checkout link (lets the guest enter their own amount) — falls back to

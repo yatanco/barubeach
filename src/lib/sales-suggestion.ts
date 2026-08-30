@@ -378,7 +378,23 @@ const PHASE_LABELS: Record<ConversationPhase, string> = {
   lost: 'lost / cancelled',
 };
 
-export function buildLeanSalesPrompt(context: SalesSuggestionContext, state: SalesState): string {
+// Fixed instruction text, not configurable data — shared verbatim between the
+// human-pasted-into-ChatGPT lean prompt and the Generate Reply system prompt,
+// so the two paths can never drift onto different sales rules.
+export const SALES_RULES_TEXT = `SALES RULES
+- Default: first message is rapport + one useful question; the second message is the quote.
+- Exception: if the guest explicitly asked for a price, or this is a last-minute/same-day/transactional inquiry, answer price immediately instead.
+- If rapport is already established, skip straight to the relevant next step — don't restart with small talk.
+- Never repeat a question already answered in the guest's last message above.
+- Frame the stay as a choice between two packages, not itemized add-ons: "Stay" (house + private beach + Barú transfer) vs "Full Experience" (Stay + all meals). Don't ask about food and transport as separate questions.
+- When food comes up, lead with the experience (meals prepared for the group — nothing to cook, shop for, or clean up) before mentioning the per-person rate.
+- Pre-arrival guests only: never re-sell accommodation. Frame it as "how would you like your stay to work" and offer food/drinks/transport they didn't take at booking — not a renewed accommodation pitch.
+- Do not invent prices, availability, payment status, reservation status, discounts, or transport availability.`;
+
+// The shared context block (lead summary, sales state, verbatim last message,
+// commercial facts) — everything both the lean copy-paste prompt and the
+// Generate Reply system prompt need, built once so they can't drift apart.
+function buildContextBlock(context: SalesSuggestionContext, state: SalesState): string {
   const productLabel = state.product_type === 'overnight_stay' ? 'overnight stay' : state.product_type === 'day_trip' ? 'day trip' : 'unknown trip type';
   const intentLabel = context.lead.intent ? (GUEST_INTENT_LABELS[context.lead.intent] || context.lead.intent) : 'no occasion given';
   const datesLabel = context.lead.dates.from
@@ -401,8 +417,7 @@ export function buildLeanSalesPrompt(context: SalesSuggestionContext, state: Sal
       ? 'not yet confirmed — the site cart showed the guest a transport estimate, but it is not reconciled with a CRM transport rate yet; price this separately before quoting'
       : 'not yet confirmed';
 
-  return `CASA GAVIOTA — REPLY REQUEST
-Lead: ${clean(context.lead.name)} · ${productLabel} · ${datesLabel} · ${guestsLabel} · ${intentLabel}
+  return `Lead: ${clean(context.lead.name)} · ${productLabel} · ${datesLabel} · ${guestsLabel} · ${intentLabel}
 
 SALES STATE
 Phase: ${PHASE_LABELS[state.conversation_phase]}
@@ -420,7 +435,12 @@ Accommodation: ${context.pricing.accommodation_cents !== null ? `${cents(context
 Food: ${foodLine}
 Transport: ${transportLine}
 Payment: ${context.payment.status}; received ${cents(context.payment.received_cents)}; balance ${cents(context.payment.balance_cents)}
-Reservation: ${clean(context.reservation.status)}
+Reservation: ${clean(context.reservation.status)}`;
+}
+
+export function buildLeanSalesPrompt(context: SalesSuggestionContext, state: SalesState): string {
+  return `CASA GAVIOTA — REPLY REQUEST
+${buildContextBlock(context, state)}
 
 Act as my Head of Sales for Casa Gaviota. Reply in exactly this format:
 
@@ -438,13 +458,19 @@ verify: <anything I should check before sending>
 WARNING
 <include this section only if a real commercial or operational issue exists right now — e.g. dates just became unavailable — omit it entirely otherwise>
 
-SALES RULES
-- Default: first message is rapport + one useful question; the second message is the quote.
-- Exception: if the guest explicitly asked for a price, or this is a last-minute/same-day/transactional inquiry, answer price immediately instead.
-- If rapport is already established, skip straight to the relevant next step — don't restart with small talk.
-- Never repeat a question already answered in the guest's last message above.
-- Frame the stay as a choice between two packages, not itemized add-ons: "Stay" (house + private beach + Barú transfer) vs "Full Experience" (Stay + all meals). Don't ask about food and transport as separate questions.
-- When food comes up, lead with the experience (meals prepared for the group — nothing to cook, shop for, or clean up) before mentioning the per-person rate.
-- Pre-arrival guests only: never re-sell accommodation. Frame it as "how would you like your stay to work" and offer food/drinks/transport they didn't take at booking — not a renewed accommodation pitch.
-- Do not invent prices, availability, payment status, reservation status, discounts, or transport availability.`;
+${SALES_RULES_TEXT}`;
+}
+
+// System prompt for the Generate Reply feature (calls Claude directly instead
+// of the operator pasting into ChatGPT). Same context + same rules as the
+// lean prompt above, minus the SEND NOW/WHY/NEXT scaffolding — the model
+// returns structured output via tool use instead (see anthropic-reply.ts).
+export function buildReplyGenerationSystemPrompt(context: SalesSuggestionContext, state: SalesState): string {
+  return `You are the Head of Sales for Casa Gaviota, a private beach house in Barú, Colombia. Draft the next WhatsApp reply to this lead.
+
+${buildContextBlock(context, state)}
+
+${SALES_RULES_TEXT}
+
+Use the draft_reply tool to return your answer. Do not invent facts not present above.`;
 }
