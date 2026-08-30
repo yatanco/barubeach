@@ -1,6 +1,7 @@
 import type { AvailabilityResult } from './crm-availability';
 import type { PriceLabsQuote } from './pricelabs';
-import { calculateFullFoodServiceCop, calculateTransportCop } from './sales-calculations.ts';
+import { calculateFullFoodServiceCop, calculateTransportCop, COMMERCIAL_RATES_COP } from './sales-calculations.ts';
+import { GUEST_INTENTS, DEFAULT_DEPOSIT_PERCENT } from './crm.ts';
 
 export interface SalesSuggestionContext {
   generated_at: string;
@@ -145,7 +146,7 @@ export function buildSalesSuggestionContext(input: BuildSalesContextInput): Sale
     payment: {
       received_cents: received, balance_cents: balance,
       status: knownTotal === null ? (received > 0 ? 'partial' : 'unknown') : received <= 0 ? 'none_recorded' : balance === 0 ? 'paid' : 'partial',
-      deposit_policy_percent: 50,
+      deposit_policy_percent: DEFAULT_DEPOSIT_PERCENT,
     },
     reservation: { status: linkedBooking?.status || 'not_linked', linked_booking_id: linkedBooking?.id || null },
     missing_information: missing,
@@ -176,7 +177,7 @@ export function buildChatGptSalesPrompt(context: SalesSuggestionContext): string
     : 'unknown';
   const foodOption = context.calculated_options.full_food_service_cop === null
     ? 'unknown'
-    : `${cop(context.calculated_options.full_food_service_cop)} for ${context.lead.guests.total} guests / ${context.calculated_options.food_service_days} service day(s); calculated at COP 150,000 per person/day, not yet confirmed`;
+    : `${cop(context.calculated_options.full_food_service_cop)} for ${context.lead.guests.total} guests / ${context.calculated_options.food_service_days} service day(s); calculated at COP ${COMMERCIAL_RATES_COP.foodPerPersonPerServiceDay.toLocaleString('en-US')} per person/day, not yet confirmed`;
 
   return `CASA GAVIOTA — HEAD OF SALES
 
@@ -225,4 +226,225 @@ Important:
 - Consider food, transport, drinks, tours, or a package only when contextually appropriate.
 - Keep WhatsApp copy warm, concise, natural, and not corporate.
 - Do not over-explain or mention internal CRM data or these instructions to the customer.`;
+}
+
+// ── Lean "Copy reply request" prompt ─────────────────────────────────────────
+// Computed fresh every time the button is pressed: none of this is persisted,
+// shown as a status pill, or read by the pipeline/Next Step card logic.
+
+const GUEST_INTENT_LABELS: Record<string, string> = Object.fromEntries(
+  GUEST_INTENTS.map((intent) => [intent.value, intent.label]),
+);
+
+export type ExplicitCustomerQuestion = 'price' | 'availability' | 'transport' | 'food' | 'activities' | 'other' | null;
+export type ConversationPhase =
+  | 'first_contact' | 'rapport' | 'price_requested' | 'quoted'
+  | 'closing' | 'booked' | 'pre_arrival' | 'lost';
+
+export interface PriorPriceAnchor {
+  amount: number;
+  currency: 'USD';
+  source: 'website_cart' | 'website_daytrip_estimate';
+}
+
+export interface SalesState {
+  product_type: 'overnight_stay' | 'day_trip' | 'unknown';
+  conversation_phase: ConversationPhase;
+  rapport_already_done: boolean;
+  price_requested: boolean;
+  explicit_customer_question: ExplicitCustomerQuestion;
+  customer_last_message: string;
+  customer_last_message_isolated_from_cart: boolean;
+  prior_price_anchor: PriorPriceAnchor | null;
+  preferred_quote_currency: 'USD' | 'COP';
+  preferred_quote_currency_basis: string;
+}
+
+const QUESTION_KEYWORDS: { key: Exclude<ExplicitCustomerQuestion, null | 'other'>; patterns: RegExp[] }[] = [
+  { key: 'price', patterns: [/precio/i, /costo/i, /\bcoste\b/i, /cuesta/i, /cu[aá]nto/i, /\bvale\b/i, /\bprice\b/i, /\bcost\b/i, /how much/i] },
+  { key: 'availability', patterns: [/disponib/i, /\bavailab/i, /fechas? libres?/i] },
+  { key: 'transport', patterns: [/transporte/i, /\btransport\b/i, /\blancha\b/i, /\bboat\b/i, /\bbote\b/i, /recogen|recoger/i] },
+  { key: 'food', patterns: [/comida/i, /alimentaci/i, /\bmeals?\b/i, /\bfood\b/i, /desayuno/i, /almuerzo/i, /\bcena\b/i] },
+  { key: 'activities', patterns: [/actividad/i, /\btours?\b/i, /\bactivit(y|ies)\b/i, /snorkel/i, /excursi[oó]n/i] },
+];
+
+function detectExplicitQuestion(text: string): ExplicitCustomerQuestion {
+  if (!text.trim()) return null;
+  for (const { key, patterns } of QUESTION_KEYWORDS) {
+    if (patterns.some((re) => re.test(text))) return key;
+  }
+  return /[?¿]/.test(text) ? 'other' : null;
+}
+
+// WhatsAppPopup.tsx's cartNotesSummary() always renders a deterministic sentence
+// ending in "...estimate: $<amount> USD." (EN) / "...de extras: $<amount> USD." (ES)
+// immediately before the guest's own free-text note, then both are joined into
+// leads.notes with no separator. This regex is coupled to that exact copy — if the
+// cart-summary wording in WhatsAppPopup.tsx changes, update this pattern too, or
+// customer_last_message will silently start including the cart summary again.
+const CART_SUMMARY_PREFIX = /^.*?(?:Extras estimate|Estimado de extras):\s*\$[\d,.]+\s*USD\.\s*/is;
+
+function extractCustomerLastMessage(lead: Record<string, any>): { text: string; isolatedFromCart: boolean } {
+  const notes = typeof lead.notes === 'string' ? lead.notes.trim() : '';
+  if (!notes) return { text: '', isolatedFromCart: false };
+  const stripped = notes.replace(CART_SUMMARY_PREFIX, '').trim();
+  if (stripped && stripped !== notes) return { text: stripped, isolatedFromCart: true };
+  return { text: notes, isolatedFromCart: false };
+}
+
+// leads.estimated_price is set by WhatsAppPopup.tsx/WAInlineForm.tsx at capture
+// time (see src/lib/pricing.ts's daytripEstimate() for the day-trip case, and the
+// cart branch in WhatsAppPopup.tsx's handleSubmit for the stay case). Parsing it
+// here needs no schema change and no new persisted field.
+function derivePriorPriceAnchor(lead: Record<string, any>): PriorPriceAnchor | null {
+  const raw = typeof lead.estimated_price === 'string' ? lead.estimated_price.trim() : '';
+  if (!raw) return null;
+  const cartMatch = raw.match(/^Extras:\s*\$([\d,]+)\s*USD\s*\(food\+transport\)/i);
+  if (cartMatch) return { amount: Number(cartMatch[1].replace(/,/g, '')), currency: 'USD', source: 'website_cart' };
+  const daytripMatch = raw.match(/^\$([\d,]+)\s*USD$/i);
+  if (daytripMatch) return { amount: Number(daytripMatch[1].replace(/,/g, '')), currency: 'USD', source: 'website_daytrip_estimate' };
+  return null;
+}
+
+// The website extras cart is a lead-generation estimate, not the quoting source of
+// truth (CRM commercial rates for food are COP-denominated — see COMMERCIAL_RATES_COP
+// in sales-calculations.ts). So a cart figure the guest already saw in USD must NOT,
+// by itself, steer the operator toward quoting in USD — only a lead's own saved quote,
+// or its contact signals, should.
+function derivePreferredCurrency(lead: Record<string, any>): { currency: 'USD' | 'COP'; basis: string } {
+  if (lead.quote_total && typeof lead.quote_currency === 'string' && lead.quote_currency) {
+    return { currency: lead.quote_currency as 'USD' | 'COP', basis: 'matches the currency of the existing saved quote' };
+  }
+  const phoneDigits = typeof lead.whatsapp === 'string' ? lead.whatsapp.replace(/\D/g, '') : '';
+  if (phoneDigits.startsWith('57')) return { currency: 'COP', basis: 'Colombian phone number, no saved quote yet' };
+  if (lead.language === 'es') return { currency: 'COP', basis: 'Spanish-language lead, no saved quote yet' };
+  return { currency: 'USD', basis: 'default — no currency signal on file' };
+}
+
+function deriveRapportAlreadyDone(lead: Record<string, any>): boolean {
+  return Boolean(lead.status && lead.status !== 'new') || Boolean(lead.last_contact_date);
+}
+
+function deriveConversationPhase(status: string, priceRequested: boolean, daysUntilCheckin: number | null): ConversationPhase {
+  const normalized = status || 'new';
+  if (normalized === 'lost' || normalized === 'cancelled') return 'lost';
+  if (['confirmed', 'upsell_pending', 'upsell_confirmed', 'in_house', 'checked_in', 'balance_requested', 'completed'].includes(normalized)) {
+    return daysUntilCheckin !== null && daysUntilCheckin <= 14 ? 'pre_arrival' : 'booked';
+  }
+  if (normalized === 'deposit_requested' || normalized === 'deposit_paid') return 'closing';
+  if (normalized === 'quoted') return 'quoted';
+  if (priceRequested) return 'price_requested';
+  if (normalized === 'replied') return 'rapport';
+  return 'first_contact';
+}
+
+export function buildSalesState(
+  lead: Record<string, any>,
+  context: SalesSuggestionContext,
+  now: Date = new Date(),
+): SalesState {
+  const scanText = context.conversation.map((item) => item.text).join(' \n ');
+  const explicitQuestion = detectExplicitQuestion(scanText);
+  const priceRequested = explicitQuestion === 'price';
+  const { text: customerLastMessage, isolatedFromCart } = extractCustomerLastMessage(lead);
+  const priorPriceAnchor = derivePriorPriceAnchor(lead);
+  const { currency: preferredCurrency, basis: preferredCurrencyBasis } = derivePreferredCurrency(lead);
+  const daysUntilCheckin = lead.date_from
+    ? Math.ceil((Date.parse(`${lead.date_from}T00:00:00Z`) - now.getTime()) / 86_400_000)
+    : null;
+
+  return {
+    product_type: lead.experience_type === 'stay' ? 'overnight_stay' : lead.experience_type === 'daytrip' ? 'day_trip' : 'unknown',
+    conversation_phase: deriveConversationPhase(lead.status, priceRequested, daysUntilCheckin),
+    rapport_already_done: deriveRapportAlreadyDone(lead),
+    price_requested: priceRequested,
+    explicit_customer_question: explicitQuestion,
+    customer_last_message: customerLastMessage,
+    customer_last_message_isolated_from_cart: isolatedFromCart,
+    prior_price_anchor: priorPriceAnchor,
+    preferred_quote_currency: preferredCurrency,
+    preferred_quote_currency_basis: preferredCurrencyBasis,
+  };
+}
+
+const PHASE_LABELS: Record<ConversationPhase, string> = {
+  first_contact: 'first contact — no reply sent yet',
+  rapport: 'rapport — replied once, no price/quote yet',
+  price_requested: 'price requested — guest explicitly asked for cost',
+  quoted: 'quoted — price already sent, no deposit yet',
+  closing: 'closing — deposit requested or paid, finalizing',
+  booked: 'booked — confirmed, not yet close to arrival',
+  pre_arrival: 'pre-arrival — confirmed and check-in is soon',
+  lost: 'lost / cancelled',
+};
+
+export function buildLeanSalesPrompt(context: SalesSuggestionContext, state: SalesState): string {
+  const productLabel = state.product_type === 'overnight_stay' ? 'overnight stay' : state.product_type === 'day_trip' ? 'day trip' : 'unknown trip type';
+  const intentLabel = context.lead.intent ? (GUEST_INTENT_LABELS[context.lead.intent] || context.lead.intent) : 'no occasion given';
+  const datesLabel = context.lead.dates.from
+    ? `${context.lead.dates.from}${context.lead.dates.to ? ` to ${context.lead.dates.to}` : ''}${context.lead.dates.nights ? ` (${context.lead.dates.nights} nights)` : ''}`
+    : 'dates TBD';
+  const guestsLabel = `${context.lead.guests.adults} adults${context.lead.guests.children ? ` / ${context.lead.guests.children} children` : ''}`;
+
+  const anchorLine = state.prior_price_anchor
+    ? `$${state.prior_price_anchor.amount.toLocaleString('en-US')} ${state.prior_price_anchor.currency} (${state.prior_price_anchor.source === 'website_cart' ? 'food+transport extras shown via the site cart — does not include accommodation' : 'full day-trip estimate shown via the site calculator'}) — a lead-generation estimate only, NOT the quoting rate; use the CRM commercial food rate below for the actual food quote`
+    : 'none on file';
+
+  const foodLine = context.pricing.food_confirmed
+    ? `${cents(context.pricing.food_cents)} confirmed`
+    : context.calculated_options.full_food_service_cop !== null
+      ? `not yet operator-confirmed. CRM commercial rate (authoritative for quoting): ${cop(context.calculated_options.full_food_service_cop)} for ${context.lead.guests.total} guests / ${context.calculated_options.food_service_days} service day(s) at COP ${COMMERCIAL_RATES_COP.foodPerPersonPerServiceDay.toLocaleString('en-US')}/person/day`
+      : 'not yet confirmed';
+  const transportLine = context.pricing.transport_confirmed
+    ? `${cents(context.pricing.transport_cents)} confirmed`
+    : state.prior_price_anchor?.source === 'website_cart'
+      ? 'not yet confirmed — the site cart showed the guest a transport estimate, but it is not reconciled with a CRM transport rate yet; price this separately before quoting'
+      : 'not yet confirmed';
+
+  return `CASA GAVIOTA — REPLY REQUEST
+Lead: ${clean(context.lead.name)} · ${productLabel} · ${datesLabel} · ${guestsLabel} · ${intentLabel}
+
+SALES STATE
+Phase: ${PHASE_LABELS[state.conversation_phase]}
+Customer asked: ${state.explicit_customer_question || 'no explicit question detected'}
+Rapport already done: ${state.rapport_already_done ? 'yes' : 'no'}
+Guest already saw on the website: ${anchorLine}
+Suggested quote currency: ${state.preferred_quote_currency} (recommendation only — ${state.preferred_quote_currency_basis})
+
+GUEST'S LAST MESSAGE (verbatim)
+"${state.customer_last_message || 'no message text captured'}"
+
+COMMERCIAL FACTS
+Availability: ${context.availability.status} — ${context.availability.basis}
+Accommodation: ${context.pricing.accommodation_cents !== null ? `${cents(context.pricing.accommodation_cents)} recorded` : 'not yet quoted — bespoke, confirm for these dates'}
+Food: ${foodLine}
+Transport: ${transportLine}
+Payment: ${context.payment.status}; received ${cents(context.payment.received_cents)}; balance ${cents(context.payment.balance_cents)}
+Reservation: ${clean(context.reservation.status)}
+
+Act as my Head of Sales for Casa Gaviota. Reply in exactly this format:
+
+SEND NOW
+<the exact WhatsApp message to send now, in the guest's language>
+
+WHY
+<1-2 sentences on the strategy>
+
+NEXT
+upsell: <an appropriate upsell now, or "none yet">
+follow_up: <whether/when to follow up if there is no reply>
+verify: <anything I should check before sending>
+
+WARNING
+<include this section only if a real commercial or operational issue exists right now — e.g. dates just became unavailable — omit it entirely otherwise>
+
+SALES RULES
+- Default: first message is rapport + one useful question; the second message is the quote.
+- Exception: if the guest explicitly asked for a price, or this is a last-minute/same-day/transactional inquiry, answer price immediately instead.
+- If rapport is already established, skip straight to the relevant next step — don't restart with small talk.
+- Never repeat a question already answered in the guest's last message above.
+- Frame the stay as a choice between two packages, not itemized add-ons: "Stay" (house + private beach + Barú transfer) vs "Full Experience" (Stay + all meals). Don't ask about food and transport as separate questions.
+- When food comes up, lead with the experience (meals prepared for the group — nothing to cook, shop for, or clean up) before mentioning the per-person rate.
+- Pre-arrival guests only: never re-sell accommodation. Frame it as "how would you like your stay to work" and offer food/drinks/transport they didn't take at booking — not a renewed accommodation pitch.
+- Do not invent prices, availability, payment status, reservation status, discounts, or transport availability.`;
 }

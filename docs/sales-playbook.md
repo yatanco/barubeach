@@ -35,7 +35,7 @@ Review this section whenever rates or policies change. Application data takes pr
 
 ### Food
 
-- Full food service: COP 150,000 per person per day, covering breakfast, lunch, and dinner.
+- Full food service: COP 150,000 per person per day, covering breakfast, lunch, and dinner. **This COP rate is authoritative for quotes.** The public website's extras cart shows guests a separate $50 USD/person/day estimate for lead-generation purposes only — that figure is not a quote and must not be used when actually pricing food for a guest.
 - A typical 2-night stay uses two full food-service days: arrival lunch and dinner; middle-day breakfast, lunch, and dinner; departure breakfast.
 - Breakfast-only may be offered, but no default price is defined here and must be confirmed.
 - Alcohol is not included. Guests may bring their own alcohol.

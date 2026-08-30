@@ -5,10 +5,10 @@ import {
   money, shortDate, timeAgo, waLinkTo, nightsBetween, channelBadgeClass,
   STATUS_LABELS, STATUS_COLORS, pipelineFor, normalizeStatus,
   BOOKING_CHANNELS, BOOKING_CHANNEL_LABELS, CHANNEL_PILL_LABELS, DEFAULT_COMMISSION_RATE,
-  PAYMENT_METHODS,
+  DEFAULT_DEPOSIT_PERCENT, PAYMENT_METHODS,
 } from '../../lib/crm';
 import { checkAvailability } from '../../lib/crm-availability';
-import { buildChatGptSalesPrompt, buildSalesSuggestionContext } from '../../lib/sales-suggestion';
+import { buildChatGptSalesPrompt, buildSalesSuggestionContext, buildSalesState, buildLeanSalesPrompt } from '../../lib/sales-suggestion';
 
 interface Props {
   kind: 'lead' | 'booking';
@@ -54,7 +54,7 @@ const foodCents = record.food_confirmed ? (record.food_amount ?? 0) : 0;
 const transportCents = record.transport_confirmed ? (record.transport_amount ?? 0) : 0;
 const totalToCollectCents = collectibleAccommodationCents + foodCents + transportCents;
 const netToYouCents = totalToCollectCents - commissionCents;
-const defaultDepositCents = Math.round(totalToCollectCents * 0.5);
+const defaultDepositCents = Math.round(totalToCollectCents * (DEFAULT_DEPOSIT_PERCENT / 100));
 
 const costStaffCents = isBooking ? (record.cost_staff_cents ?? 0) : 0;
 const costFoodCents = isBooking ? (record.cost_food_cents ?? 0) : 0;
@@ -84,9 +84,11 @@ const availability = await checkAvailability(db, record.date_from, record.date_t
 const linkedBooking = !isBooking
   ? await db.prepare('SELECT id, status FROM bookings WHERE lead_id = ?1 LIMIT 1').bind(record.id).first<{ id: string; status: string }>()
   : null;
-const chatGptPrompt = !isBooking ? buildChatGptSalesPrompt(buildSalesSuggestionContext({
+const salesContext = !isBooking ? buildSalesSuggestionContext({
   lead: { ...record, nights }, availability, priceLabsQuote, paymentsReceivedCents: totalReceivedCents, linkedBooking,
-})) : '';
+}) : null;
+const chatGptPrompt = salesContext ? buildChatGptSalesPrompt(salesContext) : '';
+const leanSalesPrompt = salesContext ? buildLeanSalesPrompt(salesContext, buildSalesState({ ...record, nights }, salesContext)) : '';
 
 const pipeline = pipelineFor(kind, channel);
 const currentStatus = normalizeStatus(record.status);
@@ -194,9 +196,9 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
           <h2 id="next-step-heading">Reply to this inquiry</h2>
           <p class="muted ns-hint">Copy the lead context into ChatGPT to draft your first reply. Nothing is sent automatically.</p>
           <div class="actions ns-actions">
-            <button type="button" id="copy-chatgpt-prompt-btn">📋 Copy for ChatGPT</button>
+            <button type="button" id="copy-lean-prompt-btn-ns">📋 Copy reply request</button>
           </div>
-          <div class="inline-feedback" id="chatgpt-copy-feedback" role="status" aria-live="polite"></div>
+          <div class="inline-feedback" id="lean-copy-feedback-ns" role="status" aria-live="polite"></div>
           <div class="ns-divider"></div>
           <button type="button" class="ns-primary-btn" id="ns-mark-replied-btn">✅ Mark as replied</button>
           <div class="inline-feedback" id="ns-status-feedback" role="status" aria-live="polite"></div>
@@ -443,12 +445,17 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
         </div>
         <p class="muted sales-intro">Copy the current lead context into ChatGPT to get the next recommended reply and sales strategy. Nothing is sent automatically.</p>
         <div class="actions sales-actions">
-          <button type="button" id="copy-chatgpt-prompt-btn-fr">📋 Copy for ChatGPT</button>
-          <button type="button" class="secondary" id="preview-chatgpt-prompt-btn" aria-expanded="false">Preview prompt</button>
+          <button type="button" id="copy-lean-prompt-btn-fr">📋 Copy reply request</button>
+          <button type="button" id="copy-chatgpt-prompt-btn-fr">📋 Copy full sales review</button>
+          <button type="button" class="secondary" id="preview-chatgpt-prompt-btn" aria-expanded="false">Preview prompts</button>
         </div>
+        <div class="inline-feedback" id="lean-copy-feedback-fr" role="status" aria-live="polite"></div>
         <div class="inline-feedback" id="chatgpt-copy-feedback-fr" role="status" aria-live="polite"></div>
         <div id="chatgpt-prompt-preview" hidden>
-          <label>Exact prompt to copy
+          <label>Reply request (lean)
+            <textarea id="lean-prompt-text" readonly rows="14">{leanSalesPrompt}</textarea>
+          </label>
+          <label>Full sales review (exact prompt to copy)
             <textarea id="chatgpt-prompt-text" readonly rows="14">{chatGptPrompt}</textarea>
           </label>
         </div>
@@ -505,7 +512,7 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
         <section class="card urd-section">
           <h2>Totals</h2>
           <div class="row"><span>Total to collect</span><strong class="amount" id="total-to-collect">{money(totalToCollectCents)}</strong></div>
-          <div class="row"><span>Deposit (50%)</span><strong class="amount" id="deposit-preview">{money(defaultDepositCents)}</strong></div>
+          <div class="row"><span>Deposit ({DEFAULT_DEPOSIT_PERCENT}%)</span><strong class="amount" id="deposit-preview">{money(defaultDepositCents)}</strong></div>
           {isBookingCom && <>
             <div class="row">
               <span>Commission rate</span>
@@ -854,7 +861,7 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
   }
 </style>
 
-<script define:vars={{ apiBase, kind, boldLink, guestName: record.guest_name, dateFrom: record.date_from, dateTo: record.date_to, isBookingCom, accommodationCents, foodCentsInit: foodCents, transportCentsInit: transportCents, isAirbnb, balanceDueCents: bookingBalanceDueCents, recordId: record.id, nextStepBalanceDue }}>
+<script define:vars={{ apiBase, kind, boldLink, guestName: record.guest_name, dateFrom: record.date_from, dateTo: record.date_to, isBookingCom, accommodationCents, foodCentsInit: foodCents, transportCentsInit: transportCents, isAirbnb, balanceDueCents: bookingBalanceDueCents, recordId: record.id, nextStepBalanceDue, depositPercent: DEFAULT_DEPOSIT_PERCENT }}>
   function pesosFromInput(str) {
     const n = Number(String(str).replace(/[^0-9]/g, ''));
     return Number.isFinite(n) ? n : 0;
@@ -923,13 +930,14 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
     });
   });
 
-  // ── ChatGPT clipboard (both Next Step and Full Record buttons) ────────────
+  // ── ChatGPT clipboard (Next Step and Full Record buttons, lean + full prompts) ──
   const chatGptPromptText = document.getElementById('chatgpt-prompt-text')?.value || '';
-  async function doCopyChatGpt(btn, feedbackId) {
+  const leanPromptText = document.getElementById('lean-prompt-text')?.value || '';
+  async function doCopyPrompt(btn, feedbackId, text) {
     const feedback = document.getElementById(feedbackId);
     const original = btn?.textContent;
     try {
-      await navigator.clipboard.writeText(chatGptPromptText);
+      await navigator.clipboard.writeText(text);
       if (btn) btn.textContent = 'Copied ✓';
       if (feedback) feedback.textContent = 'Paste it into your Casa Gaviota ChatGPT conversation.';
     } catch {
@@ -937,15 +945,16 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
     }
     setTimeout(() => { if (btn && original) btn.textContent = original; }, 1800);
   }
-  document.getElementById('copy-chatgpt-prompt-btn')?.addEventListener('click', (e) => doCopyChatGpt(e.currentTarget, 'chatgpt-copy-feedback'));
-  document.getElementById('copy-chatgpt-prompt-btn-fr')?.addEventListener('click', (e) => doCopyChatGpt(e.currentTarget, 'chatgpt-copy-feedback-fr'));
+  document.getElementById('copy-lean-prompt-btn-ns')?.addEventListener('click', (e) => doCopyPrompt(e.currentTarget, 'lean-copy-feedback-ns', leanPromptText));
+  document.getElementById('copy-lean-prompt-btn-fr')?.addEventListener('click', (e) => doCopyPrompt(e.currentTarget, 'lean-copy-feedback-fr', leanPromptText));
+  document.getElementById('copy-chatgpt-prompt-btn-fr')?.addEventListener('click', (e) => doCopyPrompt(e.currentTarget, 'chatgpt-copy-feedback-fr', chatGptPromptText));
   const previewBtn = document.getElementById('preview-chatgpt-prompt-btn');
   const chatGptPreview = document.getElementById('chatgpt-prompt-preview');
   previewBtn?.addEventListener('click', () => {
     if (!chatGptPreview) return;
     chatGptPreview.hidden = !chatGptPreview.hidden;
     previewBtn.setAttribute('aria-expanded', String(!chatGptPreview.hidden));
-    previewBtn.textContent = chatGptPreview.hidden ? 'Preview prompt' : 'Hide preview';
+    previewBtn.textContent = chatGptPreview.hidden ? 'Preview prompts' : 'Hide preview';
   });
 
   // ── Follow-up ─────────────────────────────────────────────────────────────
@@ -1291,11 +1300,11 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
     const commission = isBookingCom ? Math.round(currentAccommodationCents * (currentCommissionRate() / 100) * 1.19) : 0;
     const el = (id) => document.getElementById(id);
     if (el('total-to-collect')) el('total-to-collect').textContent = formatCOP(totalToCollect / 100);
-    if (el('deposit-preview')) el('deposit-preview').textContent = formatCOP(Math.round(totalToCollect * 0.5) / 100);
+    if (el('deposit-preview')) el('deposit-preview').textContent = formatCOP(Math.round(totalToCollect * (depositPercent / 100)) / 100);
     if (el('commission-amount')) el('commission-amount').textContent = formatCOP(commission / 100);
     if (el('net-to-you')) el('net-to-you').textContent = formatCOP((totalToCollect - commission) / 100);
     const depositInput = el('deposit-input');
-    if (depositInput && !depositInput.dataset.touched) depositInput.value = String(Math.round(totalToCollect / 2 / 100));
+    if (depositInput && !depositInput.dataset.touched) depositInput.value = String(Math.round(totalToCollect * (depositPercent / 100) / 100));
   }
   document.getElementById('deposit-input')?.addEventListener('input', (e) => { e.target.dataset.touched = '1'; });
   if (commissionRateCell) {

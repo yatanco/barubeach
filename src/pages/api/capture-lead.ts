@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getDb, getRuntimeEnv, nowIso } from '../../lib/db';
+import { GUEST_INTENT_VALUES } from '../../lib/crm';
 
 export const prerender = false;
 
@@ -24,6 +25,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (!source || !language || !experienceType) {
     return Response.json({ success: false, error: 'Missing required fields' }, { status: 422 });
   }
+
+  const occasion = text(data.occasion, 30);
+  const guestIntent = occasion && (GUEST_INTENT_VALUES as readonly string[]).includes(occasion) ? occasion : null;
 
   const db = getDb(locals);
   const runtime = getRuntimeEnv(locals);
@@ -64,8 +68,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
             estimated_price  = COALESCE(estimated_price, ?8),
             notes            = COALESCE(notes, ?9),
             page_url         = COALESCE(page_url, ?10),
-            raw_payload      = ?11
-          WHERE id = ?12
+            guest_intent     = COALESCE(guest_intent, ?11),
+            raw_payload      = ?12
+          WHERE id = ?13
         `).bind(
           now,
           text(data.name, 200),
@@ -77,6 +82,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           text(data.estimatedPrice, 200),
           text(data.notes, 2000),
           text(data.pageUrl, 1000),
+          guestIntent,
           JSON.stringify(data).slice(0, 20000),
           existingId,
         ).run();
@@ -85,8 +91,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           INSERT INTO leads (
             id, created_at, updated_at, source, language, experience_type,
             guest_name, whatsapp, email, date_from, date_to, adults, children,
-            estimated_price, notes, page_url, raw_payload
-          ) VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+            estimated_price, notes, page_url, guest_intent, raw_payload
+          ) VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
         `).bind(
           id,
           now,
@@ -103,6 +109,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           text(data.estimatedPrice, 200),
           text(data.notes, 2000),
           text(data.pageUrl, 1000),
+          guestIntent,
           JSON.stringify(data).slice(0, 20000),
         ).run();
       }

@@ -6,8 +6,8 @@ The Head of Sales feature helps the Casa Gaviota owner prepare a better WhatsApp
 
 1. Open a lead in `/admin`.
 2. Confirm that dates, guest counts, notes, pricing, and payment information are current.
-3. In **Head of Sales**, choose **Preview prompt** when you want to inspect the context.
-4. Choose **Copy for ChatGPT**.
+3. In **Head of Sales**, choose **Preview prompts** when you want to inspect the context.
+4. Choose **Copy reply request** for the common case (a lean prompt asking ChatGPT to reply in a fixed `SEND NOW` / `WHY` / `NEXT` format), or **Copy full sales review** for complex or high-value leads (the richer, five-question format).
 5. Paste the prompt into the existing Casa Gaviota ChatGPT conversation.
 6. Review and adapt the proposed reply before sending it manually through WhatsApp.
 
@@ -36,6 +36,7 @@ The prompt omits phone numbers, record IDs, raw database payloads, environment v
 - Payment and reservation states come from D1 and are never inferred from conversation text.
 - Unknown values are written as `unknown` so ChatGPT can ask for confirmation instead of guessing.
 - There is no OpenAI API call, API key, background generation, or automated WhatsApp sending.
+- The public website's extras cart (shown to guests during lead capture, e.g. "Extras estimate: $1,100 USD") is a lead-generation estimate only. It is never the quoting source of truth: the CRM's COP 150,000/person/day food rate (`COMMERCIAL_RATES_COP.foodPerPersonPerServiceDay` in `src/lib/sales-calculations.ts`) is authoritative for actual quotes. The lean "Copy reply request" prompt shows both and labels which is which — never quote food at the cart's USD figure just because the guest saw it first.
 
 ## Calculation rules
 

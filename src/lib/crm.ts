@@ -122,6 +122,7 @@ export const CHANNEL_PILL_LABELS: Record<typeof BOOKING_CHANNELS[number], string
 };
 export const BOOKING_SOURCES = ['manual', 'hosthub_ical'] as const;
 export const DEFAULT_COMMISSION_RATE = 18;
+export const DEFAULT_DEPOSIT_PERCENT = 50;
 
 // Payments Received method dropdown (Section 7 of the unified detail page).
 export const PAYMENT_METHODS = ['Transferencia', 'Nequi', 'Bold', 'Efectivo', 'Airbnb', 'BK.COM'] as const;
