@@ -1,4 +1,4 @@
-import type { APIContext } from 'astro';
+import type { APIContext, APIRoute } from 'astro';
 
 export interface D1Result<T = Record<string, unknown>> {
   success: boolean;
@@ -74,6 +74,24 @@ export function parseCopToCents(value: string): number {
   const pesos = Number.parseInt(normalized, 10);
   if (!Number.isFinite(pesos) || pesos < 0) throw new Error('Invalid amount');
   return pesos * 100;
+}
+
+// Every /admin/api JSON route is consumed via fetch(...).then(r => r.json())
+// from admin-page client JS. With no middleware or custom error page in
+// this app, an unguarded throw anywhere in a handler (a transient D1/KV
+// error, a missing binding) serves Astro/Cloudflare's HTML error page
+// instead — which breaks res.json() on the client with a cryptic
+// "Unexpected token '<'" instead of the actual error. Wrap every such
+// handler in this so a failure always comes back as JSON.
+export function withJsonError(handler: APIRoute): APIRoute {
+  return async (context) => {
+    try {
+      return await handler(context);
+    } catch (error) {
+      console.error(`[api] ${context.request.method} ${context.url.pathname} failed:`, error);
+      return Response.json({ success: false, error: 'Something went wrong' }, { status: 500 });
+    }
+  };
 }
 
 export function redirectBack(request: Request, fallback: string, params?: Record<string, string>): Response {

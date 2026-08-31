@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getRuntimeEnv } from '../../../lib/db';
+import { getRuntimeEnv, withJsonError } from '../../../lib/db';
 
 export const prerender = false;
 
@@ -29,7 +29,7 @@ async function probe(url: string, apiKey: string, maxChars = 500): Promise<Probe
   }
 }
 
-export const GET: APIRoute = async ({ locals }) => {
+export const GET: APIRoute = withJsonError(async ({ locals }) => {
   const env = getRuntimeEnv(locals);
   const apiKey = env.HOSTHUB_API_KEY;
   const rentalId = env.HOSTHUB_RENTAL_ID;
@@ -54,4 +54,4 @@ export const GET: APIRoute = async ({ locals }) => {
   const results = await Promise.all(targets.map((t) => probe(t.url, apiKey, t.maxChars)));
 
   return Response.json({ results });
-};
+});

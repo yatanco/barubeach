@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 import { nightsBetween } from '../../../../../lib/crm';
 
 export const prerender = false;
@@ -11,7 +11,7 @@ const isIsoDate = (value: unknown): value is string =>
 // leads, where nights is computed on read), so it must be recomputed here.
 // Availability and PriceLabs are recomputed by the page's own server-render
 // on next load.
-export const PATCH: APIRoute = async ({ request, locals, params }) => {
+export const PATCH: APIRoute = withJsonError(async ({ request, locals, params }) => {
   let body: { date_from?: string; date_to?: string };
   try { body = await request.json(); } catch {
     return Response.json({ success: false, error: 'Invalid request' }, { status: 400 });
@@ -45,4 +45,4 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
   ).bind(crypto.randomUUID(), params.id, 'note', `Dates changed from ${oldRange} to ${newRange}`, nowIso()).run();
 
   return Response.json({ success: true, hadExistingQuote });
-};
+});

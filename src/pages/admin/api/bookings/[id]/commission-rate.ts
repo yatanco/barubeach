@@ -1,12 +1,12 @@
 import type { APIRoute } from 'astro';
-import { requireDb } from '../../../../../lib/db';
+import { requireDb, withJsonError } from '../../../../../lib/db';
 
 export const prerender = false;
 
 // Inline-editable "Rate" cell in the Booking.com commission box on the
 // booking detail page — recomputes and persists ota_commission_cents
 // against the current accommodation charge whenever the rate changes.
-export const POST: APIRoute = async ({ request, locals, params }) => {
+export const POST: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid booking' }, { status: 422 });
   const db = requireDb(locals);
 
@@ -32,4 +32,4 @@ export const POST: APIRoute = async ({ request, locals, params }) => {
     .bind(rate, otaCommissionCents, params.id).run();
 
   return Response.json({ success: true, otaCommissionCents });
-};
+});

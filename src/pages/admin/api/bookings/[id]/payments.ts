@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 
 export const prerender = false;
 
@@ -14,7 +14,7 @@ function centsFromPesos(value: unknown): number {
 // the list itself also picks up any pre-migration payments still attached
 // to the old per-category accommodation/food/transport charges — see the
 // component, which reads payments joined across ALL of a booking's charges.
-export const POST: APIRoute = async ({ request, locals, params }) => {
+export const POST: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid booking' }, { status: 422 });
   let body: { amount?: number; method?: string; date?: string };
   try { body = await request.json(); } catch {
@@ -44,4 +44,4 @@ export const POST: APIRoute = async ({ request, locals, params }) => {
     VALUES (?1,?2,?3,?4,?5,?6)`).bind(crypto.randomUUID(), chargeId, now, paidAt, cents, body.method || null).run();
 
   return Response.json({ success: true });
-};
+});

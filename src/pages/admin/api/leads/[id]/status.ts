@@ -1,10 +1,10 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 import { isOneOf, UNIFIED_STATUSES } from '../../../../../lib/crm';
 import { computeFollowupCadence } from '../../../../../lib/followup';
 export const prerender = false;
 
-export const PATCH: APIRoute = async ({ request, locals, params }) => {
+export const PATCH: APIRoute = withJsonError(async ({ request, locals, params }) => {
   let body: { status?: string };
   try { body = await request.json(); } catch {
     return Response.json({ success:false, error:'Invalid request' }, { status:400 });
@@ -40,4 +40,4 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
   }
 
   return Response.json({ success:true, status });
-};
+});

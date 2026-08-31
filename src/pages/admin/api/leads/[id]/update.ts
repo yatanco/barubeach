@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 
 export const prerender = false;
 
 // Partial update for the two inline-editable fields on the unified detail
 // page: phone (Section 1, saves on blur) and notes (Section 9, autosaves).
-export const PATCH: APIRoute = async ({ request, locals, params }) => {
+export const PATCH: APIRoute = withJsonError(async ({ request, locals, params }) => {
   let body: { notes?: string; whatsapp?: string };
   try { body = await request.json(); } catch {
     return Response.json({ success:false, error:'Invalid request' }, { status:400 });
@@ -21,4 +21,4 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
     await db.prepare('UPDATE leads SET whatsapp = ?1, updated_at = ?2 WHERE id = ?3').bind(body.whatsapp.trim() || null, now, params.id).run();
   }
   return Response.json({ success:true });
-};
+});

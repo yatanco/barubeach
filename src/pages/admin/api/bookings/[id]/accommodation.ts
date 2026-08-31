@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 import { DEFAULT_COMMISSION_RATE } from '../../../../../lib/crm';
 
 export const prerender = false;
@@ -14,7 +14,7 @@ function centsFromPesos(value: unknown): number {
 // booking's single accommodation charge (source of truth stays charge-based
 // for bookings — see migration 0010's comment on why). Airbnb: accommodation
 // is paid directly by Airbnb, so this instead records the payout amount.
-export const PATCH: APIRoute = async ({ request, locals, params }) => {
+export const PATCH: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid booking' }, { status: 422 });
   let body: { amount?: number; airbnbPayout?: number };
   try { body = await request.json(); } catch {
@@ -61,4 +61,4 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
   }
 
   return Response.json({ success: true });
-};
+});

@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 import { computeFollowupCadence } from '../../../../../lib/followup';
 
 export const prerender = false;
@@ -9,7 +9,7 @@ export const prerender = false;
 // every log after that keeps suggesting +7, so a lead never silently falls
 // off the radar). 'quoted' is included because a lead awaiting a price
 // decision is still "waiting to hear back" the same way a replied lead is.
-export const POST: APIRoute = async ({ request, locals, params }) => {
+export const POST: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid lead' }, { status: 422 });
   let body: { message_text?: string } = {};
   try { body = await request.json(); } catch { /* no body sent is fine — message_text is optional */ }
@@ -33,4 +33,4 @@ export const POST: APIRoute = async ({ request, locals, params }) => {
   ).bind(crypto.randomUUID(), params.id, 'note', messageText, now).run();
 
   return Response.json({ success: true, lastContactDate: cadence.lastContactDate, nextFollowupDate: cadence.nextFollowupDate, followupCount: cadence.followupCount });
-};
+});

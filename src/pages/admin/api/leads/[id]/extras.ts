@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 import { isOneOf } from '../../../../../lib/crm';
 
 export const prerender = false;
@@ -15,7 +15,7 @@ function centsFromPesos(value: unknown): number {
 // Section 4 (Food & Transport) toggle rows — shared shape for both leads and
 // bookings, since both got matching flat `${field}_amount`/`${field}_confirmed`
 // columns in migration 0010.
-export const PATCH: APIRoute = async ({ request, locals, params }) => {
+export const PATCH: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid lead' }, { status: 422 });
   let body: { field?: string; amount?: number; confirmed?: boolean };
   try { body = await request.json(); } catch {
@@ -48,4 +48,4 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
   values.push(now, params.id);
   await db.prepare(`UPDATE leads SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
   return Response.json({ success: true });
-};
+});

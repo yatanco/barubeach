@@ -1,12 +1,12 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../../../lib/db';
 import { computeFollowupCadence } from '../../../../../../../lib/followup';
 
 export const prerender = false;
 
 // "Mark as sent" — records that the operator sent this draft (via WhatsApp,
 // manually) after reviewing/editing it. Never sends anything itself.
-export const POST: APIRoute = async ({ request, locals, params }) => {
+export const POST: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id || !params.suggestionId) {
     return Response.json({ success: false, error: 'Invalid request' }, { status: 422 });
   }
@@ -57,4 +57,4 @@ export const POST: APIRoute = async ({ request, locals, params }) => {
   }
 
   return Response.json({ success: true });
-};
+});

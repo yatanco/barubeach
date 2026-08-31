@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 import { BOOKING_CHANNELS, DEFAULT_COMMISSION_RATE, isOneOf } from '../../../../../lib/crm';
 
 export const prerender = false;
@@ -7,7 +7,7 @@ export const prerender = false;
 // Section 10 (HostHub card, bookings) — channel dropdown, saves immediately.
 // Airbnb payout and accommodation amount live on the accommodation.ts
 // endpoint instead (Section 3), not here.
-export const PATCH: APIRoute = async ({ request, locals, params }) => {
+export const PATCH: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid booking' }, { status: 422 });
   let body: { channel?: string };
   try { body = await request.json(); } catch {
@@ -31,4 +31,4 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
     .bind(body.channel, otaCommissionCents, nowIso(), params.id).run();
 
   return Response.json({ success: true });
-};
+});

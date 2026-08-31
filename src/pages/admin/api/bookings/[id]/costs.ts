@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 
 export const prerender = false;
 
@@ -11,7 +11,7 @@ function centsFromPesos(value: unknown): number {
 
 // Section 8 (Variable costs, collapsed by default) — three flat operator-entered
 // cost fields, re-added onto bookings by migration 0010 for the simplified UI.
-export const PATCH: APIRoute = async ({ request, locals, params }) => {
+export const PATCH: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid booking' }, { status: 422 });
   let body: { staff?: number; food?: number; transport?: number };
   try { body = await request.json(); } catch {
@@ -35,4 +35,4 @@ export const PATCH: APIRoute = async ({ request, locals, params }) => {
   values.push(now, params.id);
   await db.prepare(`UPDATE bookings SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
   return Response.json({ success: true });
-};
+});

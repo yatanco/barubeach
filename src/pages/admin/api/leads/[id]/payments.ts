@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb } from '../../../../../lib/db';
+import { nowIso, requireDb, withJsonError } from '../../../../../lib/db';
 
 export const prerender = false;
 
@@ -14,7 +14,7 @@ function centsFromPesos(value: unknown): number {
 // 'extra' charge per lead to anchor every payment against — the charge's own
 // amount_cents is never read; Totals/Balance are computed from the lead's
 // flat accommodation/food/transport amounts instead (see the component).
-export const POST: APIRoute = async ({ request, locals, params }) => {
+export const POST: APIRoute = withJsonError(async ({ request, locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid lead' }, { status: 422 });
   let body: { amount?: number; method?: string; date?: string };
   try { body = await request.json(); } catch {
@@ -44,4 +44,4 @@ export const POST: APIRoute = async ({ request, locals, params }) => {
     VALUES (?1,?2,?3,?4,?5,?6)`).bind(crypto.randomUUID(), chargeId, now, paidAt, cents, body.method || null).run();
 
   return Response.json({ success: true });
-};
+});

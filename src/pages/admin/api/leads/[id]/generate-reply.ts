@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { nowIso, requireDb, getRuntimeEnv } from '../../../../../lib/db';
+import { nowIso, requireDb, getRuntimeEnv, withJsonError } from '../../../../../lib/db';
 import { checkAvailability } from '../../../../../lib/crm-availability';
 import { getPriceLabsQuote } from '../../../../../lib/pricelabs';
 import { buildSalesSuggestionContext, buildSalesState, buildReplyGenerationSystemPrompt } from '../../../../../lib/sales-suggestion';
@@ -13,7 +13,7 @@ export const prerender = false;
 // generation is logged to reply_suggestions (sent or not) — see
 // [id]/reply-suggestions/[suggestionId]/send.ts for the "Mark as sent" path,
 // which is the only place anything gets marked as actually sent.
-export const POST: APIRoute = async ({ locals, params }) => {
+export const POST: APIRoute = withJsonError(async ({ locals, params }) => {
   if (!params.id) return Response.json({ success: false, error: 'Invalid lead' }, { status: 422 });
   const db = requireDb(locals);
   const env = getRuntimeEnv(locals);
@@ -66,4 +66,4 @@ export const POST: APIRoute = async ({ locals, params }) => {
     console.error('[generate-reply] failed', error);
     return Response.json({ success: false, error: 'Could not generate a reply right now' }, { status: 500 });
   }
-};
+});
