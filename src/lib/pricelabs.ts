@@ -109,7 +109,11 @@ export async function getPriceLabsQuote(env: PriceLabsEnv, checkinISO: string, c
   }
 
   if (quote && kv) {
-    await kv.put(cacheKey, JSON.stringify(quote), { expirationTtl: CACHE_TTL_SECONDS });
+    try {
+      await kv.put(cacheKey, JSON.stringify(quote), { expirationTtl: CACHE_TTL_SECONDS });
+    } catch (err) {
+      console.error('[pricelabs] KV cache write failed:', err instanceof Error ? err.message : err);
+    }
   }
   return quote;
 }
