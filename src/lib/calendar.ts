@@ -55,6 +55,19 @@ export function monthParam(year: number, monthIndex0: number): string {
   return `${year}-${String(monthIndex0 + 1).padStart(2, '0')}`;
 }
 
+// Half-open [startISO, endExclusiveISO) bounds of the full rendered grid
+// (including the padding days from adjacent months) — lets the calendar
+// page's queries fetch only what the visible month can actually show,
+// instead of every active booking/lead ever created.
+export function monthGridBounds(year: number, monthIndex0: number): { startISO: string; endExclusiveISO: string } {
+  const gridDates = buildMonthGridDates(year, monthIndex0);
+  const startISO = gridDates[0].dateISO;
+  const lastDay = new Date(`${gridDates[gridDates.length - 1].dateISO}T00:00:00Z`);
+  lastDay.setUTCDate(lastDay.getUTCDate() + 1);
+  const endExclusiveISO = lastDay.toISOString().slice(0, 10);
+  return { startISO, endExclusiveISO };
+}
+
 // Buckets already-fetched booking/lead candidates (see the calendar page's
 // queries, which reuse the same active-status + unlinked-lead filters as
 // HARD_CONFLICT_CANDIDATES_SQL / SOFT_CONFLICT_CANDIDATES_SQL) onto each
@@ -81,17 +94,18 @@ export function buildCalendarMonth(
   }));
 
   // Visual continuity: a day's dominant booking (the one shown as the solid
-  // bar) is continuous with a neighbor only if that same booking id also
-  // occupies the neighboring day — this is what lets the bar run flush
-  // across a calendar row without implying a booking exists that doesn't.
+  // bar) is continuous with a neighbor only if that same booking is *also
+  // the neighbor's own dominant* — comparing against the neighbor's full
+  // booking list would flush the bar against a day whose rendered dominant
+  // is actually a different, merely-overlapping booking.
   for (let i = 0; i < days.length; i++) {
     const dominant = days[i].bookings[0];
     if (!dominant) continue;
     const col = i % 7;
     const prev = col > 0 ? days[i - 1] : undefined; // no left neighbor at the start of a row —
     const next = col < 6 ? days[i + 1] : undefined; // a range that wraps starts a fresh flush run on the next row
-    days[i].continuesLeft = Boolean(prev && prev.bookings.some((b) => b.id === dominant.id));
-    days[i].continuesRight = Boolean(next && next.bookings.some((b) => b.id === dominant.id));
+    days[i].continuesLeft = prev?.bookings[0]?.id === dominant.id;
+    days[i].continuesRight = next?.bookings[0]?.id === dominant.id;
   }
 
   return days;

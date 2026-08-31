@@ -2,22 +2,26 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../lib/db';
 import { ACTIVE_BOOKING_FILTER_SQL, ACTIVE_UNLINKED_LEAD_FILTER_SQL, type ConflictInfo } from '../../lib/crm-availability';
-import { buildCalendarMonth, parseMonthParam, monthParam, addMonths, type CalendarDay } from '../../lib/calendar';
+import { buildCalendarMonth, parseMonthParam, monthParam, addMonths, monthGridBounds, type CalendarDay } from '../../lib/calendar';
 import { STATUS_LABELS } from '../../lib/crm';
 
 export const prerender = false;
 Astro.response.headers.set('Cache-Control', 'no-store');
 
-interface BookingPanelInfo extends ConflictInfo { guestPhone: string | null; channel: string; source: string; }
-interface LeadPanelInfo extends ConflictInfo { whatsapp: string | null; lastContactDate: string | null; }
+interface BookingPanelInfo extends ConflictInfo { channel: string; source: string; }
+interface LeadPanelInfo extends ConflictInfo { lastContactDate: string | null; }
 
 const db = getDb(Astro.locals);
 const now = new Date();
-const todayISO = now.toISOString().slice(0, 10);
+// The property and its operators are in Colombia (America/Bogota, UTC-5,
+// no DST) — using the UTC calendar date here would mark the wrong grid
+// cell as "today" for several hours every evening.
+const todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(now);
 const { year, monthIndex0 } = parseMonthParam(Astro.url.searchParams.get('month'), now);
 const prev = addMonths(year, monthIndex0, -1);
 const next = addMonths(year, monthIndex0, 1);
 const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, monthIndex0, 1)));
+const { startISO, endExclusiveISO } = monthGridBounds(year, monthIndex0);
 
 let bookingRows: BookingPanelInfo[] = [];
 let leadRows: LeadPanelInfo[] = [];
@@ -30,22 +34,25 @@ if (!db) {
     // Same active-status/unlinked-lead filters the dashboard's conflict
     // candidates use (ACTIVE_BOOKING_FILTER_SQL / ACTIVE_UNLINKED_LEAD_FILTER_SQL,
     // extracted from crm-availability.ts's HARD/SOFT_CONFLICT_CANDIDATES_SQL) —
-    // just with the extra columns the day panel needs to display.
+    // plus the same overlap-range bound checkAvailability() uses, restricted
+    // to the visible month's grid so this doesn't ship all-time history.
     const [bookingResult, leadResult] = await Promise.all([
       db.prepare(
-        `SELECT id, guest_name, guest_phone, status, channel, source, date_from, date_to FROM bookings WHERE ${ACTIVE_BOOKING_FILTER_SQL}`,
-      ).all<any>(),
+        `SELECT id, guest_name, status, channel, source, date_from, date_to FROM bookings
+         WHERE ${ACTIVE_BOOKING_FILTER_SQL} AND NOT (substr(date_to,1,10) <= ?1 OR substr(date_from,1,10) >= ?2)`,
+      ).bind(startISO, endExclusiveISO).all<any>(),
       db.prepare(
-        `SELECT id, guest_name, whatsapp, status, last_contact_date, date_from, date_to FROM leads WHERE ${ACTIVE_UNLINKED_LEAD_FILTER_SQL}`,
-      ).all<any>(),
+        `SELECT id, guest_name, status, last_contact_date, date_from, date_to FROM leads
+         WHERE ${ACTIVE_UNLINKED_LEAD_FILTER_SQL} AND NOT (substr(date_to,1,10) <= ?1 OR substr(date_from,1,10) >= ?2)`,
+      ).bind(startISO, endExclusiveISO).all<any>(),
     ]);
     bookingRows = bookingResult.results.map((r: any) => ({
       id: r.id, guestName: r.guest_name, status: r.status, dateFrom: r.date_from, dateTo: r.date_to,
-      guestPhone: r.guest_phone, channel: r.channel, source: r.source,
+      channel: r.channel, source: r.source,
     }));
     leadRows = leadResult.results.map((r: any) => ({
       id: r.id, guestName: r.guest_name, status: r.status, dateFrom: r.date_from, dateTo: r.date_to,
-      whatsapp: r.whatsapp, lastContactDate: r.last_contact_date,
+      lastContactDate: r.last_contact_date,
     }));
   } catch (cause) {
     console.error('[admin/calendar] failed to load', cause);
