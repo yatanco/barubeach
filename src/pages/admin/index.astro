@@ -354,7 +354,7 @@ const leadError = Astro.url.searchParams.get('leadError');
   )}
   {!error && staleHostHubBookings.length > 0 && (
     <div class="alert">
-      🔄 {staleHostHubBookings.length} HostHub-synced booking{staleHostHubBookings.length > 1 ? 's' : ''} weren't touched by the last sync — worth checking they're still current: {staleHostHubBookings.map((b, i) => (
+      🔄 {staleHostHubBookings.length} HostHub-synced booking{staleHostHubBookings.length > 1 ? 's' : ''} {staleHostHubBookings.length > 1 ? "weren't" : "wasn't"} touched by the last sync — worth checking they're still current: {staleHostHubBookings.map((b, i) => (
         <>{i > 0 && ', '}<a href={`/admin/bookings/${b.id}`}>{b.guest_name || 'Unnamed'}</a></>
       ))}
     </div>
