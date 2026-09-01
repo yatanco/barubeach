@@ -238,21 +238,33 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
       <p class="ns-eyebrow">NEXT STEP</p>
 
       {/* ── Generate reply (lead only, new/replied/quoted) ── */}
+      {/* Two providers, one deterministic prompt — generate from both to
+          compare rather than trusting one blind. Neither sends anything;
+          "Mark as sent" is still the only place that logs an outgoing
+          interaction and advances the follow-up cadence. */}
       {!isBooking && ['new', 'replied', 'quoted'].includes(currentStatus) && (
         <div class="generate-reply-block">
           <div class="actions ns-actions">
-            <button type="button" id="generate-reply-btn">🤖 Generate reply</button>
+            <button type="button" id="generate-reply-btn-anthropic" data-generate-btn="anthropic">🤖 Generate reply (Claude)</button>
+            <button type="button" class="secondary" id="generate-reply-btn-openai" data-generate-btn="openai">🤖 Generate reply (GPT)</button>
           </div>
-          <div class="inline-feedback" id="generate-reply-feedback" role="status" aria-live="polite"></div>
-          <div id="generate-reply-result" hidden>
-            <p class="muted generate-reply-rationale" id="generate-reply-rationale"></p>
-            <ul class="generate-reply-warnings" id="generate-reply-warnings"></ul>
-            <textarea id="generate-reply-textarea" rows="6"></textarea>
-            <div class="actions ns-actions">
-              <button type="button" class="secondary" id="generate-reply-copy-btn">📋 Copy</button>
-              <button type="button" class="ns-primary-btn" id="generate-reply-send-btn">✅ Mark as sent</button>
-            </div>
-            <div class="inline-feedback" id="generate-reply-send-feedback" role="status" aria-live="polite"></div>
+          <div class="generate-reply-compare">
+            {(['anthropic', 'openai'] as const).map((p) => (
+              <div class="generate-reply-col">
+                <p class="generate-reply-col-label">{p === 'anthropic' ? 'Claude' : 'GPT'}</p>
+                <div class="inline-feedback" id={`generate-reply-feedback-${p}`} role="status" aria-live="polite"></div>
+                <div id={`generate-reply-result-${p}`} hidden>
+                  <p class="muted generate-reply-rationale" id={`generate-reply-rationale-${p}`}></p>
+                  <ul class="generate-reply-warnings" id={`generate-reply-warnings-${p}`}></ul>
+                  <textarea id={`generate-reply-textarea-${p}`} rows="6"></textarea>
+                  <div class="actions ns-actions">
+                    <button type="button" class="secondary" data-copy-btn={p}>📋 Copy</button>
+                    <button type="button" class="ns-primary-btn" data-send-btn={p}>✅ Mark as sent</button>
+                  </div>
+                  <div class="inline-feedback" id={`generate-reply-send-feedback-${p}`} role="status" aria-live="polite"></div>
+                </div>
+              </div>
+            ))}
           </div>
           <div class="ns-divider"></div>
         </div>
@@ -832,10 +844,13 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
   .dates-edit-form { display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px; margin:8px 0 14px; padding:12px; background:var(--surface-soft); border-radius:10px; }
   .dates-edit-form label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--label); }
   .dates-warning { color:#92400E; background:#FEF3C7; border-radius:8px; padding:8px 10px; margin:-4px 0 14px; font-size:12px; font-weight:600; }
+  .generate-reply-compare { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px; }
+  .generate-reply-col-label { font:750 11px/1 'Inter',sans-serif; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 6px; }
   .generate-reply-rationale { font-size:13px; margin:10px 0 4px; }
   .generate-reply-warnings { margin:0 0 10px; padding-left:18px; font-size:12px; color:#92400E; }
   .generate-reply-warnings:empty { display:none; }
-  #generate-reply-textarea { margin-bottom:4px; }
+  .generate-reply-col textarea { margin-bottom:4px; }
+  @media(max-width:640px) { .generate-reply-compare { grid-template-columns:1fr; } }
   .urd-section { position:relative; margin-top:16px; }
   .urd-section > h2 { display:flex; align-items:baseline; justify-content:space-between; padding-bottom:10px; border-bottom:1px solid var(--line); }
   .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
@@ -1136,62 +1151,70 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
     previewBtn.textContent = chatGptPreview.hidden ? 'Preview prompts' : 'Hide preview';
   });
 
-  // ── Generate reply ───────────────────────────────────────────────────────
-  let currentSuggestionId = null;
-  const generateBtn = document.getElementById('generate-reply-btn');
-  const generateFeedback = document.getElementById('generate-reply-feedback');
-  const generateResult = document.getElementById('generate-reply-result');
-  const generateRationale = document.getElementById('generate-reply-rationale');
-  const generateWarnings = document.getElementById('generate-reply-warnings');
-  const generateTextarea = document.getElementById('generate-reply-textarea');
-  const generateSendFeedback = document.getElementById('generate-reply-send-feedback');
-  generateBtn?.addEventListener('click', async () => {
-    generateBtn.disabled = true;
-    generateBtn.textContent = 'Generating…';
-    if (generateFeedback) { generateFeedback.classList.remove('error'); generateFeedback.textContent = ''; }
-    try {
-      const res = await fetch(`${apiBase}/generate-reply`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Could not generate a reply');
-      currentSuggestionId = data.id;
-      if (generateRationale) generateRationale.textContent = data.rationale;
-      if (generateWarnings) generateWarnings.innerHTML = (data.warnings || []).map((w) => `<li>⚠️ ${w}</li>`).join('');
-      if (generateTextarea) generateTextarea.value = data.reply;
-      if (generateSendFeedback) { generateSendFeedback.textContent = ''; generateSendFeedback.classList.remove('error'); }
-      if (generateResult) generateResult.hidden = false;
-    } catch (error) {
-      if (generateFeedback) { generateFeedback.classList.add('error'); generateFeedback.textContent = error instanceof Error ? error.message : 'Could not generate a reply'; }
-    } finally {
-      generateBtn.disabled = false;
-      generateBtn.textContent = '🤖 Generate reply';
-    }
-  });
-  document.getElementById('generate-reply-copy-btn')?.addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    const original = btn.textContent;
-    try {
-      await navigator.clipboard.writeText(generateTextarea.value);
-      btn.textContent = 'Copied ✓';
-    } catch { /* clipboard unavailable — operator can select the text manually */ }
-    setTimeout(() => { btn.textContent = original; }, 1800);
-  });
-  document.getElementById('generate-reply-send-btn')?.addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    if (!currentSuggestionId) return;
-    btn.disabled = true;
-    try {
-      const res = await fetch(`${apiBase}/reply-suggestions/${currentSuggestionId}/send`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ edited_reply: generateTextarea.value }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Could not save');
-      window.location.reload();
-    } catch (error) {
-      btn.disabled = false;
-      if (generateSendFeedback) { generateSendFeedback.classList.add('error'); generateSendFeedback.textContent = error instanceof Error ? error.message : 'Could not save'; }
-    }
-  });
+  // ── Generate reply (Claude + GPT, wired identically per provider) ─────────
+  function wireGenerateReply(provider, label) {
+    let currentSuggestionId = null;
+    const generateBtn = document.getElementById(`generate-reply-btn-${provider}`);
+    const generateFeedback = document.getElementById(`generate-reply-feedback-${provider}`);
+    const generateResult = document.getElementById(`generate-reply-result-${provider}`);
+    const generateRationale = document.getElementById(`generate-reply-rationale-${provider}`);
+    const generateWarnings = document.getElementById(`generate-reply-warnings-${provider}`);
+    const generateTextarea = document.getElementById(`generate-reply-textarea-${provider}`);
+    const generateSendFeedback = document.getElementById(`generate-reply-send-feedback-${provider}`);
+    if (!generateBtn) return;
+    generateBtn.addEventListener('click', async () => {
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'Generating…';
+      if (generateFeedback) { generateFeedback.classList.remove('error'); generateFeedback.textContent = ''; }
+      try {
+        const res = await fetch(`${apiBase}/generate-reply`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Could not generate a reply');
+        currentSuggestionId = data.id;
+        if (generateRationale) generateRationale.textContent = data.rationale;
+        if (generateWarnings) generateWarnings.innerHTML = (data.warnings || []).map((w) => `<li>⚠️ ${w}</li>`).join('');
+        if (generateTextarea) generateTextarea.value = data.reply;
+        if (generateSendFeedback) { generateSendFeedback.textContent = ''; generateSendFeedback.classList.remove('error'); }
+        if (generateResult) generateResult.hidden = false;
+      } catch (error) {
+        if (generateFeedback) { generateFeedback.classList.add('error'); generateFeedback.textContent = error instanceof Error ? error.message : 'Could not generate a reply'; }
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = `🤖 Generate reply (${label})`;
+      }
+    });
+    document.querySelector(`[data-copy-btn="${provider}"]`)?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const original = btn.textContent;
+      try {
+        await navigator.clipboard.writeText(generateTextarea.value);
+        btn.textContent = 'Copied ✓';
+      } catch { /* clipboard unavailable — operator can select the text manually */ }
+      setTimeout(() => { btn.textContent = original; }, 1800);
+    });
+    document.querySelector(`[data-send-btn="${provider}"]`)?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      if (!currentSuggestionId) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${apiBase}/reply-suggestions/${currentSuggestionId}/send`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ edited_reply: generateTextarea.value }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Could not save');
+        window.location.reload();
+      } catch (error) {
+        btn.disabled = false;
+        if (generateSendFeedback) { generateSendFeedback.classList.add('error'); generateSendFeedback.textContent = error instanceof Error ? error.message : 'Could not save'; }
+      }
+    });
+  }
+  wireGenerateReply('anthropic', 'Claude');
+  wireGenerateReply('openai', 'GPT');
 
   // ── Follow-up ─────────────────────────────────────────────────────────────
   document.getElementById('log-followup-btn')?.addEventListener('click', async (e) => {

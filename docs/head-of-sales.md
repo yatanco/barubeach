@@ -35,7 +35,8 @@ The prompt omits phone numbers, record IDs, raw database payloads, environment v
 - Calculated food and transport options are labeled as calculations or rates, not confirmations.
 - Payment and reservation states come from D1 and are never inferred from conversation text.
 - Unknown values are written as `unknown` so ChatGPT can ask for confirmation instead of guessing.
-- There is no OpenAI API call, API key, background generation, or automated WhatsApp sending.
+- The clipboard workflow itself (Copy reply request / Copy full sales review, this doc) makes no API call, needs no key, and does no background generation or automated WhatsApp sending — the prompt is only ever pasted into a separate ChatGPT conversation by hand.
+- **This boundary does not extend to "🤖 Generate reply"** in the Next Step card, a separate feature that reuses this doc's context-assembly (`buildReplyGenerationSystemPrompt`) but *does* call an AI provider directly from the server — Anthropic (`ANTHROPIC_API_KEY`, `src/lib/anthropic-reply.ts`) or OpenAI (`OPENAI_API_KEY`, optional `OPENAI_MODEL`, `src/lib/openai-reply.ts`), selectable per click so the operator can generate from both and compare. Still never auto-sends: a draft is only ever logged to `reply_suggestions`, and "Mark as sent" is the one action that logs an outgoing interaction and advances the follow-up cadence.
 - The public website's extras cart (shown to guests during lead capture, e.g. "Extras estimate: $1,100 USD") is a lead-generation estimate only. It is never the quoting source of truth: the CRM's COP 150,000/person/day food rate (`COMMERCIAL_RATES_COP.foodPerPersonPerServiceDay` in `src/lib/sales-calculations.ts`) is authoritative for actual quotes. The lean "Copy reply request" prompt shows both and labels which is which — never quote food at the cart's USD figure just because the guest saw it first.
 
 ## Calculation rules
