@@ -451,9 +451,14 @@ function buildContextBlock(context: SalesSuggestionContext, state: SalesState): 
     `Suggested quote currency: ${state.preferred_quote_currency} (recommendation only — ${state.preferred_quote_currency_basis})`,
   ].filter((line): line is string => line !== null).join('\n');
 
+  const priceLabsLine = context.pricing.pricelabs_quote
+    ? `${context.pricing.pricelabs_quote.currency} ${context.pricing.pricelabs_quote.totalPrice.toLocaleString('en-US')} total (${context.pricing.pricelabs_quote.avgPricePerNight.toLocaleString('en-US')}/night); informational, not a saved quote`
+    : null;
+
   const commercialFactsLines = [
     `Availability: ${context.availability.status} — ${context.availability.basis}`,
     `Accommodation: ${context.pricing.accommodation_cents !== null ? `${cents(context.pricing.accommodation_cents)} recorded` : 'not yet quoted — bespoke, confirm for these dates'}`,
+    priceLabsLine ? `PriceLabs context: ${priceLabsLine}` : null,
     `Food: ${foodLine}`,
     `Transport: ${transportLine}`,
     `Payment: ${paymentLine}`,

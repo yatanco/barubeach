@@ -247,7 +247,9 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
           <div class="actions ns-actions">
             <button type="button" id="generate-reply-btn-anthropic" data-generate-btn="anthropic">🤖 Generate reply (Claude)</button>
             <button type="button" class="secondary" id="generate-reply-btn-openai" data-generate-btn="openai">🤖 Generate reply (GPT)</button>
+            <button type="button" class="secondary" id="copy-lean-prompt-btn-ns">📋 Copy reply request</button>
           </div>
+          <div class="inline-feedback" id="lean-copy-feedback-ns" role="status" aria-live="polite"></div>
           <div class="generate-reply-compare">
             {(['anthropic', 'openai'] as const).map((p) => (
               <div class="generate-reply-col">
@@ -274,12 +276,7 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
       {currentStatus === 'new' && !isBooking && (
         <>
           <h2 id="next-step-heading">Reply to this inquiry</h2>
-          <p class="muted ns-hint">Copy the lead context into ChatGPT to draft your first reply. Nothing is sent automatically.</p>
-          <div class="actions ns-actions">
-            <button type="button" id="copy-lean-prompt-btn-ns">📋 Copy reply request</button>
-          </div>
-          <div class="inline-feedback" id="lean-copy-feedback-ns" role="status" aria-live="polite"></div>
-          <div class="ns-divider"></div>
+          <p class="muted ns-hint">Generate a draft above, or copy the context into ChatGPT yourself. Nothing is sent automatically.</p>
           <button type="button" class="ns-primary-btn" id="ns-mark-replied-btn">✅ Mark as replied</button>
           <div class="inline-feedback" id="ns-status-feedback" role="status" aria-live="polite"></div>
         </>
