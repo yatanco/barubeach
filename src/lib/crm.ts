@@ -1,3 +1,5 @@
+import type { D1Database } from './db';
+
 // Unified status pipeline — leads and bookings share one status set (migration 0010).
 // 'checked_in' is a legacy value still written directly by hosthub-sync.ts (not touched
 // by this task); it is treated everywhere as a display/pipeline synonym for 'in_house'.
@@ -165,6 +167,25 @@ export function waLinkTo(phone: string, text?: string): string {
   const trimmed = phone.trim();
   const target = trimmed.startsWith('@') ? trimmed : trimmed.replace(/\D/g, '');
   return text ? `https://wa.me/${target}?text=${encodeURIComponent(text)}` : `https://wa.me/${target}`;
+}
+
+// Digits-only, with a leading Colombian country code ('57' + a 10-digit
+// mobile number) stripped — so "573001234567" and "3001234567" are
+// recognized as the same guest for dedup purposes, regardless of which
+// format the site form, WhatsApp Business app, or an operator typed it in.
+export function normalizePhoneCore(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  return digits.length === 12 && digits.startsWith('57') ? digits.slice(2) : digits;
+}
+
+// Shared dedup lookup used by both the public capture-lead endpoint and the
+// admin "Add Lead" form — a full-table scan is fine at this CRM's scale and
+// is far more robust than trying to encode country-code stripping in SQL.
+export async function findLeadIdByPhone(db: D1Database, phone: string): Promise<string | null> {
+  const core = normalizePhoneCore(phone);
+  if (core.length < 7) return null;
+  const { results } = await db.prepare(`SELECT id, whatsapp FROM leads WHERE whatsapp IS NOT NULL`).all<{ id: string; whatsapp: string }>();
+  return results.find((r) => normalizePhoneCore(r.whatsapp) === core)?.id ?? null;
 }
 
 export function addDaysIso(dateStr: string, days: number): string {

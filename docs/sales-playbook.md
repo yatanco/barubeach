@@ -2,6 +2,20 @@
 
 Casa Gaviota is one private beachfront house in Barú, Colombia. Sales happen primarily on WhatsApp. ChatGPT recommendations are copied into a separate conversation and always require human review before anything is sent.
 
+For the research backing these rules — and untested ideas not yet promoted here — see `docs/hospitality-science.md`.
+
+## Pricing quick reference
+
+Two different numbers exist for food and transport, for two different audiences. Mixing them up is the single most likely pricing mistake in this system — **the COP column is what you actually quote a guest; the USD column is a public lead-generation estimate only.**
+
+| Component | Public estimate (USD, marketing site) | Actual quote rate (COP) | Source |
+|---|---|---|---|
+| Food / person / day | $50 | 150,000 | this doc, below · `COMMERCIAL_RATES_COP` in `src/lib/sales-calculations.ts` |
+| Transport — Cartagena direct boat | $250 each way | 700,000 per leg per group | this doc, below |
+| Transport — Barú village boat | $200 each way | 300,000 round trip per group | this doc, below |
+
+The USD figures live in `CLAUDE.md` and the homepage's `PricingCart.tsx` extras estimate — they exist to generate leads, not to price a stay. Never quote a guest the USD figure because they saw it first on the site.
+
 ## Sales approach
 
 - Sell the experience before the price: exclusive use of the house and beach, not a generic room stay.

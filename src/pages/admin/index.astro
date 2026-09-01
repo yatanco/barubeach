@@ -17,7 +17,7 @@ interface BookingRow {
   id: string; guest_name: string; guest_phone: string | null; date_from: string; date_to: string;
   adults: number; children: number; status: string; channel: string;
   food_amount: number; food_confirmed: number; transport_amount: number; transport_confirmed: number;
-  accommodation_cents: number; paid_cents: number;
+  accommodation_cents: number; paid_cents: number; source: string; updated_at: string;
 }
 interface LeadRow {
   id: string; guest_name: string | null; whatsapp: string | null; date_from: string | null; date_to: string | null;
@@ -56,7 +56,7 @@ interface ListItem {
 }
 
 const BOOKING_SELECT = `SELECT b.id, b.guest_name, b.guest_phone, b.date_from, b.date_to, b.adults, b.children, b.status, b.channel,
-    b.food_amount, b.food_confirmed, b.transport_amount, b.transport_confirmed,
+    b.food_amount, b.food_confirmed, b.transport_amount, b.transport_confirmed, b.source, b.updated_at,
     COALESCE((SELECT amount_cents FROM charges WHERE booking_id = b.id AND category = 'accommodation' LIMIT 1), 0) AS accommodation_cents,
     COALESCE((SELECT SUM(p.amount_cents) FROM payments p JOIN charges c ON c.id = p.charge_id WHERE c.booking_id = b.id), 0) AS paid_cents
   FROM bookings b WHERE b.status NOT IN ('cancelled','completed')`;
@@ -85,6 +85,7 @@ let arrivalsThisWeek = 0;
 let inHouseCount = 0;
 let lastSync: SyncLogRow | null = null;
 let drinksOrders: DrinksOrderRow[] = [];
+let staleHostHubBookings: BookingRow[] = [];
 let error = '';
 
 const now = new Date();
@@ -131,6 +132,15 @@ if (!db) {
     arrivalsThisWeek = arrivalsResult?.count ?? 0;
     inHouseCount = inHouseResult?.count ?? 0;
     lastSync = lastSyncResult ?? null;
+
+    // syncHostHub() only ever upserts what's currently in the feed — a
+    // reservation edited in HostHub in a way that reissues its UID leaves
+    // the old row orphaned, still showing as an active booking. Anything
+    // HostHub-sourced that wasn't touched by the most recent sync run is
+    // worth a human look (not auto-cancelled — that's a business call).
+    if (lastSync) {
+      staleHostHubBookings = bookings.filter((b) => b.source === 'hosthub_ical' && b.updated_at < lastSync!.synced_at);
+    }
   } catch (cause) {
     console.error('[admin] failed to load CRM', cause);
     error = 'The CRM database could not be read. Confirm that migrations 0001_crm.sql through 0010 have run.';
@@ -248,6 +258,14 @@ items.sort((a, b) => b.urgencyScore - a.urgencyScore);
 const newLeadsToday = leads.filter((lead) => lead.created_at.slice(0, 10) === todayStr).length;
 const leadsNeedingReply = leads.filter((lead) => lead.status === 'new').length;
 const followupsDue = leads.filter((lead) => leadUrgency(lead).urgency !== null && lead.status === 'replied').length;
+// Leads leadUrgency() now excludes from follow-up because their stay dates
+// already passed — correctly stops them reading as actionable, but they'd
+// otherwise vanish from view silently. Keep this leakage visible.
+const expiredLeadsCount = leads.filter((lead) => {
+  if (lead.status !== 'replied') return false;
+  const lastRelevantDate = lead.date_to || lead.date_from;
+  return !!lastRelevantDate && lastRelevantDate.slice(0, 10) < todayStr;
+}).length;
 const quotesAwaitingPayment = items.filter((item) => (item.status === 'quoted' || item.status === 'deposit_requested') && item.totalCents > 0 && item.balanceClass === 'negative').length;
 const openPipelineCents = items.filter((item) => item.kind === 'lead').reduce((sum, item) => sum + item.totalCents, 0);
 const weekArrivals = bookings.filter((booking) => {
@@ -256,16 +274,24 @@ const weekArrivals = bookings.filter((booking) => {
 });
 const completedBookingItems: ListItem[] = completedBookings.map(bookingToItem);
 
+// `primary` filters are the four reached for daily; the rest stay fully
+// functional but read as lighter-weight so the row doesn't compete for
+// attention with itself.
+// 'all' stays a valid filter value (the show/hide switch below still
+// understands it, and dropping it would mean re-typing filterCounts) but
+// isn't rendered as a chip — "everything, unprioritized" isn't a useful
+// default next to a list that's already urgency-sorted. Follow up opens by
+// default instead; see the client script's initial applyFilterWithSearch call.
 const FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'followup', label: 'Follow up' },
-  { value: 'bookings', label: 'Bookings' },
-  { value: 'leads', label: 'Leads' },
-  { value: 'deposit', label: 'Deposit Pending' },
-  { value: 'inhouse', label: 'In House' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'upcoming', label: 'Upcoming' },
-  { value: 'drinks', label: '🍹 Drinks' },
+  { value: 'all', label: 'All', primary: true, hidden: true },
+  { value: 'followup', label: 'Follow up', primary: true },
+  { value: 'bookings', label: 'Bookings', primary: true },
+  { value: 'leads', label: 'Leads', primary: true },
+  { value: 'deposit', label: 'Deposit Pending', primary: false },
+  { value: 'inhouse', label: 'In House', primary: false },
+  { value: 'completed', label: 'Completed', primary: false },
+  { value: 'upcoming', label: 'Upcoming', primary: false },
+  { value: 'drinks', label: '🍹 Drinks', primary: false },
 ] as const;
 const filterCounts: Record<typeof FILTERS[number]['value'], number> = {
   all: items.length,
@@ -319,16 +345,23 @@ const leadError = Astro.url.searchParams.get('leadError');
   {notice && <div class="alert">Saved successfully.</div>}
   {leadError && <div class="alert">{leadError}</div>}
   {!error && (
-    <p class="summary-line">{newLeadsCount} open new leads · {weekLeadsCount} created this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding</p>
+    <p class="summary-line">{newLeadsCount} open new leads · {weekLeadsCount} created this week · {arrivalsThisWeek} arrivals this week · {inHouseCount} in house · {money(outstandingCents)} outstanding{expiredLeadsCount > 0 && <> · {expiredLeadsCount} inquiries expired without booking</>}</p>
+  )}
+  {!error && staleHostHubBookings.length > 0 && (
+    <div class="alert">
+      🔄 {staleHostHubBookings.length} HostHub-synced booking{staleHostHubBookings.length > 1 ? 's' : ''} weren't touched by the last sync — worth checking they're still current: {staleHostHubBookings.map((b, i) => (
+        <>{i > 0 && ', '}<a href={`/admin/bookings/${b.id}`}>{b.guest_name || 'Unnamed'}</a></>
+      ))}
+    </div>
   )}
   {!error && (
     <section class="sales-today" aria-labelledby="sales-today-title">
       <div class="sales-today-head"><h2 id="sales-today-title">Sales today</h2><span class="muted">Action first</span></div>
       <div class="today-metrics">
-        <div><strong>{newLeadsToday}</strong><span>New today</span></div>
-        <div><strong>{leadsNeedingReply}</strong><span>Need reply</span></div>
-        <div><strong>{followupsDue}</strong><span>Follow-ups due</span></div>
-        <div><strong>{quotesAwaitingPayment}</strong><span>Quotes unpaid</span></div>
+        <div data-warn={newLeadsToday > 0 ? '1' : '0'}><strong>{newLeadsToday}</strong><span>New today</span></div>
+        <div data-warn={leadsNeedingReply > 0 ? '1' : '0'}><strong>{leadsNeedingReply}</strong><span>Need reply</span></div>
+        <div data-warn={followupsDue > 0 ? '1' : '0'}><strong>{followupsDue}</strong><span>Follow-ups due</span></div>
+        <div data-warn={quotesAwaitingPayment > 0 ? '1' : '0'}><strong>{quotesAwaitingPayment}</strong><span>Quotes unpaid</span></div>
         {openPipelineCents > 0 && <div><strong>{money(openPipelineCents)}</strong><span>Open lead value</span></div>}
       </div>
     </section>
@@ -349,8 +382,8 @@ const leadError = Astro.url.searchParams.get('leadError');
   {!error && (
     <>
       <div class="pipeline" id="filter-bar">
-        {FILTERS.map((f) => (
-          <a href="#" data-filter={f.value} class={f.value === 'all' ? 'active' : ''} aria-current={f.value === 'all' ? 'page' : undefined}>
+        {FILTERS.filter((f) => !f.hidden).map((f) => (
+          <a href="#" data-filter={f.value} class={f.value === 'followup' ? 'active' : f.primary ? '' : 'secondary-filter'} aria-current={f.value === 'followup' ? 'page' : undefined}>
             <span>{f.label}</span><span class="count">{filterCounts[f.value]}</span>
           </a>
         ))}
@@ -384,6 +417,7 @@ const leadError = Astro.url.searchParams.get('leadError');
               data-created-at={item.createdAt || ''}
               data-date-from={item.dateFrom || ''}
               data-urgent={item.urgency ? '1' : '0'}
+              data-urgency={item.urgency || ''}
               data-name={item.name.toLowerCase()}
               data-phone={(item.phone || '').replace(/\D/g, '')}
             >
@@ -622,7 +656,7 @@ const leadError = Astro.url.searchParams.get('leadError');
   }
   // ── Search ────────────────────────────────────────────────────────────────
   const searchInput = document.getElementById('list-search');
-  let activeFilter = 'all';
+  let activeFilter = 'followup';
 
   function applySearchOverlay() {
     const raw = (searchInput?.value || '').trim().toLowerCase();
@@ -655,10 +689,10 @@ const leadError = Astro.url.searchParams.get('leadError');
       pill.classList.add('active');
       filterBar.querySelectorAll('a[data-filter]').forEach((p) => p.removeAttribute('aria-current'));
       pill.setAttribute('aria-current', 'page');
-      applyFilterWithSearch(pill.dataset.filter || 'all');
+      applyFilterWithSearch(pill.dataset.filter || 'followup');
     });
   });
-  applyFilterWithSearch('all');
+  applyFilterWithSearch('followup');
 
   // Only show the trailing scroll fade on #filter-bar when there's actually
   // more to scroll to — avoids implying hidden content when everything fits.
@@ -864,8 +898,10 @@ const leadError = Astro.url.searchParams.get('leadError');
   .sales-today-head h2 { margin:0 0 12px; }
   .today-metrics { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
   .today-metrics > div { min-width:118px; display:grid; gap:2px; border-radius:10px; padding:10px 12px; background:var(--surface-soft); }
-  .today-metrics strong { color:var(--brown); font-size:18px; white-space:nowrap; }
+  .today-metrics strong { color:var(--muted); font-size:18px; white-space:nowrap; font-variant-numeric:tabular-nums; }
   .today-metrics span { color:var(--muted); font-size:11px; font-weight:700; }
+  .today-metrics > div[data-warn="1"] strong { color:var(--red); }
+  .today-metrics > div[data-warn="1"] span { color:color-mix(in srgb,var(--red) 65%,var(--muted)); }
   .arrivals-card { margin:16px 0; border-left:5px solid var(--mint); }
   .arrival-row { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--line); color:var(--ink); text-decoration:none; }
   .arrival-row:first-of-type { border-top:0; }
@@ -887,9 +923,9 @@ const leadError = Astro.url.searchParams.get('leadError');
   .list-search-bar input { width:100%; }
   .sort-pill { appearance:none; cursor:pointer; min-height:36px; border:1px solid var(--line); border-radius:999px; padding:5px 12px; background:var(--surface); color:var(--ink); font-size:12px; font-weight:700; }
   .sort-pill.active { background:var(--brown); color:var(--on-accent); border-color:var(--brown); }
-  .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
-  .type-pill.booking { background:#57392E; }
-  .type-pill.lead { background:#7D98AB; }
+  .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
+  .type-pill.booking { background:color-mix(in srgb,#57392E 14%,var(--surface)); color:#57392E; }
+  .type-pill.lead { background:color-mix(in srgb,#7D98AB 22%,var(--surface)); color:#4d6478; }
   .status-badge-btn { appearance:none; cursor:pointer; min-height:36px; }
   .record-main { min-width:0; flex:1; gap:4px; }
   .record-main h3 { order:0; font-size:17px; font-weight:800; }
@@ -901,6 +937,16 @@ const leadError = Astro.url.searchParams.get('leadError');
   .clickable-row { cursor:pointer; min-height:86px; margin:0 -18px; padding-left:18px; padding-right:18px; border-radius:10px; transition:background-color 160ms ease,box-shadow 160ms ease,transform 160ms ease; }
   .clickable-row:hover { background:var(--surface-soft); box-shadow:inset 3px 0 var(--terracotta); }
   .clickable-row:active { transform:scale(.995); background:color-mix(in srgb,var(--surface-soft) 80%,var(--bg)); }
+  /* Urgency reads as a persistent edge stripe (the hover treatment already
+     used this trick) so the thing that needs attention wins the first glance
+     over the WhatsApp shortcut sitting next to it. */
+  .clickable-row[data-urgency="red"] { box-shadow:inset 3px 0 0 #EF4444; }
+  .clickable-row[data-urgency="amber"] { box-shadow:inset 3px 0 0 #F59E0B; }
+  .clickable-row[data-urgency="red"]:hover { background:var(--surface-soft); box-shadow:inset 3px 0 0 #EF4444; }
+  .clickable-row[data-urgency="amber"]:hover { background:var(--surface-soft); box-shadow:inset 3px 0 0 #F59E0B; }
+  .clickable-row .record-actions .button.whatsapp { background:color-mix(in srgb,#25d366 45%,var(--surface-soft)); }
+  .clickable-row .record-actions .button.whatsapp:hover,
+  .clickable-row .record-actions .button.whatsapp:focus-visible { background:#25d366; }
   .empty-state { display:grid; justify-items:center; gap:4px; padding:30px 16px; color:var(--muted); text-align:center; }
   .empty-state > span { display:grid; place-items:center; width:40px; height:40px; margin-bottom:4px; border-radius:50%; background:var(--surface-soft); color:var(--terracotta); font-size:20px; }
   .empty-state strong { color:var(--ink); font-size:15px; }

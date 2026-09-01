@@ -1,4 +1,4 @@
-# Casa Gaviota hospitality science playbook
+# Casa Gaviota hospitality science notebook
 
 This doc collects the behavioral-science and hospitality-research concepts worth deliberately applying to Casa Gaviota, maps each one to what already exists in the codebase/business today, and tracks experiments run to test them. It complements the other two sales docs rather than replacing them:
 
@@ -31,7 +31,7 @@ Research: menu items should be evaluated on a two-axis matrix (popularity × mar
 
 Casa Gaviota: applies to `src/data/menu.ts` food items, the drinks list (including the `price_6pack` field, which already exists on `DrinkItem` — the "six-pack" idea in the underlying data, just not necessarily surfaced with an upsell nudge), and day-trip add-ons from `sales-playbook.md`'s Upsells section.
 
-**Status: not started.** The CRM tracks category-level `food_amount`/`transport_amount`/`cost_food_cents`/`cost_transport_cents` (flat per-stay, per migration 0010) but no line-item sales data — there's no record of which dish or drink an actual guest chose. This matrix can't be built until line-item choices are captured somewhere (even a free-text note field logged consistently would be a start).
+**Status: not started, but the cheapest first step needs no schema change.** The CRM tracks category-level `food_amount`/`transport_amount`/`cost_food_cents`/`cost_transport_cents` (flat per-stay, per migration 0010) but no line-item sales data — there's no record of which dish or drink an actual guest chose. The existing `notes` field on a lead/booking already covers "even a free-text note logged consistently" — the real first step is operator habit (jot what was actually served/ordered in Notes), not new code. A dedicated structured field is only worth building once that habit produces enough rows to show the matrix is worth the schema change.
 
 ### 3. Descriptive menu labels
 

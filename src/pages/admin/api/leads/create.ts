@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { formString, nowIso, redirectBack, requireDb } from '../../../../lib/db';
-import { isOneOf, GUEST_INTENT_VALUES } from '../../../../lib/crm';
+import { isOneOf, GUEST_INTENT_VALUES, findLeadIdByPhone } from '../../../../lib/crm';
 
 export const prerender = false;
 
@@ -29,18 +29,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const guestIntent = isOneOf(guestIntentRaw, GUEST_INTENT_VALUES as unknown as readonly string[]) ? guestIntentRaw : null;
 
   // Deduplicate by phone number before inserting. If a lead already exists with
-  // the same number (format-insensitive), redirect to it instead of creating a
-  // duplicate — the operator can update whatever is missing from the detail page.
-  const normalizedPhone = whatsapp.replace(/\D/g, '');
-  if (normalizedPhone.length >= 7) {
-    const existing = await db.prepare(`
-      SELECT id FROM leads
-      WHERE REPLACE(REPLACE(REPLACE(whatsapp, ' ', ''), '+', ''), '-', '') = ?1
-      LIMIT 1
-    `).bind(normalizedPhone).first<{ id: string }>();
-    if (existing) {
-      return Response.redirect(new URL(`/admin/leads/${existing.id}?notice=already_exists`, request.url), 303);
-    }
+  // the same number (format- and country-code-insensitive), redirect to it
+  // instead of creating a duplicate — the operator can update whatever is
+  // missing from the detail page.
+  const existingId = await findLeadIdByPhone(db, whatsapp);
+  if (existingId) {
+    return Response.redirect(new URL(`/admin/leads/${existingId}?notice=already_exists`, request.url), 303);
   }
 
   await db.prepare(`

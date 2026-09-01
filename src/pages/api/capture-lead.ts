@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getDb, getRuntimeEnv, nowIso } from '../../lib/db';
-import { GUEST_INTENT_VALUES } from '../../lib/crm';
+import { GUEST_INTENT_VALUES, findLeadIdByPhone } from '../../lib/crm';
 
 export const prerender = false;
 
@@ -40,19 +40,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (db) {
     try {
       const incomingPhone = text(data.whatsapp, 100);
-      const normalizedPhone = incomingPhone?.replace(/\D/g, '') ?? '';
 
-      // Check for an existing lead with the same phone number (format-insensitive).
-      // If found, update rather than insert to avoid duplicates from multi-channel contacts.
-      let existingId: string | null = null;
-      if (normalizedPhone.length >= 7) {
-        const existing = await db.prepare(`
-          SELECT id FROM leads
-          WHERE REPLACE(REPLACE(REPLACE(whatsapp, ' ', ''), '+', ''), '-', '') = ?1
-          LIMIT 1
-        `).bind(normalizedPhone).first<{ id: string }>();
-        existingId = existing?.id ?? null;
-      }
+      // Check for an existing lead with the same phone number (format- and
+      // country-code-insensitive). If found, update rather than insert to
+      // avoid duplicates from multi-channel contacts.
+      const existingId = incomingPhone ? await findLeadIdByPhone(db, incomingPhone) : null;
 
       if (existingId) {
         id = existingId;

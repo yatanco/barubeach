@@ -3,7 +3,7 @@ import { requireDb, boldPaymentLink, getRuntimeEnv } from '../../lib/db';
 import { getPriceLabsQuote } from '../../lib/pricelabs';
 import {
   money, shortDate, timeAgo, waLinkTo, nightsBetween, channelBadgeClass,
-  STATUS_LABELS, STATUS_COLORS, pipelineFor, normalizeStatus,
+  STATUS_LABELS, STATUS_COLORS, pipelineFor, normalizeStatus, normalizePhoneCore,
   BOOKING_CHANNELS, BOOKING_CHANNEL_LABELS, CHANNEL_PILL_LABELS, DEFAULT_COMMISSION_RATE,
   DEFAULT_DEPOSIT_PERCENT, PAYMENT_METHODS,
 } from '../../lib/crm';
@@ -93,6 +93,22 @@ const lastSync = isBooking && record.source === 'hosthub_ical'
   : null;
 
 const availability = await checkAvailability(db, record.date_from, record.date_to, kind, record.id);
+
+// A booking synced from HostHub (or entered manually) never gets checked
+// against existing leads — a guest who inquired first and then booked
+// direct can end up as two disconnected records. Surface it; don't auto-link.
+let possibleLeadMatch: { id: string; guest_name: string | null } | null = null;
+if (isBooking && !record.lead_id && phone) {
+  const core = normalizePhoneCore(phone);
+  if (core.length >= 7) {
+    const { results } = await db.prepare(
+      `SELECT id, guest_name, whatsapp FROM leads WHERE status NOT IN ('lost','cancelled','completed')`,
+    ).all<{ id: string; guest_name: string | null; whatsapp: string | null }>();
+    const match = results.find((r) => r.whatsapp && normalizePhoneCore(r.whatsapp) === core);
+    possibleLeadMatch = match ? { id: match.id, guest_name: match.guest_name } : null;
+  }
+}
+
 const linkedBooking = !isBooking
   ? await db.prepare('SELECT id, status FROM bookings WHERE lead_id = ?1 LIMIT 1').bind(record.id).first<{ id: string; status: string }>()
   : null;
@@ -188,6 +204,12 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
       ) : (
         <div class="availability-badge clear">🟢 Dates available</div>
       )
+    )}
+
+    {possibleLeadMatch && (
+      <div class="availability-badge soft">
+        🟡 Possible matching lead: <a href={`/admin/leads/${possibleLeadMatch.id}`}>{possibleLeadMatch.guest_name || 'Unnamed inquiry'}</a> — same phone number, not linked to this booking. Check whether it's the same guest.
+      </div>
     )}
 
     <label class="phone-field">Phone
@@ -816,9 +838,9 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
   #generate-reply-textarea { margin-bottom:4px; }
   .urd-section { position:relative; margin-top:16px; }
   .urd-section > h2 { display:flex; align-items:baseline; justify-content:space-between; padding-bottom:10px; border-bottom:1px solid var(--line); }
-  .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#fff; }
-  .type-pill.booking { background:#57392E; }
-  .type-pill.lead { background:#7D98AB; }
+  .type-pill { display:inline-flex; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
+  .type-pill.booking { background:color-mix(in srgb,#57392E 14%,var(--surface)); color:#57392E; }
+  .type-pill.lead { background:color-mix(in srgb,#7D98AB 22%,var(--surface)); color:#4d6478; }
   #status-pills { gap:7px; }
   .info-box { background:#dff8f1; color:#116149; border-radius:10px; padding:12px 14px; font-weight:700; margin-bottom:10px; }
   .extras-list { display:grid; gap:0; }
@@ -972,6 +994,16 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
   function formatCOP(pesos) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(pesos);
   }
+  // Live thousands-separator formatting on every COP amount field — a bare
+  // 7-digit number is easy to mistype by an order of magnitude on a phone.
+  // Safe to apply broadly: every read site already runs values through
+  // pesosFromInput(), which strips non-digits regardless of formatting.
+  document.querySelectorAll('input[inputmode="numeric"]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const digits = pesosFromInput(input.value);
+      input.value = digits ? digits.toLocaleString('es-CO') : '';
+    });
+  });
   function shortDateEs(value) {
     if (!value) return '';
     return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));

@@ -1,0 +1,79 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getDb } from '../../lib/db';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+// Human-readable labels for leads.source — see LeadData['source'] in
+// src/lib/leads.ts and the 'whatsapp_history' value written by the admin
+// "Add Lead" backfill form (src/pages/admin/api/leads/create.ts).
+const SOURCE_LABELS: Record<string, string> = {
+  popup: 'WhatsApp popup',
+  home_form: 'Homepage form',
+  daytrip_form: 'Day-trip form',
+  plan: 'Planner (removed)',
+  stay: 'Stay page',
+  daytrip: 'Day-trip page',
+  whatsapp_history: 'Manually backfilled',
+};
+
+interface SourceRow { source: string; total: number; converted: number; }
+
+const db = getDb(Astro.locals);
+let rows: SourceRow[] = [];
+let totalConverted = 0;
+let error = '';
+
+if (!db) {
+  error = 'D1 is not configured yet.';
+} else {
+  try {
+    const result = await db.prepare(`
+      SELECT source,
+        COUNT(*) AS total,
+        SUM(CASE WHEN EXISTS (SELECT 1 FROM bookings WHERE bookings.lead_id = leads.id) THEN 1 ELSE 0 END) AS converted
+      FROM leads
+      GROUP BY source
+      ORDER BY total DESC
+    `).all<SourceRow>();
+    rows = result.results;
+    totalConverted = rows.reduce((sum, r) => sum + r.converted, 0);
+  } catch (cause) {
+    console.error('[admin/insights] query failed', cause);
+    error = 'Could not read lead source data.';
+  }
+}
+---
+<AdminLayout title="Insights">
+  <p class="detail-back"><a href="/admin">← Dashboard</a></p>
+  <h1>Insights</h1>
+  <p class="muted" style="margin-bottom:20px">Where leads actually come from, and how often each source turns into a booking — computed from what the CRM already records, nothing new to track.</p>
+
+  {error && <div class="alert">{error}</div>}
+
+  {!error && totalConverted < 30 && (
+    <div class="alert">
+      Only {totalConverted} lead{totalConverted === 1 ? '' : 's'} have converted to a booking so far. <code>hospitality-science.md</code>'s own guidance: expect to need on the order of 30–50 bookings before a per-source rate is trustworthy — read the percentages below as early signal, not a verdict yet.
+    </div>
+  )}
+
+  {!error && (
+    <div class="card">
+      <h2>Leads → bookings, by entry point</h2>
+      <table>
+        <thead><tr><th>Source</th><th>Leads</th><th>Booked</th><th>Conversion</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr>
+              <td>{SOURCE_LABELS[r.source] || r.source}</td>
+              <td class="amount">{r.total}</td>
+              <td class="amount">{r.converted}</td>
+              <td class="amount">{r.total > 0 ? `${Math.round((r.converted / r.total) * 100)}%` : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</AdminLayout>

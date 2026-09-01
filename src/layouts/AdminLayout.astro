@@ -53,13 +53,15 @@ declare const __BUILD_DATE__: string;
       .nav-link { color:var(--brown); font-size:13px; font-weight:700; text-decoration:none; }
       .shell { padding:28px 0 64px; }
       h1 { margin:0 0 6px; font-size:clamp(24px,3vw,30px); line-height:1.15; letter-spacing:-.025em; }
-      h2 { margin:0 0 14px; font-size:17px; line-height:1.25; letter-spacing:-.01em; }
+      h2 { margin:0 0 14px; font-size:19px; font-weight:800; line-height:1.25; letter-spacing:-.015em; }
       h3 { margin:0; font-size:17px; line-height:1.3; letter-spacing:-.01em; }
       p { margin-top:0; }
       .muted { color:var(--muted); }
       .grid { display:grid; gap:20px; }
       .grid-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:var(--shadow); }
+      .card { background:var(--surface); border:1px solid transparent; border-radius:14px; padding:18px; box-shadow:var(--shadow); }
+      :root[data-theme="dark"] .card { border-color:var(--line); }
+      @media(prefers-color-scheme:dark) { :root:not([data-theme="light"]) .card { border-color:var(--line); } }
       .list { display:grid; gap:10px; }
       .row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 0; border-top:1px solid var(--line); }
       .row:first-child { border-top:0; padding-top:0; }
@@ -99,6 +101,9 @@ declare const __BUILD_DATE__: string;
       .pipeline a .count { background:var(--surface-soft); color:var(--brown); border-radius:999px; padding:1px 8px; font-size:12px; }
       .pipeline a.active { background:var(--brown); color:var(--on-accent); border-color:var(--brown); box-shadow:inset 0 0 0 1px var(--brown); }
       .pipeline a.active .count { background:color-mix(in srgb,var(--on-accent) 16%,transparent); color:var(--on-accent); }
+      .pipeline a.secondary-filter { min-height:auto; border-color:transparent; background:transparent; padding:6px 10px; font-size:12px; font-weight:600; color:var(--muted); }
+      .pipeline a.secondary-filter .count { background:transparent; padding:1px 4px; }
+      .pipeline a.secondary-filter:hover { background:var(--surface-soft); color:var(--ink); }
       .button,button { appearance:none; border:0; border-radius:9px; background:var(--brown); color:var(--on-accent); min-height:44px; padding:10px 14px; font:inherit; font-weight:750; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; transition:background-color 160ms ease,box-shadow 160ms ease,transform 160ms ease,opacity 160ms ease; }
       .button:hover,button:hover { box-shadow:0 3px 10px rgb(87 57 46 / 16%); }
       .button:active,button:active { transform:translateY(1px) scale(.99); }
@@ -166,6 +171,7 @@ declare const __BUILD_DATE__: string;
         <a class="brand" href="/admin">Casa Gaviota CRM</a>
         <span class="actions" style="gap:14px">
           <a href="/admin/calendar" class="nav-link">Calendar</a>
+          <a href="/admin/insights" class="nav-link">Insights</a>
           <a href="/admin/api/export" class="nav-link">Export CSV</a>
           <button type="button" class="secondary theme-toggle" id="admin-theme-toggle" aria-label="Use dark mode" title="Toggle dark mode">◐</button>
           {userEmail && <span class="user">{userEmail}</span>}
