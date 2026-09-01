@@ -28,7 +28,7 @@ interface LeadRow {
   paid_cents: number;
 }
 interface SyncLogRow {
-  synced_at: string; processed: number; inserted: number; updated: number; skipped: number; error: string | null;
+  synced_at: string; processed: number; inserted: number; updated: number; skipped: number; error: string | null; duration_ms: number;
 }
 interface DrinksOrderRow {
   id: number; booking_id: string | null; guest_name: string; items: string; total: number; status: string; created_at: string;
@@ -119,7 +119,7 @@ if (!db) {
       ) SELECT COALESCE(SUM(MAX(total_cents - paid_cents, 0)), 0) AS outstanding FROM booking_totals`).first<{ outstanding: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from BETWEEN date('now') AND date('now', '+7 days') AND status != 'cancelled'`).first<{ count: number }>(),
       db.prepare(`SELECT COUNT(*) AS count FROM bookings WHERE date_from <= date('now') AND date_to >= date('now') AND status IN ('in_house','checked_in')`).first<{ count: number }>(),
-      db.prepare(`SELECT synced_at, processed, inserted, updated, skipped, error FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<SyncLogRow>(),
+      db.prepare(`SELECT synced_at, processed, inserted, updated, skipped, error, duration_ms FROM sync_log ORDER BY synced_at DESC LIMIT 1`).first<SyncLogRow>(),
     ]);
     bookings = bookingResult.results;
     completedBookings = completedBookingResult.results;
@@ -138,8 +138,13 @@ if (!db) {
     // the old row orphaned, still showing as an active booking. Anything
     // HostHub-sourced that wasn't touched by the most recent sync run is
     // worth a human look (not auto-cancelled — that's a business call).
+    // sync_log.synced_at is logged *after* the whole run finishes, while
+    // each booking's own updated_at is stamped as it's processed mid-loop —
+    // comparing against synced_at directly would flag everything touched
+    // before the run's final moment. Use the run's start time instead.
     if (lastSync) {
-      staleHostHubBookings = bookings.filter((b) => b.source === 'hosthub_ical' && b.updated_at < lastSync!.synced_at);
+      const syncStartedAt = new Date(new Date(lastSync.synced_at).getTime() - lastSync.duration_ms).toISOString();
+      staleHostHubBookings = bookings.filter((b) => b.source === 'hosthub_ical' && b.updated_at < syncStartedAt);
     }
   } catch (cause) {
     console.error('[admin] failed to load CRM', cause);
