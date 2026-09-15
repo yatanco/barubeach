@@ -1,5 +1,6 @@
 import type { APIContext } from 'astro';
 import type { BlockedRange } from '../../lib/availability';
+import { getRuntimeEnv } from '../../lib/db';
 
 export const prerender = false;
 
@@ -24,22 +25,6 @@ interface CalendarEvent {
 // layer for when the CACHE binding is actually wired up; until then this is
 // what actually avoids hitting HostHub on every request within a warm isolate.
 let memCache: { payload: AvailabilityPayload; time: number } | null = null;
-
-interface KVNamespace {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-}
-
-interface Env {
-  CACHE?: KVNamespace;
-  HOSTHUB_API_KEY?: string;
-  HOSTHUB_RENTAL_ID?: string;
-  HOSTHUB_BASE_URL?: string;
-}
-
-function getCFEnv(locals: APIContext['locals']): Env {
-  return (locals as any).runtime?.env ?? {};
-}
 
 function corsHeaders(origin: string) {
   const allowed = ['https://casagaviota.com', 'http://localhost:4321', 'http://localhost:3000'];
@@ -67,7 +52,7 @@ export async function GET({ locals, request }: APIContext) {
     });
   }
 
-  const cfEnv = getCFEnv(locals);
+  const cfEnv = getRuntimeEnv(locals);
   const kv = cfEnv.CACHE;
   const apiKey = cfEnv.HOSTHUB_API_KEY ?? import.meta.env.HOSTHUB_API_KEY;
   const rentalId = cfEnv.HOSTHUB_RENTAL_ID ?? import.meta.env.HOSTHUB_RENTAL_ID;

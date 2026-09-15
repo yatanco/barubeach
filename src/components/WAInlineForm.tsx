@@ -4,6 +4,7 @@ import { publicAnalyticsContext, trackGA4Event } from '../lib/analytics';
 import { trackMetaEvent } from '../lib/metaPixel';
 import { waLink } from '../lib/whatsapp';
 import { daytripEstimate } from '../lib/pricing';
+import { OCCASION_VALUES, OCCASION_LABELS } from '../lib/occasions';
 import WhatsAppIcon from './icons/WhatsAppIcon';
 
 type ExperienceType = 'daytrip' | 'stay';
@@ -13,8 +14,6 @@ interface Props {
   lang?: 'en' | 'es';
   defaultType?: ExperienceType;
 }
-
-const OCCASION_VALUES = ['family_vacation', 'birthday', 'anniversary', 'friends', 'work_retreat', 'relaxation', 'wedding', 'other'] as const;
 
 const T = {
   en: {
@@ -33,11 +32,7 @@ const T = {
     occasionLabel: 'What are you celebrating?',
     occasionOptional: '(optional)',
     occasionPlaceholder: 'Select one…',
-    occasionOptions: {
-      family_vacation: 'Family vacation', birthday: 'Birthday', anniversary: 'Anniversary',
-      friends: 'Trip with friends', work_retreat: 'Team / work retreat', relaxation: 'Just relaxing',
-      wedding: 'Wedding', other: 'Other',
-    },
+    occasionOptions: OCCASION_LABELS.en,
     phoneLabel: 'Your WhatsApp number',
     phonePh: '+57 300 000 0000',
     emailLabel: 'Your email',
@@ -83,11 +78,7 @@ const T = {
     occasionLabel: '¿Qué están celebrando?',
     occasionOptional: '(opcional)',
     occasionPlaceholder: 'Selecciona uno…',
-    occasionOptions: {
-      family_vacation: 'Vacaciones familiares', birthday: 'Cumpleaños', anniversary: 'Aniversario',
-      friends: 'Viaje con amigos', work_retreat: 'Retiro de trabajo / equipo', relaxation: 'Solo relajarnos',
-      wedding: 'Boda', other: 'Otro',
-    },
+    occasionOptions: OCCASION_LABELS.es,
     phoneLabel: 'Tu número de WhatsApp',
     phonePh: '+57 300 000 0000',
     emailLabel: 'Tu email',

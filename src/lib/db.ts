@@ -1,4 +1,5 @@
 import type { APIContext, APIRoute } from 'astro';
+import type { Runtime } from '@astrojs/cloudflare';
 
 export interface D1Result<T = Record<string, unknown>> {
   success: boolean;
@@ -52,7 +53,7 @@ export function boldPaymentLink(env: RuntimeEnv): string {
 }
 
 export function getRuntimeEnv(locals: APIContext['locals']): RuntimeEnv {
-  return (locals as any).runtime?.env ?? {};
+  return (locals as Runtime<RuntimeEnv>).runtime?.env ?? {};
 }
 
 export function getDb(locals: APIContext['locals']): D1Database | null {
