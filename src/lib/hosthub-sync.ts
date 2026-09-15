@@ -1,5 +1,5 @@
 import type { D1Database } from './db';
-import { nowIso } from './db';
+import { nowIso } from './db.ts';
 
 export interface SyncResult {
   processed: number;
@@ -166,6 +166,21 @@ function deriveStatus(checkIn: string, checkOut: string, today: string): 'comple
   return 'confirmed';
 }
 
+// HostHub only knows dates — it has no concept of deposits, upsells, or in-house
+// state. On a *new* booking, deriveStatus's confirmed/checked_in/completed ladder is
+// exactly right. But on a *re-sync* of an already-tracked booking, blindly overwriting
+// status with deriveStatus() would silently reset any operator-progressed status
+// (deposit_paid, upsell_pending, in_house, balance_requested, ...) back down to
+// 'confirmed' on every sync run. Preserve manual progress; only auto-advance to
+// 'completed' once the stay is actually over, and never resurrect a cancelled/lost booking.
+export function nextStatusOnResync(currentStatus: string, checkIn: string, checkOut: string, today: string): string {
+  if (currentStatus === 'cancelled' || currentStatus === 'lost') return currentStatus;
+  if (currentStatus !== 'confirmed') {
+    return checkOut < today ? 'completed' : currentStatus;
+  }
+  return deriveStatus(checkIn, checkOut, today);
+}
+
 async function logSync(db: D1Database, result: SyncResult, durationMs: number): Promise<void> {
   await db.prepare(`INSERT INTO sync_log (synced_at, source, processed, inserted, updated, skipped, error, duration_ms)
     VALUES (?1, 'hosthub_ical', ?2, ?3, ?4, ?5, ?6, ?7)`)
@@ -225,8 +240,8 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
         const hosthubNotes = description ? unescapeIcalText(description) : null;
         const isBlocked = BLOCKED_SUMMARY.test(summary.trim());
 
-        const existing = await env.DB.prepare('SELECT id FROM bookings WHERE reservation_id = ?1')
-          .bind(uid).first<{ id: string }>();
+        const existing = await env.DB.prepare('SELECT id, status FROM bookings WHERE reservation_id = ?1')
+          .bind(uid).first<{ id: string; status: string }>();
 
         // Scope: skip reservations that ended more than 30 days ago unless already tracked.
         if (checkOut < cutoff && !existing) {
@@ -251,7 +266,6 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
         // more reliable than guessing from iCal SUMMARY text — prefer it when present.
         const channel = guestData?.channel || parsedChannel;
         const nights = nightsBetween(checkIn, checkOut);
-        const status = deriveStatus(checkIn, checkOut, today);
         const now = nowIso();
 
         if (existing) {
@@ -259,7 +273,9 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
           // booking fields (guest_intent, notes, etc.) are left untouched on re-sync. Guest
           // counts are the exception: only overwritten when the JSON lookup actually found a
           // match, so a manual correction isn't clobbered back to a stale value on a sync
-          // where the match happens to fail (e.g. the JSON fetch itself failed).
+          // where the match happens to fail (e.g. the JSON fetch itself failed). Status uses
+          // nextStatusOnResync so an operator-progressed status is never clobbered back down.
+          const status = nextStatusOnResync(existing.status, checkIn, checkOut, today);
           if (guestData) {
             await env.DB.prepare(`UPDATE bookings SET guest_name = ?1, date_from = ?2, date_to = ?3, nights = ?4,
               hosthub_notes = ?5, status = ?6, channel = ?7, adults = ?8, children = ?9, updated_at = ?10 WHERE id = ?11`)
@@ -275,6 +291,7 @@ export async function syncHostHub(env: HostHubSyncEnv): Promise<SyncResult> {
         } else {
           const adults = guestData?.adults ?? 1;
           const children = guestData?.children ?? 0;
+          const status = deriveStatus(checkIn, checkOut, today);
           await env.DB.prepare(`INSERT INTO bookings (
               id, created_at, updated_at, reservation_id, guest_name, date_from, date_to, nights,
               adults, children, status, channel, source, hosthub_notes

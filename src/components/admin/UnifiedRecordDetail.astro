@@ -188,8 +188,17 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
           )
         )}
       </div>
-      <a id="wa-btn" class="button whatsapp" href={phone ? waLinkTo(phone) : '#'} target="_blank" rel="noopener" style={phone ? '' : 'display:none'}>💬 WhatsApp</a>
+      <div class="header-actions">
+        <a id="wa-btn" class="button whatsapp" href={phone ? waLinkTo(phone) : '#'} target="_blank" rel="noopener" style={phone ? '' : 'display:none'}>💬 WhatsApp</a>
+        {!isBooking && record.email && (
+          <a class="button email" href={`mailto:${record.email}?subject=${encodeURIComponent('Casa Gaviota')}`}>✉️ Email</a>
+        )}
+      </div>
     </div>
+
+    {!isBooking && record.email && (
+      <p class="muted dates-line email-line">✉️ {record.email}{!phone && <> · no WhatsApp number given, reply by email</>}</p>
+    )}
 
     {record.date_from && record.date_to && (
       availability.hardConflicts.length > 0 ? (
@@ -822,6 +831,9 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
   .urd { max-width:1040px; margin-inline:auto; }
   .record-overview { padding:4px 2px 2px; }
   .header-top { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:14px; }
+  .header-actions { display:flex; gap:8px; flex-shrink:0; }
+  .button.email { background:var(--surface-soft); border:1px solid var(--line); color:var(--brown); }
+  .email-line { color:var(--brown); }
   .record-title { min-width:0; }
   .record-kicker { gap:5px; margin-bottom:7px; }
   .header-top h1 { margin:0; font-size:clamp(27px,4vw,36px); }
@@ -975,7 +987,8 @@ const isTerminal = ['completed', 'lost', 'cancelled'].includes(currentStatus);
     .record-overview { padding-top:0; }
     .header-top { align-items:flex-start; }
     .header-top .button { flex:0 0 44px; width:44px; padding:0; overflow:hidden; font-size:0; }
-    .header-top .button::before { content:'💬'; font-size:17px; }
+    .header-top .button.whatsapp::before { content:'💬'; font-size:17px; }
+    .header-top .button.email::before { content:'✉️'; font-size:17px; }
     .dates-line { font-size:13px; }
     #status-pills { flex-wrap:nowrap; overflow-x:auto; margin-inline:-14px; padding:2px 14px 8px; scrollbar-width:none; }
     #status-pills::-webkit-scrollbar { display:none; }
