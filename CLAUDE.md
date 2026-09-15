@@ -27,6 +27,7 @@ Copy `.env.example` to `.env`. Nothing is required for local dev of the marketin
 - `HOSTHUB_ICAL_URL` — HostHub iCal feed URL used by the `/admin` booking sync (see **Admin CRM** below). Without it, `syncHostHub()` returns an error result and logs it to `sync_log` instead of throwing.
 - `LEADS_WEBHOOK_URL` — legacy Google Sheets mirror for `/api/capture-lead`. D1 is the primary store; this is a fallback that can be retired once it's no longer needed.
 - `BOLD_PAYMENT_LINK` — evergreen checkout URL inserted into copied deposit/balance messages. The application has a fallback, but production should configure the intended link explicitly.
+- `META_CAPI_ACCESS_TOKEN` — Meta Conversions API token; `sendCapiLead()` (`src/lib/metaCapi.ts`) forwards each Lead event server-side from `/api/capture-lead`, sharing the same `event_id` as the browser pixel's `fbq()` call so Meta dedupes rather than double-counts. Without it, this step silently no-ops.
 - `DB` — the D1 binding used by `/admin` (see **Admin CRM** below). Bound via `wrangler.toml`, not `.env`.
 
 There is no Web3Forms (or any other) key to configure — that integration was removed; forms capture straight to D1/WhatsApp.
@@ -35,7 +36,7 @@ There is no Web3Forms (or any other) key to configure — that integration was r
 
 **Pages** (`src/pages/`) are pure Astro — no server-side rendering logic on the marketing pages themselves (the `/admin` CRM pages are the exception; see below). `Layout.astro` mounts a global `WhatsAppPopup` (see **Lead capture** below) unless the page passes `hideBookingWidgets`.
 
-**Lead capture** — two surfaces, all writing through `captureLead()` (`src/lib/leads.ts`) to `/api/capture-lead`, which stores to D1 and optionally mirrors to `LEADS_WEBHOOK_URL`:
+**Lead capture** — two surfaces, all writing through `captureLead()` (`src/lib/leads.ts`) to `/api/capture-lead`, which stores to D1, optionally mirrors to `LEADS_WEBHOOK_URL`, and forwards a Meta Conversions API `Lead` event via `sendCapiLead()` (`src/lib/metaCapi.ts`) alongside the browser pixel's `fbq('track', 'Lead', ...)` call — both share a client-generated `eventId` so Meta dedupes them instead of double-counting:
 - `WhatsAppPopup.tsx` — the global floating popup mounted by `Layout.astro` on every page (unless `hideBookingWidgets`). Opens on a floating button, an exit-intent, a 40-second timer, or a `window.dispatchEvent(new CustomEvent('open-wa-popup', {detail}))` call from any page — `detail.type` sets day-trip/stay, `detail.cart` (see `PricingCart.tsx` below) prefills the extras summary.
 - `WAInlineForm.tsx` — embedded day-trip/stay inquiry form, used inline on `/daytrip` and `/es/pasadia`.
 
@@ -44,6 +45,8 @@ Both forms collect adults, optional children (+ optional free-text ages), an opt
 Both build a `wa.me` link via `waLink()` (`src/lib/whatsapp.ts`, which also exports `WHATSAPP_NUMBER`) and render the WhatsApp glyph via the shared `WhatsAppIcon` component (`src/components/icons/WhatsAppIcon.astro` for `.astro` files, `WhatsAppIcon.tsx` for React) — reuse these rather than re-inlining the SVG path or the phone number.
 
 `InquiryForm.tsx`, `DayTripForm.tsx`, `BookingForm.tsx`, `WhatsAppButton.astro`, and `EscapePlanner.tsx` (plus its orphaned `/plan`, `/es/plan` pages) have all been removed — superseded by the two components above and unused. There is no self-serve price calculator on the site; accommodation is never quoted with a static number (it varies by season) and is always confirmed on WhatsApp/email after checking dates.
+
+`Layout.astro`'s optional `metaViewContent` prop fires a Meta `ViewContent` event alongside `PageView` — set on `/`, `/es`, `/daytrip`, `/es/pasadia` to give Advantage+ audience-finding and lookalikes a stronger signal than `PageView` alone.
 
 **Pricing model** — food ($50 USD/person/day) and transport ($250 USD private boat / $200 USD car+boat, each way) are flat, season-stable rates and are the only prices that may appear publicly anywhere on the site. Accommodation and day-trip pricing are both bespoke — quoted per group/dates, never shown as a static number or blended into a total on the marketing pages. `PricingCart.tsx` is the homepage's "Build your stay" extras selector (food + transport only, live-summed as an "Extras estimate") — its CTA dispatches `open-wa-popup` with a `cart` detail that `WhatsAppPopup.tsx` folds into the WhatsApp message and lead `notes`; it never computes or displays an accommodation figure.
 

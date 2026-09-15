@@ -13,6 +13,7 @@ export interface Props {
   jsonLd?: Record<string, unknown>;
   hideBookingWidgets?: boolean;
   heroImage?: string;
+  metaViewContent?: { content_name: string; content_category?: string };
 }
 
 const {
@@ -26,6 +27,7 @@ const {
   jsonLd,
   hideBookingWidgets = false,
   heroImage,
+  metaViewContent,
 } = Astro.props;
 
 const canonicalURL = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
@@ -94,7 +96,7 @@ const metaPixelId = import.meta.env.PUBLIC_META_PIXEL_ID ?? '1039533654806987';
     </script>
 
     <!-- Meta Pixel -->
-    <script is:inline define:vars={{ metaPixelId }}>
+    <script is:inline define:vars={{ metaPixelId, viewContent: metaViewContent ?? null }}>
       !function(f,b,e,v,n,t,s)
       {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
       n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -105,6 +107,7 @@ const metaPixelId = import.meta.env.PUBLIC_META_PIXEL_ID ?? '1039533654806987';
       'https://connect.facebook.net/en_US/fbevents.js');
       fbq('init', metaPixelId);
       fbq('track', 'PageView');
+      if (viewContent) { fbq('track', 'ViewContent', viewContent); }
     </script>
   </head>
   <body class="bg-background text-ink font-sans antialiased">

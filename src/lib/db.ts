@@ -23,7 +23,7 @@ interface KVNamespace {
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
 }
 
-interface RuntimeEnv {
+export interface RuntimeEnv {
   DB?: D1Database;
   CACHE?: KVNamespace;
   LEADS_WEBHOOK_URL?: string;
@@ -38,6 +38,9 @@ interface RuntimeEnv {
   ANTHROPIC_API_KEY?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
+  TELEGRAM_BOT_TOKEN?: string;
+  TELEGRAM_CHAT_ID?: string;
+  META_CAPI_ACCESS_TOKEN?: string;
 }
 
 // Evergreen Bold checkout link (lets the guest enter their own amount) — falls back to

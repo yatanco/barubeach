@@ -169,7 +169,9 @@ export default function WAInlineForm({ lang = 'en', defaultType = 'stay' }: Prop
     setSubmitting(true);
     setSubmitError('');
     const whatsappWindow = contactMethod === 'whatsapp' ? window.open('', '_blank') : null;
+    const leadEventId = crypto.randomUUID();
     const captured = await captureLead({
+      eventId: leadEventId,
       source: type === 'daytrip' ? 'daytrip_form' : 'home_form',
       language: lang,
       type,
@@ -200,7 +202,7 @@ export default function WAInlineForm({ lang = 'en', defaultType = 'stay' }: Prop
       form_name: 'availability_enquiry',
       ...analyticsContext,
     });
-    trackMetaEvent('Lead');
+    trackMetaEvent('Lead', {}, false, leadEventId);
 
     if (contactMethod === 'email') {
       setSubmitting(false);

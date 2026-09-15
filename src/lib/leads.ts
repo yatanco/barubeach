@@ -16,6 +16,9 @@ export interface LeadData {
   notes?: string;
   estimatedPrice?: string;
   pageUrl: string;
+  // Shared with the client-side fbq() Lead call so Meta's Conversions API (server-side)
+  // and the browser pixel event dedupe into a single conversion instead of double-counting.
+  eventId?: string;
 }
 
 export async function captureLead(

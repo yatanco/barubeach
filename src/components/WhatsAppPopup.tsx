@@ -335,7 +335,9 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
     const whatsappWindow = contactMethod === 'whatsapp' ? window.open('', '_blank') : null;
     const cartNotes = cartNotesSummary();
     const combinedNotes = [cartNotes, notes.trim()].filter(Boolean).join(' ') || undefined;
+    const leadEventId = crypto.randomUUID();
     const captured = await captureLead({
+      eventId: leadEventId,
       source: 'popup',
       language: lang,
       type,
@@ -369,7 +371,7 @@ export default function WhatsAppPopup({ lang = 'en', defaultType = 'daytrip' }: 
       form_name: 'availability_enquiry',
       ...analyticsContext,
     });
-    trackMetaEvent('Lead');
+    trackMetaEvent('Lead', {}, false, leadEventId);
     trackMetaEvent('Contact', {
       content_name: contactMethod === 'whatsapp' ? 'WhatsApp Inquiry' : 'Email Inquiry',
       source: 'popup',

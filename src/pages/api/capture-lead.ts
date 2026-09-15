@@ -1,11 +1,19 @@
 import type { APIRoute } from 'astro';
 import { getDb, getRuntimeEnv, nowIso } from '../../lib/db';
 import { GUEST_INTENT_VALUES, findLeadIdByPhone } from '../../lib/crm';
+import { notifyNewLead } from '../../lib/notify';
+import { sendCapiLead } from '../../lib/metaCapi';
 
 export const prerender = false;
 
 const text = (value: unknown, max = 2000): string | null =>
   typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null;
+
+function readCookie(request: Request, name: string): string | undefined {
+  const header = request.headers.get('cookie') ?? '';
+  const match = header.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
 
 const integer = (value: unknown, fallback = 0): number => {
   const parsed = Number(value);
@@ -104,12 +112,34 @@ export const POST: APIRoute = async ({ request, locals }) => {
           guestIntent,
           JSON.stringify(data).slice(0, 20000),
         ).run();
+
+        await notifyNewLead(runtime, {
+          id,
+          name: text(data.name, 200),
+          phone: text(data.whatsapp, 100),
+          email: text(data.email, 320),
+          dateFrom: text(data.date, 30),
+          dateTo: text(data.checkOut, 30),
+          source,
+        });
       }
       storedInD1 = true;
     } catch (error) {
       console.error('[capture-lead] D1 insert failed', error);
     }
   }
+
+  const eventId = text(data.eventId, 100) ?? id;
+  await sendCapiLead(runtime, {
+    eventId,
+    eventSourceUrl: text(data.pageUrl, 1000) ?? request.url,
+    email: text(data.email, 320),
+    phone: text(data.whatsapp, 100),
+    clientIp: request.headers.get('cf-connecting-ip'),
+    userAgent: request.headers.get('user-agent'),
+    fbp: readCookie(request, '_fbp'),
+    fbc: readCookie(request, '_fbc'),
+  });
 
   // Keep the existing sheet as a migration fallback until it is deliberately removed.
   if (webhookUrl) {
