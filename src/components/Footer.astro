@@ -25,7 +25,7 @@ const isES = lang === 'es';
             : 'Private beach house with 80 meters of beachfront in Barú, Colombia.'}
         </p>
         <div class="flex items-center gap-4">
-          <a href={waLink('gaviotafooter')} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" class="text-white/40 hover:text-whatsapp transition-colors">
+          <a data-wa-footer href={waLink('gaviotafooter')} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" class="text-white/40 hover:text-whatsapp transition-colors">
             <WhatsAppIcon class="w-5 h-5" />
           </a>
           <a href="https://instagram.com/casagaviotabaru" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="text-white/40 hover:text-white transition-colors">
@@ -65,7 +65,7 @@ const isES = lang === 'es';
           {isES ? 'Contacto' : 'Connect'}
         </h3>
         <ul class="space-y-3 text-sm">
-          <li><a href={waLink('gaviotafooter')} target="_blank" rel="noopener noreferrer" class="text-white/50 hover:text-white transition-colors">WhatsApp</a></li>
+          <li><a data-wa-footer href={waLink('gaviotafooter')} target="_blank" rel="noopener noreferrer" class="text-white/50 hover:text-white transition-colors">WhatsApp</a></li>
           <li><a href="https://instagram.com/casagaviotabaru" target="_blank" rel="noopener noreferrer" class="text-white/50 hover:text-white transition-colors">Instagram</a></li>
           <li><a href="https://www.facebook.com/profile.php?id=61573962434125" target="_blank" rel="noopener noreferrer" class="text-white/50 hover:text-white transition-colors">Facebook</a></li>
           <li><a href="https://share.google/SHahHFkk8vXJIW7hH" target="_blank" rel="noopener noreferrer" class="text-white/50 hover:text-white transition-colors">Google Maps</a></li>
@@ -84,3 +84,17 @@ const isES = lang === 'es';
     </div>
   </div>
 </footer>
+
+<script>
+  // Open the WhatsApp inquiry popup instead of navigating directly, so the lead
+  // gets captured — but only where the popup is actually mounted (it's suppressed
+  // via hideBookingWidgets on ordering-flow pages like /menu and /drinks). Falls
+  // through to the plain wa.me link there.
+  document.querySelectorAll<HTMLAnchorElement>('a[data-wa-footer]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      if (!document.querySelector('[aria-label="Contact via WhatsApp"]')) return;
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent('open-wa-popup', { detail: { intentional: true } }));
+    });
+  });
+</script>
