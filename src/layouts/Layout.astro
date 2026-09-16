@@ -87,12 +87,13 @@ const metaPixelId = import.meta.env.PUBLIC_META_PIXEL_ID ?? '1039533654806987';
       />
     </noscript>
 
+    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-YCRQRM6R43"></script>
-    <script>
+    <script is:inline>
       window.dataLayer = window.dataLayer || [];
-      window.gtag = (...args) => window.dataLayer?.push(args);
-      window.gtag('js', new Date());
-      window.gtag('config', 'G-YCRQRM6R43');
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-YCRQRM6R43');
     </script>
 
     <!-- Meta Pixel -->
